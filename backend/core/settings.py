@@ -40,7 +40,7 @@ INSTALLED_APPS = [
     #Third-party apps
 
     'corsheaders',
-    'djangorestframework',
+    'rest_framework',
 
     #Our apps
 
