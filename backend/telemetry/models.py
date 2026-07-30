@@ -11,10 +11,11 @@ class Farm(models.Model):
 
 class FarmLevel(models.Model):
     farm = models.ForeignKey(Farm, on_delete=models.CASCADE)
+    plantBatch = models.ForeignKey('plantBatch', on_delete=models.CASCADE)
+    sensor = models.ForeignKey('sensor', on_delete=models.CASCADE)
     level_number = models.PositiveIntegerField()
 
-class plantBatch(models.Model):
-    farm = models.ForeignKey(Farm, on_delete=models.CASCADE)
+class PlantBatch(models.Model):
     plant_type = models.CharField(max_length=100)
     planting_date = models.DateField()
     growth_stage = models.CharField(max_length=100)
@@ -23,7 +24,7 @@ class plantBatch(models.Model):
     def __str__(self):
         return f"{self.farm.name} - Level {self.level}"
 
-class camera(models.Model):
+class Camera(models.Model):
     farm = models.ForeignKey(FarmLevel, on_delete=models.CASCADE)
     camera_id = models.CharField(max_length=100)
 
@@ -31,10 +32,25 @@ class camera(models.Model):
         return f"{self.farmLevel.farm.name} - Camera {self.camera_id}"
 
 class cameraImage(models.Model):
-    camera = models.ForeignKey(camera, on_delete=models.CASCADE)
+    camera = models.ForeignKey(Camera, on_delete=models.CASCADE)
     timestamp = models.DateTimeField(auto_now_add=True)
-    image = models.ImageField(upload_to='camera_images/')
+    # May need to install Pillow package for ImageField
+    # image = models.ImageField(upload_to='camera_images/')
 
     def __str__(self):
         return f"{self.camera.farmLevel.farm.name} - Camera {self.camera.camera_id} - {self.timestamp}"
 
+class Sensor(models.Model):
+    sensor_type = models.CharField(max_length=100)
+    unit = models.CharField(max_length=50)
+
+    def __str__(self):
+        return f"{self.sensor_type} ({self.unit})"
+
+class SensorReading(models.Model):
+    sensor = models.ForeignKey(Sensor, on_delete=models.CASCADE)
+    timestamp= models.DateTimeField(auto_now_add=True)
+    value = models.FloatField()
+
+    def __str__(self):
+        return f"{self.sensor.sensor_type} - {self.value} {self.sensor.unit} at {self.timestamp}"
