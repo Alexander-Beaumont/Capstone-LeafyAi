@@ -21,7 +21,7 @@ class Action(models.Model):
         return self.result
 
 class HumanApproval(models.Model):
-    AIDecision = models.OneToOneField(AIDecision, on_delete=models.CASCADE, primary_key=True)
+    ai_decision = models.OneToOneField(AIDecision, on_delete=models.CASCADE, primary_key=True)
     result = models.CharField(max_length=100)
     comments = models.TextField()
     reviewed_at = models.DateTimeField(auto_now_add=True)
@@ -30,7 +30,7 @@ class HumanApproval(models.Model):
         return f"Action {self.action.id} - Approved: {self.result}"
 
 class safetyCheck(models.Model):
-    AIDecision = models.OneToOneField(AIDecision, on_delete=models.CASCADE, primary_key=True)
+    ai_decision = models.OneToOneField(AIDecision, on_delete=models.CASCADE, primary_key=True)
     checked_at = models.DateTimeField(auto_now_add=True)
     result = models.CharField(max_length=100)
     explanation = models.TextField()
