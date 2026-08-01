@@ -11,8 +11,8 @@ class Farm(models.Model):
 
 class FarmLevel(models.Model):
     farm = models.ForeignKey(Farm, on_delete=models.CASCADE)
-    plantBatch = models.ForeignKey('plantBatch', on_delete=models.CASCADE)
-    sensor = models.ForeignKey('sensor', on_delete=models.CASCADE)
+    plantBatch = models.ForeignKey('PlantBatch', on_delete=models.CASCADE)
+    sensor = models.ForeignKey('Sensor', on_delete=models.CASCADE)
     level_number = models.PositiveIntegerField()
 
 class PlantBatch(models.Model):
@@ -22,14 +22,14 @@ class PlantBatch(models.Model):
     status = models.CharField(max_length=100)
 
     def __str__(self):
-        return f"{self.farm.name} - Level {self.level}"
+        return f" Plant type: {self.plant_type} \n planting_date: {self.planting_date} \n growth_stage: {self.growth_stage} \n status {self.status}"
 
 class Camera(models.Model):
     farm = models.ForeignKey(FarmLevel, on_delete=models.CASCADE)
     camera_id = models.CharField(max_length=100)
 
     def __str__(self):
-        return f"{self.farmLevel.farm.name} - Camera {self.camera_id}"
+        return f"{self.farm.name} - Camera {self.camera_id}"
 
 class cameraImage(models.Model):
     camera = models.ForeignKey(Camera, on_delete=models.CASCADE)

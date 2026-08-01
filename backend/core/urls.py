@@ -16,9 +16,22 @@ Including another URLconf
 """
 from django.urls import path, include
 from django.contrib import admin
+#from api_urls import *
+
+from telemetry.urls import router as telemetryrouter
+from ai_agent.urls import router as ai_agent_router 
+from rest_framework.routers import DefaultRouter 
+
+router = DefaultRouter()
+
+router.registry.extend(telemetryrouter.registry)
+router.registry.extend(ai_agent_router.registry)
+
 
 urlpatterns = [
-    path('api/telemetry/', include("telemetry.urls")),  # Include the telemetry app's URLs
+    path('api/', include(router.urls)),
     path('admin/', admin.site.urls),
+
+
     
 ]

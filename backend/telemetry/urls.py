@@ -12,8 +12,8 @@ router.register(r'camera-images', views.CameraImageViewSet)
 router.register(r'sensors', views.SensorViewSet)
 router.register(r'sensor-readings', views.SensorReadingViewSet)
 
-urlpatterns = [
-    path('', include(router.urls)),
-]
 
 
+#urlpatterns = [
+ #   path('', include(router.urls)),
+#]
