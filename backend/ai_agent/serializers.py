@@ -5,7 +5,7 @@ from ai_agent.models import *
 class AiDecisionSerializer(serializers.ModelSerializer):
     class Meta:
         model = ai_decision
-        fields = ['id', 'batch' 'decision_type', 'recommendation', 'explanation', 'confidence_score', 'created_at']
+        fields = ['id', 'plant_batch' 'decision_type', 'recommendation', 'explanation', 'confidence_score', 'created_at']
 
 class SafetyCheckSerializer(serializers.ModelSerializer):
     class Meta:

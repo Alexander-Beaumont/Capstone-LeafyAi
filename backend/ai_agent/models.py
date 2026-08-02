@@ -1,9 +1,9 @@
 from django.db import models
 from backend.telemetry.models import PlantBatch
 
-# Create your models here.
+# AI Decision anc Check
 class AIDecision(models.Model):
-    batch = models.ForeignKey(PlantBatch, on_delete=models.CASCADE)
+    plant_batch = models.ForeignKey(PlantBatch, on_delete=models.CASCADE)
     decision_type = models.CharField(max_length=100)
     recommendation = models.TextField()
     explanation = models.TextField()
