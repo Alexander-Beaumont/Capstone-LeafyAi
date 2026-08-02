@@ -31,7 +31,7 @@ class Camera(models.Model):
     def __str__(self):
         return f"{self.farm.name} - Camera {self.camera_id}"
 
-class cameraImage(models.Model):
+class CameraImage(models.Model):
     camera = models.ForeignKey(Camera, on_delete=models.CASCADE)
     timestamp = models.DateTimeField(auto_now_add=True)
     # May need to install Pillow package for ImageField
