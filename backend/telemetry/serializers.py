@@ -28,7 +28,7 @@ class CameraSerializer(serializers.ModelSerializer):
 
 class CameraImageSerializer(serializers.ModelSerializer):
     class Meta:
-        model = cameraImage
+        model = CameraImage
         fields = ['id', 'camera', 'timestamp']  # , 'image']  # Uncomment 'image' if using ImageField
 
 
