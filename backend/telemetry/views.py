@@ -21,7 +21,7 @@ class CameraViewSet(viewsets.ModelViewSet):
     serializer_class = CameraSerializer
 
 class CameraImageViewSet(viewsets.ModelViewSet):
-    queryset = cameraImage.objects.all()
+    queryset = CameraImage.objects.all()
     serializer_class = CameraImageSerializer
 
 class SensorViewSet(viewsets.ModelViewSet):

@@ -9,7 +9,7 @@ class AIDecisionViewSet(viewsets.ModelViewSet):
     serializer_class = AiDecisionSerializer
 
 class ActionViewSet(viewsets.ModelViewSet):
-    queryset = Action.objects.all()
+    queryset = FarmAction.objects.all()
     serializer_class = ActionSerializer
 
 class HumanApprovalViewSet(viewsets.ModelViewSet):
@@ -17,5 +17,5 @@ class HumanApprovalViewSet(viewsets.ModelViewSet):
     serializer_class = HumanApprovalSerializer
 
 class SafetyCheckViewSet(viewsets.ModelViewSet):
-    queryset = safetyCheck.objects.all()
+    queryset = SafetyCheck.objects.all()
     serializer_class = SafetyCheckSerializer
