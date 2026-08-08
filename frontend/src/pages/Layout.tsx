@@ -1,11 +1,15 @@
-import { Link, Outlet } from "react-router";
+import { Outlet } from "react-router";
 import Navbar from "../components/Navbar";
+import useSmallLayout from "../components/hooks/useSmallLayout";
 
 export default function Layout() {
+    const smallLayout = useSmallLayout()
+    const offset = smallLayout ? "mt-20" : "ml-50 mt-20"
+
     return (
         <div>
             <Navbar/>
-            <main>
+            <main className={`${offset}`}>
                 <Outlet/>
             </main>
         </div>
