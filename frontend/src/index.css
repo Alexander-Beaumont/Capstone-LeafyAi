@@ -8,7 +8,7 @@
   --color-panel1: hsl(0, 0%, 8%);
   --color-panel2: hsl(0, 0%, 10%);
   --color-panel3: hsl(0, 0%, 12%);
-  --color-progress-panel: hsl(0, 0%, 13%);
+  --color-progress-panel: hsl(0, 0%, 20%);
 
   --color-btn-text: oklch(26.9% 0 0);
   --color-btn: var(--color-emerald-500);
