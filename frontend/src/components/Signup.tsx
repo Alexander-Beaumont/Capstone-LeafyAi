@@ -5,6 +5,8 @@ import TextBox from "./primatives/Textbox";
 import { IoLogInOutline } from "react-icons/io5";
 import ModalMessageBox from "./primatives/ModalMessageBox";
 import Modal from "./primatives/Modal";
+import { useContext } from "react";
+import { userContext } from "../providers/UserProvider";
 
 interface Props{
     setHasAccount: (hasAccount: boolean) => void
@@ -12,6 +14,7 @@ interface Props{
 export default function Signup({setHasAccount}: Props) {
     const userData = useForm({email: "", password: "", confirmPassword: ""})
     const modalData = useForm({showModal: false, modalText: ""})
+    const user = useContext(userContext)
 
     function singUp(){
         const [emailVal, emailRes] = AuthUtil.validateEmail(userData.form.email)
@@ -24,9 +27,13 @@ export default function Signup({setHasAccount}: Props) {
         
     }
 
+    function skip(){
+        user.setLoggedIn(true)
+    }
+
     return (
         <>
-            <div className="bg-panel1 border border-border rounded-lg p-5 w-[80%] h-fit mt-20
+            <div className="bg-panel1 border border-border rounded-lg p-5 w-[80%] h-fit
                 flex flex-col items-center max-w-80 gap-7 py-7 pb-9"
             >
                 <p className="text-title font-semibold text-xl">
@@ -73,6 +80,13 @@ export default function Signup({setHasAccount}: Props) {
                         </p>
                     </div>
                 </div>
+                <Button
+                    name="Skip SignIn (Testing Purposes)"
+                    highlight={true}
+                    onSubmit={() => skip()}
+                    styles={{fullWidth: false}}
+                    icon={<IoLogInOutline />}
+                />
             </div>
             <Modal open={modalData.form.showModal} onClose={() => modalData.setForm("showModal", false)}>
                 <ModalMessageBox

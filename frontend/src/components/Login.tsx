@@ -26,7 +26,7 @@ export default function Login({setHasAccount}: Props) {
 
     return (
         <>
-            <div className="bg-panel1 border border-border rounded-xl p-5 w-[80%] h-fit mt-20
+            <div className="bg-panel1 border border-border rounded-xl p-5 w-[80%] h-fit
                 flex flex-col items-center max-w-80 gap-7 py-7 pb-9"
             >
                 <p className="text-title font-semibold text-xl">

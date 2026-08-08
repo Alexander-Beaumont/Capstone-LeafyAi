@@ -4,6 +4,11 @@ export namespace Util{
             setFunc(value)
         }
     }
+
+    export function capitilize(string: string){
+        if(!string) return ""
+        return [string.split("")[0].toUpperCase(), ...string.split("").slice(1)].join("")
+    }
 }
 
 

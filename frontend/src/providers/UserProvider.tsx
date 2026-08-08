@@ -1,4 +1,7 @@
-import React, { createContext, useState } from "react";
+import React, { createContext, useEffect, useState } from "react";
+import { useLocation, useNavigate } from "react-router";
+import { PAGES } from "../util/constants";
+
 
 
 interface loginReturnType {
@@ -48,10 +51,22 @@ export default function UserProvider(props: Props) {
     const [id, setId] = useState(initialUserValues.id);
     const [email, setEmail] = useState(initialUserValues.email);
     const [loading, setLoading] = useState(false)
-    const [timeAccesTokenCreated, setTimeAccesTokenCreated] = useState(
-        initialUserValues.timeAccesTokenCreated
-    );
+    const [timeAccesTokenCreated, setTimeAccesTokenCreated] = useState(initialUserValues.timeAccesTokenCreated);
+    
+    const location = useLocation()
+    const navigate = useNavigate()
+    
     const AccesTokenRefreshTime = 10 * 60 * 1000;
+
+    useEffect(() => {
+        if(Object.values(PAGES.noAuthPages).includes(location.pathname) && loggedIn){
+            navigate("/farm-overview")
+        }
+        if(Object.values(PAGES.authPages).includes(location.pathname) && !loggedIn){
+            navigate("/auth")
+        }
+
+    }, [loggedIn])
 
     async function login(refreshToken: string) {
         if (timeAccesTokenCreated != null) {
