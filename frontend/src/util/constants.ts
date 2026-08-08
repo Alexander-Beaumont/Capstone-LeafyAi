@@ -1,9 +1,3 @@
-import { PiFarm } from "react-icons/pi";
-import { PiPlant } from "react-icons/pi";
-import { VscRobot } from "react-icons/vsc";
-import { TbGrowth } from "react-icons/tb";
-import { RiFolderHistoryLine } from "react-icons/ri";
-
 export const SMALL_WINDOW_WIDTH = 600
 
 export const PAGES = {
