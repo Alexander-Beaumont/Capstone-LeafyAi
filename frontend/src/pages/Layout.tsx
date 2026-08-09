@@ -4,7 +4,7 @@ import useSmallLayout from "../components/hooks/useSmallLayout";
 
 export default function Layout() {
     const smallLayout = useSmallLayout()
-    const offset = smallLayout ? "mt-20" : "ml-50 mt-5"
+    const offset = smallLayout ? "mt-15" : "ml-50 mt-5"
 
     return (
         <div>

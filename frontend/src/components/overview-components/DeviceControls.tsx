@@ -1,23 +1,31 @@
+import useForm from "../hooks/useFrom"
+import IconTitle from "../primatives/IconTitle"
 import Panel from "../primatives/Panel"
 import Switch from "../primatives/Switch"
-import { useState } from "react"
+import { GoGear } from "react-icons/go";
 
 export default function DeviceControls() {
-    const [ticked, setTicked] = useState(false)
+    const {form, setForm} = useForm({
+        pump: false,
+        lights: false,
+        fans: false,
+        doser: false
+    })
 
     return (
         <Panel styles="p-3 px-4 flex flex-col gap-5">
-            <p className="text-md font-semibold text-title">
-                Device Control
-            </p>
+            <IconTitle
+                title="Device Control"
+                icon={<GoGear />}
+            />
             <div className="flex flex-col gap-3">
                 <div className="flex items-center justify-between bg-panel2 p-2 border border-border rounded-lg px-3">
                     <p className="text-subtext1">
                         Pump
                     </p>
                     <Switch
-                        ticked={ticked}
-                        setTicked={setTicked}
+                        ticked={form.pump}
+                        setTicked={() => setForm("pump", !form.pump)}
                     />
                 </div>
                 <div className="flex items-center justify-between bg-panel2 p-2 border border-border rounded-lg px-3">
@@ -25,8 +33,8 @@ export default function DeviceControls() {
                         Lights
                     </p>
                     <Switch
-                        ticked={ticked}
-                        setTicked={setTicked}
+                        ticked={form.lights}
+                        setTicked={() => setForm("lights", !form.lights)}
                     />
                 </div>
                 <div className="flex items-center justify-between bg-panel2 p-2 border border-border rounded-lg px-3">
@@ -34,8 +42,8 @@ export default function DeviceControls() {
                         Fans
                     </p>
                     <Switch
-                        ticked={ticked}
-                        setTicked={setTicked}
+                        ticked={form.fans}
+                        setTicked={() => setForm("fans", !form.fans)}
                     />
                 </div>
                 <div className="flex items-center justify-between bg-panel2 p-2 border border-border rounded-lg px-3">
@@ -43,8 +51,8 @@ export default function DeviceControls() {
                         Doser
                     </p>
                     <Switch
-                        ticked={ticked}
-                        setTicked={setTicked}
+                        ticked={form.doser}
+                        setTicked={() => setForm("doser", !form.doser)}
                     />
                 </div>
             </div>

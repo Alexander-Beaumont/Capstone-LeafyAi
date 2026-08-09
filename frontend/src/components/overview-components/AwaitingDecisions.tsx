@@ -1,43 +1,36 @@
 import Panel from "../primatives/Panel"
-import DecisionCard from "../DecisionCard"
-import { type DecisionSeverity } from "../DecisionCard"
+import PendingDecisionCard from "../PendingDecisionCard"
+import { type DecisionSeverity } from "../PendingDecisionCard"
+import { useWindowWidth } from "../hooks/useWindowWidth"
+import { placeHolderDecisions } from "../../util/constants"
+import IconTitle from "../primatives/IconTitle"
+import { LuTimer } from "react-icons/lu";
+
 
 export default function AwaitingDecisions() {
-    const placeHolderDecisions = [{   
-            name: "Run Pump",
-            change: "AI agent has requested to run the pump at 2L/min for 45 seconds",
-            reason: "Water level has decreased to 20%, ideal range is above 50%",
-            decisionSeverity: "High",
-        },{
-            name: "Dim Lights",
-            change: "AI agent has requested to dim the lights from 60% to 55%",
-            reason: " To simulate natural cycles it is recommended to dim the ligths to 55%",
-            decisionSeverity: "Low"
-        },{
-            name: "Run Doser",
-            change: "AI agent has requested to run the doser for 10 seconds",
-            reason: " pH level has been trending down",
-            decisionSeverity: "Medium"
-        }
-    ]
+    const width = useWindowWidth()
 
     return (
         <Panel styles="w-full p-3 px-4 flex flex-col gap-5">
-            <p className="text-md font-semibold text-title">
-                Awaiting Decisions
-            </p>
-            {placeHolderDecisions.map(d => {
-                return(
-                    <DecisionCard
-                        name={d.name}
-                        change={d.change}
-                        reason={d.reason}
-                        decisionSeverity={d.decisionSeverity as DecisionSeverity}
-                        onAccept={() => {}}
-                        onDecline={() => {}}
-                    />
-                )
-            })}
+            <IconTitle
+                title="Awaiting Decisions"
+                icon={<LuTimer />}
+            />
+            <div className={`grid gap-3 ${width < 1000 ? "grid-cols-1" : "grid-cols-2"}`}>
+                {placeHolderDecisions.map(d => {
+                    return(
+                        <PendingDecisionCard
+                            name={d.name}
+                            change={d.change}
+                            reason={d.reason}
+                            decisionSeverity={d.decisionSeverity as DecisionSeverity}
+                            date={new Date()}
+                            onAccept={() => {}}
+                            onDecline={() => {}}
+                        />
+                    )
+                })}
+            </div>
         </Panel>
     )
 }

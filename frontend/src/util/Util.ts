@@ -9,6 +9,14 @@ export namespace Util{
         if(!string) return ""
         return [string.split("")[0].toUpperCase(), ...string.split("").slice(1)].join("")
     }
+
+    export function formatDate(date: Date){
+        return `${date.getDate()}/${date.getMonth()}/${date.getFullYear()}`
+    }
+
+    export function formatDateTime(date: Date){
+        return `${date.getDate()}/${date.getMonth()}/${date.getFullYear()} ${date.getHours()}:${date.getMinutes()}`
+    }
 }
 
 

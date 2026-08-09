@@ -24,6 +24,10 @@
   --color-highlight: var(--color-emerald-500);
   --color-highlight2: hsl(84, 100%, 41%);
   --color-highlight3: hsl(144, 100%, 6%);
+
+  --color-low: #009924;
+  --color-medium: #B43C00;
+  --color-high: #B40003;
 }
 
 @layer utilities {
