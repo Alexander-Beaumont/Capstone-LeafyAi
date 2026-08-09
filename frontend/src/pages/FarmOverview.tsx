@@ -12,6 +12,7 @@ export default function FarmOverview() {
             <PageTitlePanel
                 title="Farm Overview"
                 icon={ <LuHouse />}
+                refresh={true}
             />
             <div className="grid grid-cols-[minmax(0,auto)_minmax(0,1fr)] gap-5 w-full">
                 <SensorReadings/>

@@ -8,6 +8,7 @@ import PlantVision from "./pages/PlantVision"
 import AiAgent from "./pages/AiAgent"
 import GrowthHarvesting from "./pages/GrowthHarvesting"
 import History from "./pages/History"
+import Settings from "./pages/Settings"
 
 function App() {
     return (
@@ -21,6 +22,7 @@ function App() {
                     <Route path="ai-agent" element={<AiAgent/>}/>
                     <Route path="growth-harvesting" element={<GrowthHarvesting/>}/>
                     <Route path="history" element={<History/>}/>
+                     <Route path="settings" element={<Settings/>}/>
                 </Route>
             </Routes>
         </UserProvider>

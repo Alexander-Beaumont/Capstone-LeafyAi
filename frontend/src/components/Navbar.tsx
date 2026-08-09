@@ -10,6 +10,8 @@ import { VscRobot } from "react-icons/vsc";
 import { TbGrowth } from "react-icons/tb";
 import { RiFolderHistoryLine } from "react-icons/ri";
 import { LuHouse } from "react-icons/lu";
+import { HiOutlineLogout } from "react-icons/hi";
+import { GoGear } from 'react-icons/go'
 
 export default function Navbar() {
     const smallLayout = useSmallLayout()
@@ -24,6 +26,8 @@ export default function Navbar() {
         {id: 2, name: PAGE_NAMES.authPages.aiAgent, icon: <VscRobot size={16}/>, data: PAGES.authPages.aiAgent},
         {id: 3, name: PAGE_NAMES.authPages.growthHarvesting, icon: <TbGrowth size={16}/>, data: PAGES.authPages.growthHarvesting},
         {id: 4, name: PAGE_NAMES.authPages.history, icon:  <RiFolderHistoryLine />, data: PAGES.authPages.history},
+        {id: 5, name: PAGE_NAMES.authPages.settings, icon:  <GoGear />, data: PAGES.authPages.settings},
+        {id: 6, name: "Log Out", icon:   <HiOutlineLogout />, data: PAGES.noAuthPages.authPage}
     ]
 
     return (
@@ -45,6 +49,7 @@ export default function Navbar() {
                                 selectedItem={selectedItem}
                                 setSelectedItem={(id) => {
                                     const item = items.find(i => i.id == id) ?? null
+                                    if(item?.data == PAGES.noAuthPages.authPage) user.setLoggedIn(false)
                                     setSelectedItem(item)
                                     navigate(item!.data)
                                 }}
@@ -59,47 +64,68 @@ export default function Navbar() {
                     <p className='text-xl font-semibold text-title px-3 pt-5'>
                         Leafy<span className='text-highlight'>AI</span>
                     </p>
-                    <div className='w-full flex flex-col gap-3'>
-                        <Link to={PAGES.authPages.farmOverview} className=''>
-                            <button className={`${location.pathname == PAGES.authPages.farmOverview ? "bg-highlight text-btn-text " : "text-subtext1 hover:bg-panel3 "} 
-                                    hover:cursor-pointer text-sm h-10 hover:italic transition-all duration-200 ease-in-out px-3 w-full text-left
-                                    flex items-center gap-2`}>
-                                <LuHouse />
-                                {PAGE_NAMES.authPages.farmOverview}
-                            </button>
-                        </Link>
-                        <Link to={PAGES.authPages.plantVision} className=''>
-                            <button className={`${location.pathname == PAGES.authPages.plantVision ? "bg-highlight text-btn-text " : "text-subtext1 hover:bg-panel3 "} 
-                                    hover:cursor-pointer text-sm h-10 hover:italic transition-all duration-200 ease-in-out px-3 w-full text-left
-                                    flex items-center gap-2`}>
-                                <PiPlant />
-                                {PAGE_NAMES.authPages.plantVision}
-                            </button>
-                        </Link>
-                        <Link to={PAGES.authPages.aiAgent} className=''>
-                            <button className={`${location.pathname == PAGES.authPages.aiAgent ? "bg-highlight text-btn-text " : "text-subtext1 hover:bg-panel3 "} 
-                                    hover:cursor-pointer text-sm h-10 hover:italic transition-all duration-200 ease-in-out px-3 w-full text-left
-                                    flex items-center gap-2`}>
-                                <VscRobot size={16}/>
-                                {PAGE_NAMES.authPages.aiAgent}
-                            </button>
-                        </Link>
-                        <Link to={PAGES.authPages.growthHarvesting} className=''>
-                            <button className={`${location.pathname == PAGES.authPages.growthHarvesting ? "bg-highlight text-btn-text " : "text-subtext1 hover:bg-panel3 "} 
-                                    hover:cursor-pointer text-sm h-10 hover:italic transition-all duration-200 ease-in-out px-3 w-full text-left
-                                    flex items-center gap-2`}>
-                                <TbGrowth size={16}/>
-                                {PAGE_NAMES.authPages.growthHarvesting}
-                            </button>
-                        </Link>
-                        <Link to={PAGES.authPages.history} className=''>
-                            <button className={`${location.pathname == PAGES.authPages.history ? "bg-highlight text-btn-text " : "text-subtext1 hover:bg-panel3 "} 
-                                    hover:cursor-pointer text-sm h-10 hover:italic transition-all duration-200 ease-in-out px-3 w-full text-left
-                                    flex items-center gap-2`}>
-                                <RiFolderHistoryLine />
-                                {PAGE_NAMES.authPages.history}
-                            </button>
-                        </Link>
+                    <div className='flex flex-col justify-between h-full mb-3'>
+                        <div className='w-full flex flex-col gap-3'>
+                            <Link to={PAGES.authPages.farmOverview} className=''>
+                                <button className={`${location.pathname == PAGES.authPages.farmOverview ? "bg-highlight text-btn-text " : "text-subtext1 hover:bg-panel3 "} 
+                                        hover:cursor-pointer text-sm h-10 hover:italic transition-all duration-200 ease-in-out px-3 w-full text-left
+                                        flex items-center gap-2`}>
+                                    <LuHouse />
+                                    {PAGE_NAMES.authPages.farmOverview}
+                                </button>
+                            </Link>
+                            <Link to={PAGES.authPages.plantVision} className=''>
+                                <button className={`${location.pathname == PAGES.authPages.plantVision ? "bg-highlight text-btn-text " : "text-subtext1 hover:bg-panel3 "} 
+                                        hover:cursor-pointer text-sm h-10 hover:italic transition-all duration-200 ease-in-out px-3 w-full text-left
+                                        flex items-center gap-2`}>
+                                    <PiPlant />
+                                    {PAGE_NAMES.authPages.plantVision}
+                                </button>
+                            </Link>
+                            <Link to={PAGES.authPages.aiAgent} className=''>
+                                <button className={`${location.pathname == PAGES.authPages.aiAgent ? "bg-highlight text-btn-text " : "text-subtext1 hover:bg-panel3 "} 
+                                        hover:cursor-pointer text-sm h-10 hover:italic transition-all duration-200 ease-in-out px-3 w-full text-left
+                                        flex items-center gap-2`}>
+                                    <VscRobot size={16}/>
+                                    {PAGE_NAMES.authPages.aiAgent}
+                                </button>
+                            </Link>
+                            <Link to={PAGES.authPages.growthHarvesting} className=''>
+                                <button className={`${location.pathname == PAGES.authPages.growthHarvesting ? "bg-highlight text-btn-text " : "text-subtext1 hover:bg-panel3 "} 
+                                        hover:cursor-pointer text-sm h-10 hover:italic transition-all duration-200 ease-in-out px-3 w-full text-left
+                                        flex items-center gap-2`}>
+                                    <TbGrowth size={16}/>
+                                    {PAGE_NAMES.authPages.growthHarvesting}
+                                </button>
+                            </Link>
+                            <Link to={PAGES.authPages.history} className=''>
+                                <button className={`${location.pathname == PAGES.authPages.history ? "bg-highlight text-btn-text " : "text-subtext1 hover:bg-panel3 "} 
+                                        hover:cursor-pointer text-sm h-10 hover:italic transition-all duration-200 ease-in-out px-3 w-full text-left
+                                        flex items-center gap-2`}>
+                                    <RiFolderHistoryLine />
+                                    {PAGE_NAMES.authPages.history}
+                                </button>
+                            </Link>
+                        </div>
+                        <div>
+                            <Link to={PAGES.authPages.settings} className=''>
+                                <button className={`${location.pathname == PAGES.authPages.settings ? "bg-highlight text-btn-text " : "text-subtext1 hover:bg-panel3 "} 
+                                        hover:cursor-pointer text-sm h-10 hover:italic transition-all duration-200 ease-in-out px-3 w-full text-left
+                                        flex items-center gap-2`}>
+                                    <GoGear />
+                                    Settings
+                                </button>
+                            </Link>
+                            <Link to={PAGES.noAuthPages.authPage} className=''>
+                                <button className={`text-subtext1 hover:bg-panel3
+                                        hover:cursor-pointer text-sm h-10 hover:italic transition-all duration-200 ease-in-out px-3 w-full text-left
+                                        flex items-center gap-2`}
+                                    onClick={() => user.setLoggedIn(false)}>
+                                    <HiOutlineLogout />
+                                    Log Out
+                                </button>
+                            </Link>
+                        </div>
                     </div>
                 </div>
             }
