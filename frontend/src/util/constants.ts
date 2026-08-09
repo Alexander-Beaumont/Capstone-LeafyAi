@@ -10,7 +10,8 @@ export const PAGES = {
         plantVision: "/plant-vision",
         aiAgent: "/ai-agent",
         growthHarvesting: "/growth-harvesting",
-        history: "/history"
+        history: "/history",
+        settings: "/settings"
     }
 }
 
@@ -24,7 +25,8 @@ export const PAGE_NAMES = {
         plantVision: "Plant Vision",
         aiAgent: "AI Agent",
         growthHarvesting: "Growth & Harvesting",
-        history: "History"
+        history: "History",
+        settings: "Settings"
     }
 }
 
