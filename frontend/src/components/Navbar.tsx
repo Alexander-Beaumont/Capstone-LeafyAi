@@ -1,4 +1,4 @@
-import { Link, useLocation } from 'react-router'
+import { Link, useLocation, useNavigate } from 'react-router'
 import useSmallLayout from './hooks/useSmallLayout'
 import { PAGE_NAMES, PAGES } from '../util/constants'
 import Dropdown, { type dataFormat } from './primatives/Dropdown'
@@ -15,14 +15,15 @@ export default function Navbar() {
     const smallLayout = useSmallLayout()
     const location = useLocation()
     const user = useContext(userContext)
+    const navigate = useNavigate()
 
     const [selectedItem, setSelectedItem] = useState<dataFormat | null>(null)
     const items = [
-        {id: 0, name: PAGE_NAMES.authPages.farmOverview, icon: <LuHouse />},
-        {id: 1, name: PAGE_NAMES.authPages.plantVision, icon:  <PiPlant />},
-        {id: 2, name: PAGE_NAMES.authPages.aiAgent, icon: <VscRobot size={16}/>},
-        {id: 3, name: PAGE_NAMES.authPages.growthHarvesting, icon: <TbGrowth size={16}/>},
-        {id: 4, name: PAGE_NAMES.authPages.history, icon:  <RiFolderHistoryLine />},
+        {id: 0, name: PAGE_NAMES.authPages.farmOverview, icon: <LuHouse />, data: PAGES.authPages.farmOverview},
+        {id: 1, name: PAGE_NAMES.authPages.plantVision, icon:  <PiPlant />, data: PAGES.authPages.plantVision},
+        {id: 2, name: PAGE_NAMES.authPages.aiAgent, icon: <VscRobot size={16}/>, data: PAGES.authPages.aiAgent},
+        {id: 3, name: PAGE_NAMES.authPages.growthHarvesting, icon: <TbGrowth size={16}/>, data: PAGES.authPages.growthHarvesting},
+        {id: 4, name: PAGE_NAMES.authPages.history, icon:  <RiFolderHistoryLine />, data: PAGES.authPages.history},
     ]
 
     return (
@@ -42,7 +43,11 @@ export default function Navbar() {
                             <Dropdown
                                 items={items}
                                 selectedItem={selectedItem}
-                                setSelectedItem={(id) => setSelectedItem(items.find(i => i.id == id) ?? null)}
+                                setSelectedItem={(id) => {
+                                    const item = items.find(i => i.id == id) ?? null
+                                    setSelectedItem(item)
+                                    navigate(item!.data)
+                                }}
                                 setText={<GiHamburgerMenu size={18}/>}
                                 style='h-12 flex justify-center w-15 hover:cursor-pointer text-subtext1 hover:bg-highlight hover:text-btn-text  text-xs transition-all duration-200 ease-in-out px-3'
                             />

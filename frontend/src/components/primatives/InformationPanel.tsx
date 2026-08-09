@@ -10,7 +10,7 @@ export default function InformationPanel({name, value}: Props) {
             <p className='text-subtext2 text-sm'>
                 {name}
             </p>
-            <p className='text-title  text-3xl'>
+            <p className='text-highlight  text-3xl'>
                 {value}
             </p>
         </Panel>
