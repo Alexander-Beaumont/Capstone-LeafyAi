@@ -1,0 +1,28 @@
+{
+  "model_version": "LeafyCV1.0",
+  "camera_name": "level1_camera2",
+  "captured_at": "2026-08-09T18:00:00+10:00",
+  "size_calibrated": false,
+  "analysis": {
+    "total_canopy_coverage": 48.22,
+    "visible_plant_count": 4,
+    "measurement_valid": true,
+    "processing_time_ms": 181
+  },
+  "plants": [
+    {
+      "slot_id": 1,
+      "canopy_coverage": 41.5,
+      "width_px": 302.0,
+      "height_px": 268.0,
+      "width_cm": 0.0,
+      "height_cm": 0.0,
+      "green_percentage": 88.1,
+      "yellow_percentage": 8.3,
+      "crowding_percentage": 50.0,
+      "growth_change": 1.75,
+      "visible": true,
+      "measurement_valid": true
+    }
+  ]
+}
