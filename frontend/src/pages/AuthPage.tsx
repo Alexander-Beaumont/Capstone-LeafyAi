@@ -6,7 +6,7 @@ export default function AuthPage() {
     const [hasAccount, setHasAccount] = useState(false)
 
     return (
-        <div className="m-auto flex justify-center h-svh">
+        <div className="m-auto flex justify-center mt-25">
             {hasAccount ? 
                 <Login setHasAccount={setHasAccount}/>:
                 <Signup setHasAccount={setHasAccount}/>
