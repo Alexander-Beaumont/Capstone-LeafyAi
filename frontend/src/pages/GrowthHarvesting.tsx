@@ -18,7 +18,6 @@ export default function GrowthHarvesting() {
     const [openPanelId, setOpenPanelId] = useState("")
     const [editGrowingAreas, setEditGrowingAreas] = useState(false)
 
-
     return (
         <div className="flex flex-col w-full items-center p-5 max-w-250 m-auto gap-5">
             <PageTitlePanel
@@ -59,7 +58,7 @@ export default function GrowthHarvesting() {
                     {GaGrowingAreas.map(ga => {
                         return <GaGrowingAreaCard growingArea={ga} openPanelId={openPanelId} setOpenPanelId={setOpenPanelId}/>
                     })}
-                    {openPanelId == "" &&
+                    {(openPanelId == "" || BaBatches.filter(b => b.status == "Active").map(b => b.batchId).includes(openPanelId)) &&
                         <>
                             {new Array(5 - GaGrowingAreas.length).fill(undefined).map(_ => {
                                 return <div className="border border-dashed border-border h-19 rounded-md bg-panel2"></div>
@@ -77,7 +76,7 @@ export default function GrowthHarvesting() {
                     {BaBatches.filter(b => b.status == "Active").map(b => {
                         return <BaBatchCard batchInfo={b} openPanelId={openPanelId} setOpenPanelId={setOpenPanelId}/>
                     })}
-                    {openPanelId == "" &&
+                    {(openPanelId == "" || GaGrowingAreas.map(g => g.growingAreaName).includes(openPanelId)) &&
                         <>
                             {new Array(5 - BaBatches.filter(b => b.status == "Active").length).fill(undefined).map(_ => {
                                 return <div className="border border-dashed border-border h-19 rounded-md bg-panel2"></div>

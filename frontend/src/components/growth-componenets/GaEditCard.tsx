@@ -17,12 +17,11 @@ interface Props{
 }
 
 export default function GaEditCard({setOpend} : Props) {
-    const [yes, setYes] = useState(false)
+    const [editExistingGa, setEditExistingGa] = useState(false)
     const [selectedItem, setSelectedItem] = useState<dataFormat|null>(null)
     const items: dataFormat[] = GaGrowingAreas.map((g, i) => ({name: g.growingAreaName, id: i, data: g}))
 
     const {setForm, form} = useForm({
-        growingAreaName: "",
         FarmLevel: "",
         SlotCount: ""
     })
@@ -41,22 +40,22 @@ export default function GaEditCard({setOpend} : Props) {
                         <div className="flex gap-2">
                             <XsButton
                                 name="Yes"
-                                highlight={yes}
-                                onClick={() => setYes(true)}
+                                highlight={editExistingGa}
+                                onClick={() => setEditExistingGa(true)}
                                 animate={false}
                             />
                             <XsButton
                                 name="No"
-                                highlight={!yes}
+                                highlight={!editExistingGa}
                                 onClick={() => {
-                                    setYes(false);
+                                    setEditExistingGa(false);
                                     setSelectedItem(null)
                                 }}
                                 animate={false}
                             />
                         </div>
                 </div>
-                {yes && 
+                {editExistingGa && 
                 <>
                     <hr className="text-border"/>
                     <div className="flex gap-2 items-center justify-between">
@@ -74,13 +73,6 @@ export default function GaEditCard({setOpend} : Props) {
                 }
                 <hr className="text-border"/>
                 <div className="flex flex-col gap-3">
-                    <TextBox
-                        name="Growing Area Name"
-                        charLimit={20}
-                        value={form.growingAreaName}
-                        setValue={(v) => setForm("growingAreaName", v)}
-                        placeHolder={selectedItem ? (selectedItem.data as GAGrowingArea).growingAreaName : ""}
-                    />
                     <TextBox
                         name="Farm Level"
                         charLimit={2}
@@ -104,7 +96,7 @@ export default function GaEditCard({setOpend} : Props) {
                         highlight={false}
                         onSubmit={() => {
                             setOpend(false)
-                            setYes(false)
+                            setEditExistingGa(false)
                             setSelectedItem(null)
                         }}
                         styles={{ noAnimation: true}}
@@ -115,7 +107,7 @@ export default function GaEditCard({setOpend} : Props) {
                         onSubmit={() => {}}
                         styles={{ noAnimation: true}}
                     />
-                    {!yes &&
+                    {!editExistingGa &&
                         <Button
                             name="Create New GA"
                             highlight={true}
@@ -123,7 +115,7 @@ export default function GaEditCard({setOpend} : Props) {
                             styles={{ noAnimation: true}}
                         />
                     }
-                    {yes &&
+                    {editExistingGa &&
                         <Button
                             name="Update"
                             highlight={true}
