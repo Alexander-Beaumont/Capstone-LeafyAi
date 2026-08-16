@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react"
+import { useMemo} from "react"
 import { FaAngleLeft } from "react-icons/fa"
 import { TiTick } from "react-icons/ti"
 import { ImCross } from "react-icons/im"

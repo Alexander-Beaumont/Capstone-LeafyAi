@@ -11,12 +11,15 @@ import XsButton from "../components/primatives/XsButton"
 import { useState } from "react"
 import Modal from "../components/primatives/Modal"
 import GaEditCard from "../components/growth-componenets/GaEditCard"
+import BaBatchEdit from "../components/growth-componenets/BaBatchEdit"
 
 
 
 export default function GrowthHarvesting() {
     const [openPanelId, setOpenPanelId] = useState("")
     const [editGrowingAreas, setEditGrowingAreas] = useState(false)
+    const [editBatches, setEditBatches] = useState(false)
+
 
     return (
         <div className="flex flex-col w-full items-center p-5 max-w-250 m-auto gap-5">
@@ -68,10 +71,17 @@ export default function GrowthHarvesting() {
                 </div>
             </Panel>
             <Panel styles="w-full p-3 flex flex-col gap-3 mb-20">
-                <IconTitle
-                    title="Active Batches"
-                    icon={<TiTick size={15}/>}
-                />
+                <div className="flex items-center justify-between">
+                    <IconTitle
+                        title="Active Batches"
+                        icon={<TiTick size={15}/>}
+                    />
+                    <XsButton
+                        name={"Edit"}
+                        onClick={() => setEditBatches(!editBatches)}
+                        highlight={false}
+                    />
+                </div>
                 <div className="flex flex-col gap-3 max-h-108 h-108 overflow-y-scroll rounded-md no-scrollbar">
                     {BaBatches.filter(b => b.status == "Active").map(b => {
                         return <BaBatchCard batchInfo={b} openPanelId={openPanelId} setOpenPanelId={setOpenPanelId}/>
@@ -87,6 +97,9 @@ export default function GrowthHarvesting() {
             </Panel>
             <Modal open={editGrowingAreas} onClose={() => setEditGrowingAreas(false)}>
                <GaEditCard opened={editGrowingAreas} setOpend={(setEditGrowingAreas)}/>
+            </Modal>
+            <Modal open={editBatches} onClose={() => setEditBatches(false)}>
+               <BaBatchEdit opened={editBatches} setOpend={(setEditBatches)}/>
             </Modal>
         </div>
     )
