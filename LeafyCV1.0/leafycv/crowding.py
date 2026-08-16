@@ -55,7 +55,9 @@ def compute_crowding(
 
     `gap_px` is a small tolerance for segmentation gaps / leaf movement. Each
     slot's detected tissue is dilated by this radius before overlap testing.
-    `min_contact_pixels` suppresses one-pixel/noise contacts.
+    `min_contact_pixels` suppresses one-pixel/noise contacts. The threshold is
+    applied to the largest connected overlap component so many scattered noise
+    specks cannot add up to a false contact.
 
     The returned `crowding_index` is simply:
         touching neighbouring slot pairs / all neighbouring slot pairs
@@ -107,12 +109,27 @@ def compute_crowding(
         per_plant_all_neighbours[pb].append(pa)
         overlap = cv2.bitwise_and(expanded[a], expanded[b])
         contact_pixels = int(cv2.countNonZero(overlap))
-        if contact_pixels >= min_contact_pixels:
+
+        # Do not sum many unrelated one-pixel specks into a false contact.
+        # A real visual contact should contain at least one connected overlap
+        # region large enough to pass the threshold.
+        largest_contact_component = 0
+        if contact_pixels > 0:
+            count, _labels, stats, _centroids = cv2.connectedComponentsWithStats(
+                overlap, connectivity=8
+            )
+            if count > 1:
+                largest_contact_component = int(
+                    np.max(stats[1:, cv2.CC_STAT_AREA])
+                )
+
+        if largest_contact_component >= min_contact_pixels:
             touching_pairs.append(
                 {
                     'plant_a': pa,
                     'plant_b': pb,
                     'proximity_overlap_pixels': contact_pixels,
+                    'largest_contact_component_pixels': largest_contact_component,
                 }
             )
             per_plant[pa].append(pb)
