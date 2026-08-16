@@ -111,6 +111,11 @@ class Camera(models.Model):
     )
     ip_address = models.GenericIPAddressField(blank=True, null=True)
     rtsp_port = models.IntegerField(blank=True, null=True)
+    rtsp_path = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True
+    )
     webcam_index = models.IntegerField(blank=True, null=True)
     lighting_mode = models.CharField(
         max_length=20,

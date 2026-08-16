@@ -94,6 +94,7 @@ class CameraSerializer(serializers.ModelSerializer):
             'source_type',
             'ip_address',
             'rtsp_port',
+            'rtsp_path'
             'webcam_index',
             'lighting_mode',
             'roi_points',
