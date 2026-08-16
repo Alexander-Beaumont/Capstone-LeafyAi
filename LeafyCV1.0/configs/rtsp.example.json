@@ -1,0 +1,46 @@
+{
+  "model_version": "LeafyCV1.0",
+  "camera": {
+    "name": "Level 1 Camera 1",
+    "source_type": "RTSP",
+    "enabled": true,
+    "webcam_index": 0,
+    "file_path": null,
+    "rtsp": {
+      "ip_address": "192.168.1.106",
+      "port": 554,
+      "path": "",
+      "username_env": "FARM_CAMERA_USER",
+      "password_env": "FARM_CAMERA_PASSWORD"
+    }
+  },
+  "lighting_mode": "MAGENTA",
+  "roi": null,
+  "calibration_stick": null,
+  "slots": [],
+  "analysis": {
+    "interval_minutes": 30,
+    "min_component_pixels": 150,
+    "min_component_ratio": 0.00025,
+    "visible_core_threshold": 0.03,
+    "visible_area_threshold": 0.3,
+    "crowding_gap_px": 3,
+    "crowding_min_contact_pixels": 25,
+    "min_blur_score": 15.0,
+    "min_mean_brightness": 10.0,
+    "max_mean_brightness": 245.0,
+    "max_zone_change_pp": 20.0,
+    "max_slot_change_pp": 20.0
+  },
+  "segmentation": {
+    "lower_h": 32,
+    "upper_h": 95,
+    "min_s": 55,
+    "min_v": 35,
+    "exg_threshold": 18,
+    "lab_a_max": 150,
+    "lab_b_min": 115,
+    "magenta_min_s": 60,
+    "magenta_max_v": 210
+  }
+}
