@@ -7,7 +7,7 @@ export interface dataFormat{
     icon?: ReactNode
     name: string,
     id: number
-    data?: string
+    data?: string | object
 }
 
 interface DropdownProps {
