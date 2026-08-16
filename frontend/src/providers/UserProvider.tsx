@@ -11,14 +11,23 @@ interface loginReturnType {
 export interface UserType {
     loggedIn: boolean;
     setLoggedIn: (loggedIn: boolean) => void;
+
     accessToken: string | null;
     setAccessToken: (accessToken: string) => void;
+    
+    refreshToken: string | null; //Alex
+    setRefreshToken: (refreshToken: string) => void; //Alex
+    
     id: string | null;
     setId: (id: string) => void;
+    
     email: string | null;
     setEmail: (email: string) => void;
+    
     login: (refreshToken: string) => Promise<loginReturnType> | loginReturnType;
+    
     timeAccesTokenCreated: number | null;
+    
     loading: boolean
     setLoading: (loading: boolean) => void
 }
@@ -26,17 +35,26 @@ export interface UserType {
 const initialUserValues: UserType = {
     loggedIn: false,
     setLoggedIn: () => null,
+    
     accessToken: null,
     setAccessToken: () => null,
+    
+    refreshToken: null, //Alex
+    setRefreshToken: () => null, //Alex
+
     id: null,
     setId: () => null,
+    
     email: null,
     setEmail: () => null,
+    
     loading: false,
     setLoading: () => null,
+    
     login: () => {
         return { loggedIn: false, accessToken: "" };
     },
+    
     timeAccesTokenCreated: null,
 };
 
@@ -48,9 +66,13 @@ interface Props {
 export default function UserProvider(props: Props) {
     const [loggedIn, setLoggedIn] = useState(initialUserValues.loggedIn);
     const [accessToken, setAccessToken] = useState(initialUserValues.accessToken);
-    const [id, setId] = useState(initialUserValues.id);
+
+    const [refreshToken, setRefreshToken] = useState(initialUserValues.refreshToken); //Alex
+    const [id, setId] = useState(initialUserValues.id); //Alex
+    
     const [email, setEmail] = useState(initialUserValues.email);
     const [loading, setLoading] = useState(false)
+    
     const [timeAccesTokenCreated, setTimeAccesTokenCreated] = useState(initialUserValues.timeAccesTokenCreated);
     
     const location = useLocation()
@@ -68,25 +90,28 @@ export default function UserProvider(props: Props) {
 
     }, [loggedIn])
 
-    async function login(refreshToken: string) {
+    async function login(refreshToken: string) { //Could be renamed to refreshAccessToken? - Alex
         if (timeAccesTokenCreated != null) {
             if (Date.now() - timeAccesTokenCreated <= AccesTokenRefreshTime) {
-                return { loggedIn: true, accessToken: accessToken };
+                return { loggedIn: true, accessToken: accessToken ?? "" };
             }
         }
-        const res = await fetch(`${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/auth/token`, {
+        const res = await fetch(`${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/auth/refresh/`, { // change from /token to/refresh - Alex
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
             },
-            body: JSON.stringify({ refreshToken: refreshToken }),
+            body: JSON.stringify({ refresh: refreshToken }), // changed from refreshToken to refresh - Alex
         });
+        
         if (res.status == 200) {
             const data = await res.json();
-            setAccessToken(data.accessToken);
+            
+            setAccessToken(data.access); // changed from accessToken to access - Alex
             setLoggedIn(true);
             setTimeAccesTokenCreated(Date.now());
-            return { loggedIn: true, accessToken: data.accessToken };
+
+            return { loggedIn: true, accessToken: data.access }; // changed from accessToken to access - Alex
         } else {
             return { loggedIn: false, accessToken: "" };
         }
@@ -103,12 +128,20 @@ export default function UserProvider(props: Props) {
             setLoggedIn: setLoggedIn,
             accessToken: accessToken,
             setAccessToken: setAccessToken,
+
+            refreshToken: refreshToken, //Alex
+            setRefreshToken: setRefreshToken, //Alex
+
             id: id,
             setId: setId,
+
             email: email,
             setEmail: setEmail,
+
             login: login,
+
             timeAccesTokenCreated: timeAccesTokenCreated,
+
             loading: loading,
             setLoading: setLoading
         }}>
