@@ -37,7 +37,7 @@ class FarmLevel(models.Model): #change many to many for plant batch
 # Growing Areas & slots
 
 class GrowingArea(models.Model):
-    farmlevel = models.ForeignKey(FarmLevel, on_delete=models.CASCADE)
+    farm_level = models.ForeignKey(FarmLevel, on_delete=models.CASCADE)
     name = models.CharField(max_length=255)
     slot_count = models.IntegerField()
 
@@ -152,7 +152,7 @@ class Camera(models.Model):
     )
     enabled = models.BooleanField(default=True)
 
-class cameraSlotPosition(models.Model): #composite may need fixing
+class CameraSlotPosition(models.Model): #composite may need fixing
     camera = models.ForeignKey(Camera, on_delete=models.CASCADE)
     slot = models.ForeignKey(Slot, on_delete=models.CASCADE)
     centre_x = models.DecimalField(
@@ -177,92 +177,6 @@ class CameraImage(models.Model):
     timestamp = models.DateTimeField(auto_now_add=True)
     path = models.CharField(max_length=500)
 
-class ImageAnalysis(models.Model):
-    image = models.ForeignKey(CameraImage, on_delete=models.CASCADE)
-    created_at = models.DateTimeField(auto_now_add=True)
-    total_canopy_coverage = models.DecimalField(
-        max_digits=5,
-        decimal_places=2,
-        blank=True,
-        null=True
-    )
-    visible_plant_count = models.IntegerField(
-        blank=True,
-        null=True)
-    measurement_valid = models.BooleanField(default=True)
-    processing_time_ms = models.IntegerField(
-        blank=True,
-        null=True
-    )
-
-class PlantVisionMeasurement(models.Model):
-    image_analysis = models.ForeignKey(
-        ImageAnalysis,
-        on_delete=models.CASCADE)
-    slot = models.ForeignKey(
-        Slot,
-        on_delete=models.CASCADE,
-        blank=True,
-        null=True
-    )
-    canopy_coverage = models.DecimalField(
-        max_digits=5,
-        decimal_places=2,
-        blank=True,
-        null=True
-    )
-    width_px = models.IntegerField(
-        blank=True,
-        null=True
-    )
-    height_px = models.IntegerField(
-        blank=True,
-        null=True
-    )
-    width_cm = models.DecimalField(
-        max_digits=5,
-        decimal_places=1,
-        blank=True,
-        null=True
-    )
-    height_cm = models.DecimalField(
-        max_digits=5,
-        decimal_places=1,
-        blank=True,
-        null=True
-    )
-    green_percentage = models.DecimalField(
-        max_digits=5,
-        decimal_places=2,
-        blank=True,
-        null=True
-    )
-    yellow_percentage = models.DecimalField(
-        max_digits=5,
-        decimal_places=2,
-        blank=True,
-        null=True
-    )
-    crowding_percentage = models.DecimalField(
-        max_digits=5,
-        decimal_places=2,
-        blank=True,
-        null=True
-    )
-    growth_stage = models.CharField( #Choices such as seedling, early growth, or mature may need to be added
-        max_length=20,
-        blank=True,
-        null=True
-    )
-    growth_change = models.DecimalField(
-        max_digits=8,
-        decimal_places=2,
-        blank=True,
-        null=True
-    )
-    visible = models.BooleanField(default=True)
-    measurement_valid = models.BooleanField(default=True)
-    created_at = models.DateTimeField(auto_now_add=True)
 
 class Sensor(models.Model):
     device = models.ForeignKey(FarmDevice, on_delete=models.CASCADE)

@@ -17,6 +17,7 @@ class AIDecision(models.Model):
 
 class SafetyCheck(models.Model): 
     decision = models.OneToOneField(AIDecision, on_delete=models.CASCADE)
+    
     checked_at = models.DateTimeField(auto_now_add=True)
     result = models.CharField(
         max_length=20,
@@ -33,10 +34,6 @@ class SafetyCheck(models.Model):
 
 class HumanApproval(models.Model):
     decision = models.OneToOneField(AIDecision, on_delete=models.CASCADE)
-    reviewed_at = models.DateTimeField(
-        blank=True,
-        null=True
-    )
     result = models.CharField(
         max_length=20,
         choices=[

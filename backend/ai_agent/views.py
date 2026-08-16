@@ -1,20 +1,23 @@
 from rest_framework import viewsets
+
 from ai_agent.models import *
 from ai_agent.serializers import *
 
 
-# Create your views here.
 class AIDecisionViewSet(viewsets.ModelViewSet):
     queryset = AIDecision.objects.all()
-    serializer_class = AiDecisionSerializer
+    serializer_class = AIDecisionSerializer
 
-class ActionViewSet(viewsets.ModelViewSet):
+
+class FarmActionViewSet(viewsets.ModelViewSet):
     queryset = FarmAction.objects.all()
-    serializer_class = ActionSerializer
+    serializer_class = FarmActionSerializer
+
 
 class HumanApprovalViewSet(viewsets.ModelViewSet):
     queryset = HumanApproval.objects.all()
     serializer_class = HumanApprovalSerializer
+
 
 class SafetyCheckViewSet(viewsets.ModelViewSet):
     queryset = SafetyCheck.objects.all()

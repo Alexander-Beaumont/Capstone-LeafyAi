@@ -1,23 +1,65 @@
-from django.db import models
 from rest_framework import serializers
-from ai_agent.models import *
 
-class AiDecisionSerializer(serializers.ModelSerializer):
+from ai_agent.models import (
+    AIDecision,
+    SafetyCheck,
+    HumanApproval,
+    FarmAction,
+)
+
+
+class AIDecisionSerializer(serializers.ModelSerializer):
     class Meta:
         model = AIDecision
-        fields = ['id', 'plant_batch', 'decision_type', 'recommendation', 'explanation', 'confidence_score', 'created_at']
+        fields = [
+            'id',
+            'device',
+            'decision_type',
+            'recommendation',
+            'explanation',
+            'confidence_score',
+            'created_at',
+        ]
+
+        read_only_fields = [
+            'created_at',
+        ]
+
 
 class SafetyCheckSerializer(serializers.ModelSerializer):
     class Meta:
         model = SafetyCheck
-        fields = ['ai_decision', 'checked_at', 'result', 'explanation']
+        fields = [
+            'id',
+            'decision',
+            'checked_at',
+            'result',
+            'explanation',
+        ]
+
+        read_only_fields = [
+            'checked_at',
+        ]
+
 
 class HumanApprovalSerializer(serializers.ModelSerializer):
     class Meta:
         model = HumanApproval
-        fields = ['ai_decision', 'result', 'comment', 'reviewed_at']
+        fields = [
+            'id',
+            'decision',
+            'result',
+            'comment',
+        ]
 
-class ActionSerializer(serializers.ModelSerializer):
+
+class FarmActionSerializer(serializers.ModelSerializer):
     class Meta:
         model = FarmAction
-        fields = ['id', 'ai_decision', 'result', 'explanation', 'executed_at']
+        fields = [
+            'id',
+            'decision',
+            'executed_at',
+            'result',
+            'explanation',
+        ]
