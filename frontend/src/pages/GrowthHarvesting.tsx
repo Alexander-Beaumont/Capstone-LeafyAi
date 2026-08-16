@@ -9,11 +9,15 @@ import { BaBatches, GaGrowingAreas } from "../util/constants"
 import GaGrowingAreaCard from "../components/growth-componenets/GaGrowingAreaCard"
 import XsButton from "../components/primatives/XsButton"
 import { useState } from "react"
+import Modal from "../components/primatives/Modal"
+import GaEditCard from "../components/growth-componenets/GaEditCard"
 
 
 
 export default function GrowthHarvesting() {
     const [openPanelId, setOpenPanelId] = useState("")
+    const [editGrowingAreas, setEditGrowingAreas] = useState(false)
+
 
     return (
         <div className="flex flex-col w-full items-center p-5 max-w-250 m-auto gap-5">
@@ -47,7 +51,7 @@ export default function GrowthHarvesting() {
                     />
                     <XsButton
                         name={"Edit"}
-                        onClick={() => {}}
+                        onClick={() => setEditGrowingAreas(!editGrowingAreas)}
                         highlight={false}
                     />
                 </div>
@@ -57,7 +61,7 @@ export default function GrowthHarvesting() {
                     })}
                     {openPanelId == "" &&
                         <>
-                            {new Array(5 - GaGrowingAreas.length).fill(undefined).map(a => {
+                            {new Array(5 - GaGrowingAreas.length).fill(undefined).map(_ => {
                                 return <div className="border border-dashed border-border h-19 rounded-md bg-panel2"></div>
                             })}
                         </>
@@ -75,14 +79,16 @@ export default function GrowthHarvesting() {
                     })}
                     {openPanelId == "" &&
                         <>
-                            {new Array(5 - BaBatches.filter(b => b.status == "Active").length).fill(undefined).map(a => {
+                            {new Array(5 - BaBatches.filter(b => b.status == "Active").length).fill(undefined).map(_ => {
                                 return <div className="border border-dashed border-border h-19 rounded-md bg-panel2"></div>
                             })}
                         </>
                     }
                 </div>
             </Panel>
-        
+            <Modal open={editGrowingAreas} onClose={() => setEditGrowingAreas(false)}>
+               <GaEditCard opened={editGrowingAreas} setOpend={(setEditGrowingAreas)}/>
+            </Modal>
         </div>
     )
 }
