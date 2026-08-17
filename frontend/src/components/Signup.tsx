@@ -12,23 +12,23 @@ interface Props{
     setHasAccount: (hasAccount: boolean) => void
 }
 export default function Signup({setHasAccount}: Props) {
-    const userData = useForm({email: "", password: "", confirmPassword: ""})
+    const userData = useForm({username: "", password: "", confirmPassword: ""})
     const modalData = useForm({showModal: false, modalText: ""})
     const user = useContext(userContext)
 
-    function singUp(){
-        const [emailVal, emailRes] = AuthUtil.validateEmail(userData.form.email)
+    async function singUp(){
+        const [usernameVal, usernameRes] = AuthUtil.validateUsername(userData.form.username)
         const [passwordVal, passwordRes] = AuthUtil.validatePassword(userData.form.password, userData.form.confirmPassword)
         
-        if(!emailVal || !passwordVal) {
-            modalData.setWholeForm({showModal: true, modalText: emailRes + ", " + passwordRes})
+        if(!usernameVal || !passwordVal) {
+            modalData.setWholeForm({showModal: true, modalText: usernameRes + ", " + passwordRes})
             return
         }
-        
-    }
 
-    function skip(){
-        user.setLoggedIn(true)
+        const {loggedIn, msg} = await user.signup(userData.form.username, userData.form.password)
+        
+        if(loggedIn) return
+        modalData.setWholeForm({showModal: true, modalText: msg!})
     }
 
     return (
@@ -41,11 +41,11 @@ export default function Signup({setHasAccount}: Props) {
                 </p>
                 <div className="w-[90%] flex flex-col gap-4">
                     <TextBox
-                        name="Email"
+                        name="Username"
                         charLimit={30}
-                        value={userData.form.email}
-                        setValue={d => userData.setForm("email", d)}
-                        placeHolder="Enter Email"
+                        value={userData.form.username}
+                        setValue={d => userData.setForm("username", d)}
+                        placeHolder="Enter Username"
                     />
                     <TextBox
                         name="Password"
@@ -70,6 +70,7 @@ export default function Signup({setHasAccount}: Props) {
                             onSubmit={() => singUp()}
                             styles={{fullWidth: true}}
                             icon={<IoLogInOutline />}
+                            loading={user.loading}
                         />
                         <p className="text-xs text-subtext3">
                             {"Allready have an account? "}  
@@ -80,13 +81,6 @@ export default function Signup({setHasAccount}: Props) {
                         </p>
                     </div>
                 </div>
-                <Button
-                    name="Skip SignIn (Testing Purposes)"
-                    highlight={true}
-                    onSubmit={() => skip()}
-                    styles={{fullWidth: false}}
-                    icon={<IoLogInOutline />}
-                />
             </div>
             <Modal open={modalData.form.showModal} onClose={() => modalData.setForm("showModal", false)}>
                 <ModalMessageBox

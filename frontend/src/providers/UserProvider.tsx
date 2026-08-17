@@ -2,12 +2,7 @@ import React, { createContext, useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { API, PAGES } from "../util/constants";
 import useLocalStorage from "../components/hooks/useLocalStorage";
-
-interface AuthResult {
-    loggedIn: boolean
-    accessToken?: string
-    msg?: string 
-}
+import type { AuthResult, SignUpRes } from "../util/types";
 
 export interface UserType {
     loggedIn: boolean;
@@ -28,6 +23,8 @@ export interface UserType {
     getValidAccessToken: (refreshToken: string) => Promise<AuthResult> | AuthResult
 
     login: (username: string, password: string) => Promise<AuthResult>;
+    signup: (username: string, password: string) => Promise<AuthResult>;
+    signout: () => void
     
     timeAccesTokenCreated: number | null;
     
@@ -57,6 +54,8 @@ const initialUserValues: UserType = {
     getValidAccessToken: () => Promise.resolve({loggedIn: false, accessToken: ""}),
     
     login: () => Promise.resolve({loggedIn: false, accessToken: ""}),
+    signup: () => Promise.resolve({loggedIn: false, accessToken: ""}),
+    signout: () => null,
     
     timeAccesTokenCreated: null,
 };
@@ -81,32 +80,39 @@ export default function UserProvider(props: Props) {
     const location = useLocation()
     const navigate = useNavigate()
     
-    const AccesTokenRefreshTime = 10 * 60 * 1000;
+    const AccesTokenRefreshTime = 15 * 60 * 1000;
 
     useEffect(() => {
-        if(Object.values(PAGES.noAuthPages).includes(location.pathname) && loggedIn){
-            navigate("/farm-overview")
+        const updatePath = async () => {
+            const {loggedIn} = await getValidAccessToken(refreshToken)
+            if(Object.values(PAGES.noAuthPages).includes(location.pathname) && loggedIn){
+                navigate("/farm-overview")
+            }
+            if(Object.values(PAGES.authPages).includes(location.pathname) && !loggedIn){
+                navigate("/auth")
+            }
         }
-        if(Object.values(PAGES.authPages).includes(location.pathname) && !loggedIn){
-            navigate("/auth")
-        }
+        updatePath()
 
-    }, [loggedIn, location.pathname])
+    }, [loggedIn, location.pathname, refreshToken])
 
     function isAccessTokenStillValid(){
         if (timeAccesTokenCreated == null || !accessToken) return false
         return Date.now() - timeAccesTokenCreated <= AccesTokenRefreshTime
     }
 
-    async function getValidAccessToken(refreshToken: string): Promise<AuthResult> { 
+    async function getValidAccessToken(refreshToken: string | undefined): Promise<AuthResult> { 
+        if(!refreshToken) return { loggedIn: false, accessToken: "" };
         if(isAccessTokenStillValid())  return { loggedIn: true, accessToken: accessToken ?? ""};
 
         try {
+            setLoading(true)
             const res = await fetch(API.refresh, { 
                 method: "POST",
                 headers: {"Content-Type": "application/json"},
                 body: JSON.stringify({ refresh: refreshToken }), 
             });
+            setLoading(false)
             
             if(!res.ok) {
                 setNotLoggedInState()
@@ -115,16 +121,17 @@ export default function UserProvider(props: Props) {
             
             const data = await res.json();
             setAuthenticatedState(data.access)
-
             return { loggedIn: true, accessToken: data.access }; 
         } catch (error) {
             setNotLoggedInState()
+            setLoading(false)
             return { loggedIn: false, accessToken: "" };
         }
     }
 
     async function login(username: string, password: string): Promise<AuthResult>{
         try {
+            setLoading(true)
             const response = await fetch(
                 API.login,
                 {
@@ -138,6 +145,7 @@ export default function UserProvider(props: Props) {
                     }),
                 }
             )
+            setLoading(false)
 
             if(!response.ok){
                 return {loggedIn: false, msg: "Invalid username or password"}
@@ -149,12 +157,46 @@ export default function UserProvider(props: Props) {
             return {loggedIn: true}
 
         } catch(error) {
+            setLoading(false)
             return {loggedIn: false, msg: "Could not connect to backend"}
         }
     }
 
-    async function signup(){
-        
+    async function signup(username: string, password: string): Promise<AuthResult>{
+        try {
+            setLoading(true)
+            const response = await fetch(
+                API.signup,
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                        username: username,
+                        password: password,
+                    }),
+                }
+            )
+            setLoading(false)
+
+            if(!response.ok){
+                return {loggedIn: false, msg: "Invalid username or password"}
+            }
+
+            const data: SignUpRes = await response.json()
+            setRefreshToken(data.refresh)
+            setAuthenticatedState(data.access)
+            return {loggedIn: true}
+
+        } catch(error) {
+            setLoading(false)
+            return {loggedIn: false, msg: "Could not connect to backend"}
+        }
+    }
+
+    function signout(){
+        setNotLoggedInState()
     }
 
     function setAuthenticatedState(newAccessToken: string) {
@@ -189,6 +231,8 @@ export default function UserProvider(props: Props) {
             getValidAccessToken: getValidAccessToken,
 
             login: login,
+            signup: signup,
+            signout: signout,
 
             timeAccesTokenCreated: timeAccesTokenCreated,
 
