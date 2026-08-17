@@ -20,7 +20,7 @@ export default function BaBatchEdit({setOpend} : Props) {
         <div onClick={e => e.stopPropagation()} className="w-[80%] max-w-120">
             <Panel styles="p-3  flex flex-col gap-3">
                 <IconTitle
-                        title="Move Batch"
+                        title="Edit Batch"
                         icon={<TbEdit />}
                 />
                 <hr className="text-border"/>
