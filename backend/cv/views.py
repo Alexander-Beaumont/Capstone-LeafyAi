@@ -1,22 +1,20 @@
-from rest_framework import viewsets, status
+import json
+
+from django.db import transaction
+from django.shortcuts import get_object_or_404
+from django.utils.dateparse import parse_datetime
+
+from rest_framework import status, viewsets
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+
+from telemetry.models import Camera, CameraImage, Slot
 
 from cv.models import (
     ImageAnalysis,
     PlantVisionMeasurement,
 )
-
-from cv.serializers import (
-    ImageAnalysisSerializer,
-    PlantVisionMeasurementSerializer,
-)
-#unsure
-import json
-from django.db import transaction
-from django.shortcuts import get_object_or_404
-from rest_framework.decorators import api_view
-from rest_framework.response import Response
-from telemetry.models import Camera, CameraImage, Slot
-
+from cv.serializers import ImageAnalysisSerializer, PlantVisionMeasurementSerializer
 
 class ImageAnalysisViewSet(viewsets.ModelViewSet):
     queryset = ImageAnalysis.objects.all()
@@ -27,30 +25,38 @@ class PlantVisionMeasurementViewSet(viewsets.ModelViewSet):
     queryset = PlantVisionMeasurement.objects.all()
     serializer_class = PlantVisionMeasurementSerializer
 
-
-
-#The code below is with Ai. i need to test it
-@api_view(['POST'])
+#Written with AI
+@api_view(["POST"])
 @transaction.atomic
 def ingest_cv_result(request):
 
-    # LeafyCV can send either JSON or multipart form data.
-    if 'metadata' in request.data:
-        try:
-            data = json.loads(request.data['metadata'])
-        except json.JSONDecodeError:
-            return Response(
-                {"error": "Invalid metadata JSON"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-    else:
-        data = request.data
+    # LeafyCV sends its JSON inside the multipart "metadata" field
+    metadata = request.data.get("metadata")
 
-    # -----------------------------
-    # 1. Validate camera
-    # -----------------------------
+    if not metadata:
+        return Response(
+            {"error": "metadata is required"},
+            status=status.HTTP_400_BAD_REQUEST
+        )
 
-    camera_id = data.get('camera_id')
+    try:
+        data = json.loads(metadata)
+    except json.JSONDecodeError:
+        return Response(
+            {"error": "metadata must contain valid JSON"},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    # LeafyCV sends the raw JPEG separately
+    raw_image = request.FILES.get("raw_image")
+
+    if not raw_image:
+        return Response(
+            {"error": "raw_image is required"},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    camera_id = data.get("camera_id")
 
     if not camera_id:
         return Response(
@@ -63,11 +69,7 @@ def ingest_cv_result(request):
         id=camera_id
     )
 
-    # -----------------------------
-    # 2. Validate analysis data
-    # -----------------------------
-
-    analysis_data = data.get('analysis')
+    analysis_data = data.get("analysis")
 
     if not analysis_data:
         return Response(
@@ -75,103 +77,137 @@ def ingest_cv_result(request):
             status=status.HTTP_400_BAD_REQUEST
         )
 
-    # -----------------------------
-    # 3. Create CameraImage record
-    # -----------------------------
+    plants = data.get("plants", [])
+
+    # Validate ALL slots before creating anything
+    slot_ids = [
+        plant.get("slot_id")
+        for plant in plants
+        if plant.get("slot_id") is not None
+    ]
+
+    slots = Slot.objects.filter(
+        id__in=slot_ids
+    )
+
+    slot_map = {
+        str(slot.id): slot
+        for slot in slots
+    }
+
+    for slot_id in slot_ids:
+        if str(slot_id) not in slot_map:
+            return Response(
+                {
+                    "error": f"Unknown slot_id: {slot_id}"
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+    captured_at = data.get("captured_at")
+
+    timestamp = None
+
+    if captured_at:
+        timestamp = parse_datetime(captured_at)
 
     camera_image = CameraImage.objects.create(
         camera=camera,
-        path=""
+        path=raw_image,
+        **({"timestamp": timestamp} if timestamp else {})
     )
-
-    # -----------------------------
-    # 4. Create ImageAnalysis
-    # -----------------------------
 
     analysis = ImageAnalysis.objects.create(
         image=camera_image,
-
-        total_canopy_coverage=
-            analysis_data.get('total_canopy_coverage'),
-
-        visible_plant_count=
-            analysis_data.get('visible_plant_count'),
-
-        measurement_valid=
-            analysis_data.get('measurement_valid', True),
-
-        processing_time_ms=
-            analysis_data.get('processing_time_ms'),
+        total_canopy_coverage=analysis_data.get(
+            "total_canopy_coverage"
+        ),
+        visible_plant_count=analysis_data.get(
+            "visible_plant_count"
+        ),
+        measurement_valid=analysis_data.get(
+            "measurement_valid",
+            True
+        ),
+        processing_time_ms=analysis_data.get(
+            "processing_time_ms"
+        ),
     )
 
-    # -----------------------------
-    # 5. Create measurements
-    # -----------------------------
+    measurement_count = 0
+    seen_slots = set()
 
-    measurements_created = 0
+    for plant in plants:
 
-    for plant in data.get('plants', []):
+        slot_id = str(plant["slot_id"])
 
-        slot_id = plant.get('slot_id')
+        # Give a clean error instead of relying only on DB constraint
+        if slot_id in seen_slots:
+            return Response(
+                {
+                    "error":
+                        f"Duplicate measurement for slot {slot_id}"
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
-        if not slot_id:
-            continue
+        seen_slots.add(slot_id)
 
-        slot = get_object_or_404(
-            Slot,
-            id=slot_id
-        )
+        slot = slot_map[slot_id]
 
         PlantVisionMeasurement.objects.create(
             image_analysis=analysis,
             slot=slot,
 
-            canopy_coverage=
-                plant.get('canopy_coverage'),
+            canopy_coverage=plant.get(
+                "canopy_coverage"
+            ),
 
-            width_px=
-                plant.get('width_px'),
+            width_px=plant.get("width_px"),
+            height_px=plant.get("height_px"),
 
-            height_px=
-                plant.get('height_px'),
+            width_cm=plant.get("width_cm"),
+            height_cm=plant.get("height_cm"),
 
-            width_cm=
-                plant.get('width_cm'),
+            green_percentage=plant.get(
+                "green_percentage"
+            ),
 
-            height_cm=
-                plant.get('height_cm'),
+            yellow_percentage=plant.get(
+                "yellow_percentage"
+            ),
 
-            green_percentage=
-                plant.get('green_percentage'),
+            crowding_percentage=plant.get(
+                "crowding_percentage"
+            ),
 
-            yellow_percentage=
-                plant.get('yellow_percentage'),
+            growth_stage=plant.get(
+                "growth_stage"
+            ),
 
-            crowding_percentage=
-                plant.get('crowding_percentage'),
+            growth_change=plant.get(
+                "growth_change"
+            ),
 
-            growth_change=
-                plant.get('growth_change'),
+            visible=plant.get(
+                "visible",
+                True
+            ),
 
-            visible=
-                plant.get('visible', True),
-
-            measurement_valid=
-                plant.get('measurement_valid', True),
+            measurement_valid=plant.get(
+                "measurement_valid",
+                True
+            ),
         )
 
-        measurements_created += 1
-
-    # -----------------------------
-    # 6. Return success
-    # -----------------------------
+        measurement_count += 1
 
     return Response(
         {
-            "message": "LeafyCV result stored successfully",
-            "camera_image_id": camera_image.id,
+            "message": "CV sample stored successfully",
+            "image_id": camera_image.id,
             "analysis_id": analysis.id,
-            "measurements_created": measurements_created,
+            "measurement_count": measurement_count,
         },
         status=status.HTTP_201_CREATED
     )
