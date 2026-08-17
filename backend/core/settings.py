@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     'computer_vision',
     'telemetry',
     'ai_agent',
+    'accounts'
 ]
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
