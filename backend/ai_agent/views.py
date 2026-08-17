@@ -9,13 +9,16 @@ class AIDecisionViewSet(viewsets.ModelViewSet):
     serializer_class = AiDecisionSerializer
 
 class ActionViewSet(viewsets.ModelViewSet):
-    queryset = Action.objects.all()
-    serializer_class = ActionSerializer
+    # Updated to use FarmAction instead of Action
+    queryset = FarmAction.objects.all()
+    # Note: If your serializer is named FarmActionSerializer, change it here too!
+    serializer_class = ActionSerializer 
 
 class HumanApprovalViewSet(viewsets.ModelViewSet):
     queryset = HumanApproval.objects.all()
     serializer_class = HumanApprovalSerializer
 
 class SafetyCheckViewSet(viewsets.ModelViewSet):
-    queryset = safetyCheck.objects.all()
+    # Fixed the typo (capital 'S' for SafetyCheck)
+    queryset = SafetyCheck.objects.all()
     serializer_class = SafetyCheckSerializer

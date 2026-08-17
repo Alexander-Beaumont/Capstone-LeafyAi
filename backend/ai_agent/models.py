@@ -1,5 +1,5 @@
 from django.db import models
-from backend.telemetry.models import PlantBatch
+from telemetry.models import PlantBatch
 
 # AI Decision anc Check
 class AIDecision(models.Model):
