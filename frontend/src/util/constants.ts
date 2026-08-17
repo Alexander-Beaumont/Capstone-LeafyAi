@@ -3,6 +3,11 @@ import type { BABatch, GAGrowingArea } from "./types"
 
 export const SMALL_WINDOW_WIDTH = 1000
 
+export const API = {
+    login: `${import.meta.env.VITE_BACKEND_BASEURL}/api/auth/login/`,
+    refresh: `${import.meta.env.VITE_BACKEND_BASEURL}/api/auth/refresh/`,
+}
+
 export const PAGES = {
     noAuthPages: {
         landingPage: "/",

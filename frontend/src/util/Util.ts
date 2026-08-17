@@ -39,7 +39,7 @@ export namespace AuthUtil{
     const SPECIAL_CHARACTER_REGEX = /[^a-zA-Z0-9]/;
 
     export function validatePassword(password: string, confirmationPassword?: string): [boolean, string]{
-        if(password != confirmationPassword){
+        if(password != confirmationPassword && confirmationPassword){
             return [false, "Passwords do not match"]
         }
         if(password.length < 6){
