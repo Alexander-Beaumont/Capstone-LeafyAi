@@ -31,10 +31,6 @@ export default function Signup({setHasAccount}: Props) {
         modalData.setWholeForm({showModal: true, modalText: msg!})
     }
 
-    function skip(){
-        user.setLoggedIn(true)
-    }
-
     return (
         <>
             <div className="bg-panel1 border border-border rounded-lg p-5 w-[80%] h-fit
