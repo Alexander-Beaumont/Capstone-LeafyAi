@@ -56,7 +56,6 @@ class RegisterUserTests(APITestCase):
 
         data = {
             "username": "testuser",
-            "email": "another@example.com",
             "password": "AnotherPassword123!"
         }
 
@@ -73,7 +72,6 @@ class RegisterUserTests(APITestCase):
     def test_password_required(self):
         data = {
             "username": "testuser",
-            "email": "test@example.com"
         }
 
         response = self.client.post(
