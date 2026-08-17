@@ -5,6 +5,21 @@ export interface ButtonStyles{
     noAnimation?: boolean
 }
 
+export interface AuthResult {
+    loggedIn: boolean
+    accessToken?: string
+    msg?: string 
+}
+
+export interface SignUpRes{
+    user: {
+        id: number,
+        username: string,
+        email: string
+    }
+    refresh: string
+    access: string
+}
 
 export interface BABatch{
     plantType: string,

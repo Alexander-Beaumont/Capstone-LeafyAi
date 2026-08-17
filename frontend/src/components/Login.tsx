@@ -29,7 +29,7 @@ export default function Login({setHasAccount}: Props) {
             })
             return
         }
-        
+
         const {loggedIn, msg} = await user.login(userData.form.username, userData.form.password)
         
         if(loggedIn) return
@@ -70,6 +70,7 @@ export default function Login({setHasAccount}: Props) {
                             onSubmit={() => login()}
                             styles={{fullWidth: true}}
                             icon={<IoLogInOutline />}
+                            loading={user.loading}
                         />
                         <p className="text-xs text-subtext3">
                             {"Don't have an account? "}  

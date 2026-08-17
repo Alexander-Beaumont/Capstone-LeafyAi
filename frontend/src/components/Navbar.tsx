@@ -51,6 +51,10 @@ export default function Navbar() {
                                     const item = items.find(i => i.id == id) ?? null
                                     if(item?.data == PAGES.noAuthPages.authPage) user.setLoggedIn(false)
                                     setSelectedItem(item)
+                                    if(item?.name =="Log Out"){
+                                        user.signout()
+                                        return
+                                    }
                                     navigate(item!.data)
                                 }}
                                 setText={<GiHamburgerMenu size={18}/>}
@@ -120,7 +124,7 @@ export default function Navbar() {
                                 <button className={`text-subtext1 hover:bg-panel3
                                         hover:cursor-pointer text-sm h-10 hover:italic transition-all duration-200 ease-in-out px-3 w-full text-left
                                         flex items-center gap-2`}
-                                    onClick={() => user.setLoggedIn(false)}>
+                                    onClick={() => user.signout()}>
                                     <HiOutlineLogout />
                                     Log Out
                                 </button>

@@ -15,4 +15,11 @@ urlpatterns = [
         views.ingest_cv_result,
         name='cv-ingest'
     ),
+    path(
+        "cv/cameras/<int:camera_id>/latest-analysis/",
+        views.latest_analysis,
+        name="cv-latest-analysis"
+    ),
+
 ]
+

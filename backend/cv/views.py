@@ -211,3 +211,41 @@ def ingest_cv_result(request):
         },
         status=status.HTTP_201_CREATED
     )
+
+@api_view(["GET"])
+def latest_analysis(request, camera_id):
+
+    camera = get_object_or_404(
+        Camera,
+        id=camera_id
+    )
+
+    analysis = (
+        ImageAnalysis.objects
+        .filter(image__camera=camera)
+        .order_by("-created_at")
+        .first()
+    )
+
+    if not analysis:
+        return Response(
+            {"detail": "No analysis found for this camera."},
+            status=status.HTTP_404_NOT_FOUND
+        )
+
+    measurements = (
+        PlantVisionMeasurement.objects
+        .filter(image_analysis=analysis)
+    )
+
+    return Response({
+        "analysis": ImageAnalysisSerializer(
+            analysis
+        ).data,
+
+        "measurements":
+            PlantVisionMeasurementSerializer(
+                measurements,
+                many=True
+            ).data
+    })
