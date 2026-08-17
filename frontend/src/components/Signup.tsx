@@ -52,7 +52,7 @@ export default function Signup({setHasAccount}: Props) {
                         charLimit={15}
                         value={userData.form.password}
                         setValue={d => userData.setForm("password", d)}
-                        placeHolder="Enter Email"
+                        placeHolder="Enter Password"
                         password={true}
                     />
                     <TextBox
@@ -60,7 +60,7 @@ export default function Signup({setHasAccount}: Props) {
                         charLimit={15}
                         value={userData.form.confirmPassword}
                         setValue={d => userData.setForm("confirmPassword", d)}
-                        placeHolder="Enter Email"
+                        placeHolder="Enter Password"
                         password={true}
                     />
                     <div className="mt-3 flex flex-col items-center gap-5.5">
