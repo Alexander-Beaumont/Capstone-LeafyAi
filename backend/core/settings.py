@@ -14,6 +14,20 @@ from pathlib import Path
 
 from datetime import timedelta
 
+from django.conf import settings
+from django.conf.urls.static import static
+
+from pathlib import Path
+from datetime import timedelta
+
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"
+
+
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 

@@ -11,6 +11,8 @@ from rest_framework_simplejwt.views import (
     TokenObtainPairView,
     TokenRefreshView,
 )
+from django.conf import settings
+from django.conf.urls.static import static
 
 router = DefaultRouter()
 
@@ -28,3 +30,8 @@ urlpatterns = [
     path("api/", include("cv.urls")), #unsure
 
 ]
+if settings.DEBUG:
+    urlpatterns += static(
+        settings.MEDIA_URL,
+        document_root=settings.MEDIA_ROOT
+    )
