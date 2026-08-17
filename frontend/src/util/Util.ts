@@ -21,15 +21,9 @@ export namespace Util{
 
 
 export namespace AuthUtil{
-    export function validateEmail(email: string): [boolean, string]{
+    export function validateUsername(email: string): [boolean, string]{
         if(email.length == 0){
-            return [false, "Enter an email"]
-        }
-        if(!email.includes("@")){
-            return [false, "Email needs to include an @"]
-        }
-        if(!email.includes(".")){
-            return [false, "Email needs to include a '.'"]
+            return [false, "Enter an username"]
         }
         return [true, ""]
     }
