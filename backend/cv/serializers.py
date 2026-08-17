@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from computer_vision.models import (
+from cv.models import (
     ImageAnalysis,
     PlantVisionMeasurement,
 )

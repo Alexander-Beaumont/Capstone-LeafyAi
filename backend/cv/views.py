@@ -1,11 +1,11 @@
 from rest_framework import viewsets, status
 
-from computer_vision.models import (
+from cv.models import (
     ImageAnalysis,
     PlantVisionMeasurement,
 )
 
-from computer_vision.serializers import (
+from cv.serializers import (
     ImageAnalysisSerializer,
     PlantVisionMeasurementSerializer,
 )
@@ -17,15 +17,6 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from telemetry.models import Camera, CameraImage, Slot
 
-from computer_vision.models import (
-    ImageAnalysis,
-    PlantVisionMeasurement,
-)
-
-from computer_vision.serializers import (
-    ImageAnalysisSerializer,
-    PlantVisionMeasurementSerializer,
-)
 
 class ImageAnalysisViewSet(viewsets.ModelViewSet):
     queryset = ImageAnalysis.objects.all()

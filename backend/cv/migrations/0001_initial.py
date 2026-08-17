@@ -42,7 +42,7 @@ class Migration(migrations.Migration):
                 ('visible', models.BooleanField(default=True)),
                 ('measurement_valid', models.BooleanField(default=True)),
                 ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('image_analysis', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='computer_vision.imageanalysis')),
+                ('image_analysis', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='cv.imageanalysis')),
                 ('slot', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, to='telemetry.slot')),
             ],
         ),

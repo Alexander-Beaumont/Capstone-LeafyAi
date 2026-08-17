@@ -178,7 +178,7 @@ class CameraSlotPosition(models.Model): #composite may need fixing
         ]
 
 class CameraImage(models.Model):
-    camera = models.ForeignKey(Camera, on_delete=models.CASCADE)
+    camera = models.ForeignKey(Camera, on_delete=models.PROTECT)
     timestamp = models.DateTimeField(auto_now_add=True)
     path = models.CharField(
         max_length=500,
@@ -193,7 +193,7 @@ class Sensor(models.Model):
     unit = models.CharField(max_length=50)
 
 class SensorReading(models.Model):
-    sensor = models.ForeignKey(Sensor, on_delete=models.CASCADE)
+    sensor = models.ForeignKey(Sensor, on_delete=models.PROTECT)
     timestamp = models.DateTimeField(auto_now_add=True)
     value = models.DecimalField(
         max_digits=10,

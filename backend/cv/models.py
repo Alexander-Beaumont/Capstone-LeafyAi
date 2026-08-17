@@ -2,7 +2,10 @@ from django.db import models
 from telemetry.models import CameraImage, Slot
 
 class ImageAnalysis(models.Model):
-    image = models.ForeignKey(CameraImage, on_delete=models.CASCADE)
+    image = models.ForeignKey(
+        CameraImage,
+        on_delete=models.CASCADE
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     total_canopy_coverage = models.DecimalField(
         max_digits=5,
@@ -25,7 +28,7 @@ class PlantVisionMeasurement(models.Model):
         on_delete=models.CASCADE)
     slot = models.ForeignKey(
         Slot,
-        on_delete=models.CASCADE,
+        on_delete=models.PROTECT,
         blank=True,
         null=True
     )
@@ -92,3 +95,11 @@ class PlantVisionMeasurement(models.Model):
     visible = models.BooleanField(default=True)
     measurement_valid = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["image_analysis", "slot"],
+                name="unique_cv_measurement_per_slot_analysis"
+            )
+        ]

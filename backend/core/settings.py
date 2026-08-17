@@ -45,7 +45,7 @@ INSTALLED_APPS = [
     'rest_framework',
 
     #Our apps
-    'computer_vision',
+    'cv',
     'telemetry',
     'ai_agent',
     'accounts'
