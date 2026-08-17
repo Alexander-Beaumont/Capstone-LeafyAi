@@ -12,6 +12,8 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 
 from pathlib import Path
 
+from datetime import timedelta
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -56,6 +58,14 @@ REST_FRAMEWORK = {
         "rest_framework.permissions.IsAuthenticated",
     ),
 }
+
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME":
+        timedelta(minutes=15),
+    "REFRESH_TOKEN_LIFETIME":
+        timedelta(days=30)
+}
+
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware', #Must be placed at the top of the middleware list to ensure it runs before other middleware that might block CORS requests.
     'django.middleware.security.SecurityMiddleware',
