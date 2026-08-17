@@ -28,6 +28,8 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/auth/', include('accounts.urls')),
     path("api/", include("cv.urls")), #unsure
+    path("api/", include("farm_state.urls")),
+    path("api/", include("ai_agent.urls")),
 
 ]
 if settings.DEBUG:

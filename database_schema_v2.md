@@ -23,7 +23,7 @@
 
 | Column | Type | Constraints | Description |
 |---|---|---|---|
-| `farm_id` | UUID | PK | Unique identifier |
+| `farm_id` | INTEGER AUTO-INCREMENT | PK | Unique identifier |
 | `name` | VARCHAR(255) | NOT NULL | Farm name |
 | `location` | VARCHAR(255) | | Physical location |
 
@@ -33,8 +33,8 @@ A vertical farming device is the physical hardware unit. Each device has 2 level
 
 | Column | Type | Constraints | Description |
 |---|---|---|---|
-| `device_id` | UUID | PK | Unique identifier |
-| `farm_id` | UUID | FK → FARM, NOT NULL | Owning farm |
+| `device_id` | INTEGER AUTO-INCREMENT | PK | Unique identifier |
+| `farm_id` | INTEGER AUTO-INCREMENT | FK → FARM, NOT NULL | Owning farm |
 | `name` | VARCHAR(255) | NOT NULL | Human-readable name |
 | `device_type` | VARCHAR(100) | | Model / variant |
 
@@ -46,8 +46,8 @@ Each device has exactly 2 levels. The top level (level 1) contains the seedling 
 
 | Column | Type | Constraints | Description |
 |---|---|---|---|
-| `farm_level_id` | UUID | PK | Unique identifier |
-| `device_id` | UUID | FK → DEVICE, NOT NULL | Parent device |
+| `farm_level_id` | INTEGER AUTO-INCREMENT | PK | Unique identifier |
+| `device_id` | INTEGER AUTO-INCREMENT | FK → DEVICE, NOT NULL | Parent device |
 | `level_number` | INTEGER | NOT NULL, CHECK (1 or 2) | 1 = top, 2 = bottom |
 
 **Relationships:** DEVICE — FARMLEVEL: 1:M
@@ -65,8 +65,8 @@ Each level is divided into distinct growing areas with different purposes.
 
 | Column | Type | Constraints | Description |
 |---|---|---|---|
-| `growing_area_id` | UUID | PK | Unique identifier |
-| `farm_level_id` | UUID | FK → FARMLEVEL, NOT NULL | Parent level |
+| `growing_area_id` | INTEGER AUTO-INCREMENT | PK | Unique identifier |
+| `farm_level_id` | INTEGER AUTO-INCREMENT | FK → FARMLEVEL, NOT NULL | Parent level |
 | `name` | VARCHAR(255) | NOT NULL | e.g. "Seedling Chamber" |
 | `slot_count` | INTEGER | NOT NULL | Number of NFT positions |
 
@@ -78,8 +78,8 @@ An individual NFT position within a growing area. Each slot can hold one plant (
 
 | Column | Type | Constraints | Description |
 |---|---|---|---|
-| `slot_id` | UUID | PK | Unique identifier |
-| `growing_area_id` | UUID | FK → GROWING_AREA, NOT NULL | Parent area |
+| `slot_id` | INTEGER AUTO-INCREMENT | PK | Unique identifier |
+| `growing_area_id` | INTEGER AUTO-INCREMENT | FK → GROWING_AREA, NOT NULL | Parent area |
 | `slot_number` | INTEGER | NOT NULL | Position number within the area |
 | `row` | INTEGER | | Row index (for multi-row layouts) |
 | `column` | INTEGER | | Column index |
@@ -99,7 +99,7 @@ A group of plants of the same type planted together on the same date. The batch 
 
 | Column | Type | Constraints | Description |
 |---|---|---|---|
-| `batch_id` | UUID | PK | Unique identifier |
+| `batch_id` | INTEGER AUTO-INCREMENT | PK | Unique identifier |
 | `plant_type` | VARCHAR(100) | NOT NULL | e.g. "Sweet Basil" |
 | `planting_date` | DATE | NOT NULL | Date seeded/planted |
 | `growth_stage` | VARCHAR(50) | NOT NULL, CHECK IN ('seedling', 'early_growth', 'mature') | Current stage |
@@ -111,8 +111,8 @@ Tracks where a batch is located over time. This is the key table for the movemen
 
 | Column | Type | Constraints | Description |
 |---|---|---|---|
-| `batch_id` | UUID | COMPOSITE PK, FK → PLANTBATCH, NOT NULL | The batch |
-| `growing_area_id` | UUID | COMPOSITE PK, FK → GROWINGAREA, NOT NULL | The growing area occupied |
+| `batch_id` | INTEGER AUTO-INCREMENT | COMPOSITE PK, FK → PLANTBATCH, NOT NULL | The batch |
+| `growing_area_id` | INTEGER AUTO-INCREMENT | COMPOSITE PK, FK → GROWINGAREA, NOT NULL | The growing area occupied |
 | `start_date` | TIMESTAMP | NOT NULL | When the batch was placed here |
 | `end_date` | TIMESTAMP | NULLABLE | When the batch was moved out (null = current) |
 
@@ -130,8 +130,8 @@ Multiple cameras per level for visual monitoring.
 
 | Column | Type | Constraints | Description |
 |---|---|---|---|
-| `camera_id` | UUID | PK | Unique identifier |
-| `farm_level_id` | UUID | FK → FARMLEVEL, NOT NULL | Which level the camera monitors |
+| `camera_id` | INTEGER AUTO-INCREMENT | PK | Unique identifier |
+| `farm_level_id` | INTEGER AUTO-INCREMENT | FK → FARMLEVEL, NOT NULL | Which level the camera monitors |
 | `name` | VARCHAR(255) | NOT NULL | e.g. "Top Level - Left" |
 | `position` | VARCHAR(100) | | Physical position description |
 | `source_type` | VARCHAR(20) | NOT NULL, CHECK IN (RTSP, WEBCAM) | Camera input type |
@@ -154,7 +154,7 @@ Multiple cameras per level for visual monitoring.
 
 | Column | Type | Constraints | Description |
 |---|---|---|---|
-| `camera_id` | UUID | COMPOSITE PK, FK → CAMERA, NOT NULL | Camera |
+| `camera_id` | INTEGER AUTO-INCREMENT | COMPOSITE PK, FK → CAMERA, NOT NULL | Camera |
 | `slot_id` | TIMESTAMP | COMPOSITE PK, FK → SLOT, NOT NULL | Physical slot |
 | `centre_x` | DECIMAL(8,6) | NOT NULL | Slot centre X |
 | `centre_y` | DECIMAL(8,6) | NOT NULL | Slot centre Y |
@@ -167,8 +167,8 @@ Captured frames from cameras.
 
 | Column | Type | Constraints | Description |
 |---|---|---|---|
-| `image_id` | UUID | PK | Unique identifier |
-| `camera_id` | UUID | FK → CAMERA, NOT NULL | Source camera |
+| `image_id` | INTEGER AUTO-INCREMENT | PK | Unique identifier |
+| `camera_id` | INTEGER AUTO-INCREMENT | FK → CAMERA, NOT NULL | Source camera |
 | `timestamp` | TIMESTAMP | NOT NULL | When captured |
 | `path` | VARCHAR(500) | NOT NULL | Storage path |
 
@@ -180,8 +180,8 @@ Results from running vision models on captured images.
 
 | Column | Type | Constraints | Description |
 |---|---|---|---|
-| `analysis_id` | UUID | PK | Unique identifier |
-| `image_id` | UUID | FK → CAMERAIMAGE, NOT NULL | Source image |
+| `analysis_id` | INTEGER AUTO-INCREMENT | PK | Unique identifier |
+| `image_id` | INTEGER AUTO-INCREMENT | FK → CAMERAIMAGE, NOT NULL | Source image |
 | `created_at` | TIMESTAMP | NOT NULL, DEFAULT NOW() | |
 | `total_canopy_coverage` | DECIMAL(5,2) | | Percentage of image covered by foliage |
 | `visible_plant_count` | INTEGER | | Number of plants detected |
@@ -196,9 +196,9 @@ Per-plant measurements extracted from image analysis. Each measurement is linked
 
 | Column | Type | Constraints | Description |
 |---|---|---|---|
-| `measurement_id` | UUID | PK | Unique identifier |
-| `analysis_id` | UUID | FK → IMAGEANALYSIS, NOT NULL | Parent analysis |
-| `slot_id` | UUID | FK → SLOT | Which slot this plant is in |
+| `measurement_id` | INTEGER AUTO-INCREMENT | PK | Unique identifier |
+| `analysis_id` | INTEGER AUTO-INCREMENT | FK → IMAGEANALYSIS, NOT NULL | Parent analysis |
+| `slot_id` | INTEGER AUTO-INCREMENT | FK → SLOT | Which slot this plant is in |
 | `canopy_coverage` | DECIMAL(5,2) | | Coverage for this specific plant |
 | `width_px` | INTEGER | | Width in pixels |
 | `height_px` | INTEGER | | Height in pixels |
@@ -227,8 +227,8 @@ Sensors monitor environmental conditions. A sensor is device-specific, which mea
 
 | Column | Type | Constraints | Description |
 |---|---|---|---|
-| `sensor_id` | UUID | PK | Unique identifier |
-| `device_id` | UUID | FK → DEVICE, NOT NULL | Device this sensor belongs to |
+| `sensor_id` | INTEGER AUTO-INCREMENT | PK | Unique identifier |
+| `device_id` | INTEGER AUTO-INCREMENT | FK → DEVICE, NOT NULL | Device this sensor belongs to |
 | `sensor_type` | VARCHAR(50) | NOT NULL | e.g. 'temperature', 'humidity', 'ph', 'ec', 'water_level', 'flow' |
 | `unit` | VARCHAR(50) | NOT NULL | e.g. '°C', '%', 'pH', 'µS/cm', 'L', 'L/min' |
 
@@ -241,8 +241,8 @@ Time-series data from sensors.
 
 | Column | Type | Constraints | Description |
 |---|---|---|---|
-| `reading_id` | UUID | PK | Unique identifier |
-| `sensor_id` | UUID | FK → SENSOR, NOT NULL | Source sensor |
+| `reading_id` | INTEGER AUTO-INCREMENT | PK | Unique identifier |
+| `sensor_id` | INTEGER AUTO-INCREMENT | FK → SENSOR, NOT NULL | Source sensor |
 | `timestamp` | TIMESTAMP | NOT NULL | When the reading was taken |
 | `value` | DECIMAL(10,3) | NOT NULL | Measured value |
 
@@ -258,8 +258,8 @@ The nutrient reservoir at the bottom of each device. Monitored for water level (
 
 | Column | Type | Constraints | Description |
 |---|---|---|---|
-| `tank_id` | UUID | PK | Unique identifier |
-| `device_id` | UUID | FK → DEVICE, NOT NULL | Parent device |
+| `tank_id` | INTEGER AUTO-INCREMENT | PK | Unique identifier |
+| `device_id` | INTEGER AUTO-INCREMENT | FK → DEVICE, NOT NULL | Parent device |
 | `capacity_l` | DECIMAL(6,1) | NOT NULL | Total capacity in litres |
 | `current_level_l` | DECIMAL(6,1) | | Current water level |
 | `last_refill_date` | TIMESTAMP | | When the tank was last refilled |
@@ -273,8 +273,8 @@ Relay-controlled dosing pumps that add nutrients or pH adjusters to the shared w
 
 | Column | Type | Constraints | Description |
 |---|---|---|---|
-| `doser_id` | UUID | PK | Unique identifier |
-| `device_id` | UUID | FK → DEVICE, NOT NULL | Parent device |
+| `doser_id` | INTEGER AUTO-INCREMENT | PK | Unique identifier |
+| `device_id` | INTEGER AUTO-INCREMENT | FK → DEVICE, NOT NULL | Parent device |
 | `chemical_type` | VARCHAR(50) | NOT NULL | e.g. 'nutrient_a', 'nutrient_b', 'ph_up', 'ph_down' |
 | `concentration` | DECIMAL(10,3) | | Current concentration setting |
 | `flow_rate_ml_per_min` | DECIMAL(6,1) | | Calibrated flow rate |
@@ -292,7 +292,7 @@ Reference ranges used by the safety layer to validate sensor readings and AI-gen
 
 | Column | Type | Constraints | Description |
 |---|---|---|---|
-| `range_id` | UUID | PK | Unique identifier |
+| `range_id` | INTEGER AUTO-INCREMENT | PK | Unique identifier |
 | `sensor_type` | VARCHAR(50) | NOT NULL | e.g. 'temperature', 'ph', 'ec', 'humidity', 'water_level' |
 | `min_value` | DECIMAL(10,3) | | Lower bound (null = no lower bound) |
 | `max_value` | DECIMAL(10,3) | | Upper bound (null = no upper bound) |
@@ -312,8 +312,8 @@ Every AI recommendation or decision is recorded with a human-readable explanatio
 
 | Column | Type | Constraints | Description |
 |---|---|---|---|
-| `decision_id` | UUID | PK | Unique identifier |
-| `device_id` | UUID | FK → DEVICE, NOT NULL | Relevant device (if device-level) |
+| `decision_id` | INTEGER AUTO-INCREMENT | PK | Unique identifier |
+| `device_id` | INTEGER AUTO-INCREMENT | FK → DEVICE, NOT NULL | Relevant device (if device-level) |
 | `decision_type` | VARCHAR(50) | NOT NULL | e.g. 'schedule_update', 'dosing_adjustment', 'lighting_adjustment', 'fan_adjustment', 'harvest_recommendation', 'spacing_adjustment', 'alert' |
 | `recommendation` | TEXT | NOT NULL | What the AI recommends in plain language |
 | `explanation` | TEXT | NOT NULL | Human-readable explanation of why |
@@ -326,8 +326,8 @@ Software-based safety validation result. The proposal states: *"Implement a soft
 
 | Column | Type | Constraints | Description |
 |---|---|---|---|
-| `safety_check_id` | UUID | PK | Unique identifier |
-| `decision_id` | UUID | FK → AIDECISION, NOT NULL, UNIQUE | The decision being checked (1:1) |
+| `safety_check_id` | INTEGER AUTO-INCREMENT | PK | Unique identifier |
+| `decision_id` | INTEGER AUTO-INCREMENT | FK → AIDECISION, NOT NULL, UNIQUE | The decision being checked (1:1) |
 | `checked_at` | TIMESTAMP | NOT NULL, DEFAULT NOW() | |
 | `result` | VARCHAR(20) | NOT NULL, CHECK IN ('passed', 'failed', 'requires_review') | |
 | `explanation` | TEXT | | Why it passed or failed |
@@ -340,8 +340,8 @@ Human review of AI decisions. The proposal states: *"Require human approval for 
 
 | Column | Type | Constraints | Description |
 |---|---|---|---|
-| `approval_id` | UUID | PK | Unique identifier |
-| `decision_id` | UUID | FK → AIDECISION, NOT NULL, UNIQUE | The decision being reviewed (1:1) |
+| `approval_id` | INTEGER AUTO-INCREMENT | PK | Unique identifier |
+| `decision_id` | INTEGER AUTO-INCREMENT | FK → AIDECISION, NOT NULL, UNIQUE | The decision being reviewed (1:1) |
 | `reviewed_at` | TIMESTAMP | | When reviewed (null = pending) |
 | `result` | VARCHAR(20) | CHECK IN ('approved', 'denied', 'overridden') | |
 | `comment` | TEXT | | Reviewer's notes |
@@ -354,8 +354,8 @@ Record of an executed farm action. A single decision may result in multiple acti
 
 | Column | Type | Constraints | Description |
 |---|---|---|---|
-| `action_id` | UUID | PK | Unique identifier |
-| `decision_id` | UUID | FK → AIDECISION, NOT NULL | Source decision |
+| `action_id` | INTEGER AUTO-INCREMENT | PK | Unique identifier |
+| `decision_id` | INTEGER AUTO-INCREMENT | FK → AIDECISION, NOT NULL | Source decision |
 | `executed_at` | TIMESTAMP | | When executed (null = pending) |
 | `result` | VARCHAR(20) | CHECK IN ('success', 'failed', 'partial') | |
 | `explanation` | TEXT | | Outcome description |
