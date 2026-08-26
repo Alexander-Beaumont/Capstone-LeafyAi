@@ -1,0 +1,53 @@
+crop: "Sweet Basil"
+
+safety_ranges:
+  ec:
+    min: 1000
+    max: 2200
+    unit: "uS/cm"
+    action_note: "If low, recommend Nutrient A & B dosage (1:1 ratio)"
+  ph:
+    min: 5.5
+    max: 6.5
+  water_temperature:
+    min: 18
+    max: 24
+    unit: "C"
+  ambient_temperature:
+    min: 18
+    max: 30
+    unit: "C"
+  dew_point:
+    min: 5
+    max: 21
+    unit: "C"
+    min_offset_below_ambient: 2
+    action_note: "Must remain at least 2 C below Ambient Temp to avoid condensation"
+  water_level:
+    min: 5
+    max: 15
+    unit: "cm"
+  humidity:
+    min: 40
+    max: 60
+    unit: "%"
+  irrigation_pump:
+    min_on_mins: 15
+    max_on_mins: 30
+    unit: "mins/hr"
+
+nutrients:
+  nutrient_a:
+    rule: "Dose in equal ratio (1:1) with Nutrient B when EC drops below min safe threshold"
+  nutrient_b:
+    rule: "Dose in equal ratio (1:1) with Nutrient A when EC drops below min safe threshold"
+
+execution_rules:
+  automated_devices:
+    - "fans"
+    - "light"
+  manual_notification_categories:
+    - "Nutrient A/B dosing"
+    - "pH adjustments"
+    - "harvesting"
+    - "water refill"
