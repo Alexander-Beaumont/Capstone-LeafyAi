@@ -63,6 +63,7 @@ INSTALLED_APPS = [
     'telemetry',
     'ai_agent',
     'farm_state',
+    'growth',
     'accounts'
 ]
 REST_FRAMEWORK = {

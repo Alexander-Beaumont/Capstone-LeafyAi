@@ -29,6 +29,7 @@ urlpatterns = [
     path('api/auth/', include('accounts.urls')),
     path("api/", include("cv.urls")), #unsure
     path("api/", include("farm_state.urls")),
+    path("api/", include("growth.urls")),
     path("api/", include("ai_agent.urls")),
 
 ]
