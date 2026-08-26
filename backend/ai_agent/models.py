@@ -3,8 +3,51 @@ from telemetry.models import FarmDevice
 
 # AI Decision anc Check
 class AIDecision(models.Model):
+    EXECUTION_TYPE_CHOICES = [
+        ('automated', 'Automated'),
+        ('notification', 'Notification'),
+    ]
+    TARGET_DEVICE_CHOICES = [
+        ('fans', 'Fans'),
+        ('light', 'Light'),
+        ('none', 'None'),
+    ]
+    DEVICE_STATE_CHOICES = [
+        ('on', 'On'),
+        ('off', 'Off'),
+        ('none', 'None'),
+    ]
+    CATEGORY_CHOICES = [
+        ('climate', 'Climate'),
+        ('lighting', 'Lighting'),
+        ('dosing', 'Dosing'),
+        ('water', 'Water'),
+        ('harvest', 'Harvest'),
+        ('alert', 'Alert'),
+    ]
+
     device = models.ForeignKey(FarmDevice, on_delete=models.CASCADE)
     decision_type = models.CharField(max_length=50) # May add choices. e.g. schedue_update, dosing_adjustment, lighting_adjustment, fan_adjustment, alert
+    execution_type = models.CharField(
+        max_length=20,
+        choices=EXECUTION_TYPE_CHOICES,
+        default='notification'
+    )
+    target_device = models.CharField(
+        max_length=20,
+        choices=TARGET_DEVICE_CHOICES,
+        default='none'
+    )
+    device_state = models.CharField(
+        max_length=20,
+        choices=DEVICE_STATE_CHOICES,
+        default='none'
+    )
+    category = models.CharField(
+        max_length=20,
+        choices=CATEGORY_CHOICES,
+        default='alert'
+    )
     recommendation = models.TextField()
     explanation = models.TextField()
     confidence_score = models.DecimalField(

@@ -315,6 +315,10 @@ Every AI recommendation or decision is recorded with a human-readable explanatio
 | `decision_id` | INTEGER AUTO-INCREMENT | PK | Unique identifier |
 | `device_id` | INTEGER AUTO-INCREMENT | FK → DEVICE, NOT NULL | Relevant device (if device-level) |
 | `decision_type` | VARCHAR(50) | NOT NULL | e.g. 'schedule_update', 'dosing_adjustment', 'lighting_adjustment', 'fan_adjustment', 'harvest_recommendation', 'spacing_adjustment', 'alert' |
+| `execution_type` | VARCHAR(20) | NOT NULL, CHECK IN ('automated', 'notification') | Whether the recommendation can be executed automatically or must be surfaced to a user |
+| `target_device` | VARCHAR(20) | NOT NULL, CHECK IN ('fans', 'light', 'none') | Hardware target for low-risk automated actions |
+| `device_state` | VARCHAR(20) | NOT NULL, CHECK IN ('on', 'off', 'none') | Requested state for the target hardware |
+| `category` | VARCHAR(20) | NOT NULL, CHECK IN ('climate', 'lighting', 'dosing', 'water', 'harvest', 'alert') | Safety category used to decide pass/review/fail handling |
 | `recommendation` | TEXT | NOT NULL | What the AI recommends in plain language |
 | `explanation` | TEXT | NOT NULL | Human-readable explanation of why |
 | `confidence_score` | DECIMAL(3,2) | | AI confidence (0.00–1.00) |

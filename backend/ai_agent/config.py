@@ -24,7 +24,7 @@ OPENROUTER_BASE_URL = os.environ.get(
 OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY", "")
 OPENROUTER_MODEL = os.environ.get(
     "OPENROUTER_MODEL",
-    "openrouter/google/gemini-2.0-flash-001:free",
+    "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
 )
 
 # ------------------------------------------------------------------

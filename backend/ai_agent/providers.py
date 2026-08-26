@@ -90,6 +90,10 @@ class MockProvider(LLMProvider):
 
     DEFAULT_OUTPUT = (
         '{"decision_type": "alert", '
+        '"execution_type": "notification", '
+        '"target_device": "none", '
+        '"device_state": "none", '
+        '"category": "alert", '
         '"recommendation": "Check tank level and sensor readings.", '
         '"explanation": "This is mock output generated offline for testing.", '
         '"confidence": 0.8}'

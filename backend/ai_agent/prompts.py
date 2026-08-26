@@ -1,17 +1,18 @@
 """Prompt building for the farm recommendation agent."""
 
-import yaml
 import json
 
-def generate_system_prompt(config_path: str = "farm_config.yaml") -> str:
-    with open(config_path, "r") as f:
-        config = yaml.safe_load(f)
+from ai_agent.config_loader import load_farm_config
+
+
+def generate_system_prompt(config_path=None) -> str:
+    config = load_farm_config(config_path)
 
     crop = config["crop"]
     ranges = config["safety_ranges"]
     auto_devices = ", ".join(f"'{dev}'" for dev in config["execution_rules"]["automated_devices"])
 
-    prompt = f"""You are an expert AI controller for a hydroponic {crop} vertical farm.
+    prompt = f"""You are an expert vertical-farming AI controller for a hydroponic {crop} vertical farm.
 Analyze the provided JSON farm state and generate an actionable recommendation object.
 
 Target Safety Ranges for {crop}:
@@ -39,7 +40,7 @@ Respond with a single raw JSON object only (no markdown, no code blocks) using t
 
     return prompt
 
-DEFAULT_SYSTEM = generate_system_prompt("farm_config.yaml")
+DEFAULT_SYSTEM = generate_system_prompt()
 
 def build_messages(farm_state):
     """Build (system, user) message strings for the provider.
