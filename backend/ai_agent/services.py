@@ -11,6 +11,7 @@ from ai_agent.models import AIDecision
 from ai_agent.parsing import parse_recommendation
 from ai_agent.prompts import build_messages
 from ai_agent.providers import get_provider
+from ai_agent.safety import run_safety_check
 
 
 class NoDeviceError(ValidationError):
@@ -52,10 +53,15 @@ def generate_recommendation(farm, device=None, provider=None, persist=True):
     parsed = parse_recommendation(raw)
 
     decision_id = None
+    safety_check = None
     if persist:
         decision = AIDecision.objects.create(
             device=device,
             decision_type=parsed.decision_type,
+            execution_type=parsed.execution_type,
+            target_device=parsed.target_device,
+            device_state=parsed.device_state,
+            category=parsed.category,
             recommendation=parsed.recommendation,
             explanation=parsed.explanation,
             confidence_score=(
@@ -63,12 +69,14 @@ def generate_recommendation(farm, device=None, provider=None, persist=True):
             ),
         )
         decision_id = decision.id
+        safety_check = run_safety_check(decision, farm_state, persist=True)
 
     return {
         "farm_id": farm.id,
         "device_id": device.id,
         "decision_id": decision_id,
         "recommendation": parsed.as_dict(),
+        "safety_check": safety_check,
         "used_fallback": parsed.used_fallback,
         "raw": raw,
     }

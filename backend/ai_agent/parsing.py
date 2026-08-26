@@ -16,8 +16,23 @@ class Recommendation:
                        and the raw text was kept as the recommendation.
     """
 
-    def __init__(self, decision_type, recommendation, explanation, confidence, used_fallback):
+    def __init__(
+        self,
+        decision_type,
+        recommendation,
+        explanation,
+        confidence,
+        used_fallback,
+        execution_type="notification",
+        target_device="none",
+        device_state="none",
+        category="alert",
+    ):
         self.decision_type = decision_type or "alert"
+        self.execution_type = execution_type or "notification"
+        self.target_device = target_device or "none"
+        self.device_state = device_state or "none"
+        self.category = category or "alert"
         self.recommendation = recommendation
         self.explanation = explanation
         self.confidence = confidence
@@ -26,6 +41,10 @@ class Recommendation:
     def as_dict(self):
         return {
             "decision_type": self.decision_type,
+            "execution_type": self.execution_type,
+            "target_device": self.target_device,
+            "device_state": self.device_state,
+            "category": self.category,
             "recommendation": self.recommendation,
             "explanation": self.explanation,
             "confidence": self.confidence,
@@ -82,6 +101,10 @@ def parse_recommendation(raw):
 
     return Recommendation(
         decision_type=str(data.get("decision_type") or "alert"),
+        execution_type=str(data.get("execution_type") or "notification"),
+        target_device=str(data.get("target_device") or "none"),
+        device_state=str(data.get("device_state") or "none"),
+        category=str(data.get("category") or "alert"),
         recommendation=str(data.get("recommendation", "")),
         explanation=str(data.get("explanation", "")),
         confidence=_clamp_confidence(data.get("confidence")),
