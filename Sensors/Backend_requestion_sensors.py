@@ -6,24 +6,41 @@ from datetime import datetime
 # (You will need to update this to match the actual path in your urls.py)
 DJANGO_API_URL = "http://127.0.0.1:8000/api/telemetry/sensor-readings/"
 
+WATER_QUALITY_URL = "http://192.168.1.100/readings"
+AMBIENT_SENSOR_URL = "http://leafy-ai.local:8080/readings"
+
 while True:
     try:
-        # Fetch data from the physical sensors
-        response = requests.get("http://192.168.1.100/readings", timeout=5)
-        response.raise_for_status()
-        data = response.json()
-
         current_time = datetime.now().isoformat()
+        
+        # 1. Fetch data from the original water quality sensors
+        water_resp = requests.get(WATER_QUALITY_URL, timeout=5)
+        water_resp.raise_for_status()
+        water_data = water_resp.json()
+
+        # 2. Fetch data from the new ambient & level sensors
+        ambient_resp = requests.get(AMBIENT_SENSOR_URL, timeout=5)
+        ambient_resp.raise_for_status()
+        ambient_data = ambient_resp.json()
 
         # Check if the readings are valid
-        if data["ph_valid"] and data["ec_valid"] and data["water_temperature_valid"]:
+        water_valid = water_data.get("ph_valid") and water_data.get("ec_valid") and water_data.get("water_temperature_valid")
+        ambient_valid = ambient_data.get("ambient_valid") and ambient_data.get("water_level_valid")
+
+        if water_valid and ambient_valid:
             
-            # 1. Package the extracted data into a dictionary
+            # 4. Package the extracted data into a single payload
             payload = {
                 "time": current_time,
-                "ph": data["ph"],
-                "ec": data["ec"],
-                "water_temp": data["water_temperature_c"]
+                # Water Quality Data
+                "ph": water_data["ph"],
+                "ec": water_data["ec"],
+                "water_temp": water_data["water_temperature_c"],
+                # New Ambient & Level Data
+                "ambient_temp": ambient_data["ambient_temperature_c"],
+                "humidity": ambient_data["humidity_percent"],
+                "dew_point": ambient_data["dew_point_c"],
+                "water_level": ambient_data["water_level"]
             }
             
             print(f"[{current_time}] Sending data to backend: {payload}")
