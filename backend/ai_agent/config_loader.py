@@ -8,7 +8,7 @@ from django.conf import settings
 
 def default_farm_config_path():
     """Return the project-level farm_config.yaml path."""
-    return settings.BASE_DIR.parent / "farm_config.yaml"
+    return settings.BASE_DIR / "farm_config.yaml"
 
 
 def load_farm_config(config_path=None):
