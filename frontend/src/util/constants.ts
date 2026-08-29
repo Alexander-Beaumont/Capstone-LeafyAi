@@ -3,10 +3,17 @@ import type { BABatch, GAGrowingArea } from "./types"
 
 export const SMALL_WINDOW_WIDTH = 1000
 
-export const API = {
+export const API_ROUTES = {
     login: `${import.meta.env.VITE_BACKEND_BASEURL}/api/auth/login/`,
     signup: `${import.meta.env.VITE_BACKEND_BASEURL}/api/auth/register/`,
     refresh: `${import.meta.env.VITE_BACKEND_BASEURL}/api/auth/refresh/`,
+    getGrowingAreas: `${import.meta.env.VITE_BACKEND_BASEURL}/api/growing-areas`,
+    getBatches: `${import.meta.env.VITE_BACKEND_BASEURL}/api/batches`,
+    moveBatch: `${import.meta.env.VITE_BACKEND_BASEURL}/api/move-batch`,
+    createGrowingArea: `${import.meta.env.VITE_BACKEND_BASEURL}/api/create-growing-area`,
+    updateGrowingAreas: `${import.meta.env.VITE_BACKEND_BASEURL}/api/update-growing-area`,
+    updateBatch: `${import.meta.env.VITE_BACKEND_BASEURL}/api/update-batch`,
+    createBatch: `${import.meta.env.VITE_BACKEND_BASEURL}/api/create-batch`,
 }
 
 export const PAGES = {
@@ -137,93 +144,3 @@ export const BaBatches: BABatch[] = [
 ]
 
 
-export const GaGrowingAreas: GAGrowingArea[] = [
-    {
-        growingAreaName: 'Zone A',
-        slotCount: 48,
-        farmLevel: 1,
-        batches: [
-            {
-                plantType: 'Basil',
-                batchPlantDate: new Date('2026-06-01'),
-                growthStage: 'Vegetative',
-                status: 'Active',
-                batchId: 'a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d',
-                GrowthAreaStartDate: new Date('2026-06-01'),
-                GrowthAreaEndDate: null
-            },
-            {
-                plantType: 'Basil',
-                batchPlantDate: new Date('2026-04-10'),
-                growthStage: 'Harvested',
-                status: 'Completed',
-                batchId: '9c8b7a6f-5e4d-4b3c-8a2f-1e0d9c8b7a6f',
-                GrowthAreaStartDate: new Date('2026-04-10'),
-                GrowthAreaEndDate: new Date('2026-05-20')
-            }
-        ]
-    },
-    {
-        growingAreaName: 'Zone B',
-        slotCount: 32,
-        farmLevel: 2,
-        batches: [
-            {
-                plantType: 'Basil',
-                batchPlantDate: new Date('2026-05-15'),
-                growthStage: 'Harvest Ready',
-                status: 'Active',
-                batchId: 'f6e5d4c3-b2a1-4c8d-9e0f-1a2b3c4d5e6f',
-                GrowthAreaStartDate: new Date('2026-05-15'),
-                GrowthAreaEndDate: null
-            }
-        ]
-    },
-    {
-        growingAreaName: 'Zone C',
-        slotCount: 24,
-        farmLevel: 1,
-        batches: [
-            {
-                plantType: 'Basil',
-                batchPlantDate: new Date('2026-03-01'),
-                growthStage: 'Failed',
-                status: 'Terminated',
-                batchId: '0f1e2d3c-4b5a-4c6d-7e8f-9a0b1c2d3e4f',
-                GrowthAreaStartDate: new Date('2026-03-01'),
-                GrowthAreaEndDate: new Date('2026-03-18')
-            },
-            {
-                plantType: 'Basil',
-                batchPlantDate: new Date('2026-07-01'),
-                growthStage: 'Seedling',
-                status: 'Active',
-                batchId: '3d2c1b0a-9f8e-4d7c-6b5a-4e3d2c1b0a9f',
-                GrowthAreaStartDate: new Date('2026-07-01'),
-                GrowthAreaEndDate: null
-            }
-        ]
-    },
-    {
-        growingAreaName: 'Zone D',
-        slotCount: 40,
-        farmLevel: 3,
-        batches: []
-    },
-    {
-        growingAreaName: 'Zone E',
-        slotCount: 16,
-        farmLevel: 2,
-        batches: [
-            {
-                plantType: 'Basil',
-                batchPlantDate: new Date('2026-06-04'),
-                growthStage: 'Vegetative',
-                status: 'Active',
-                batchId: '7b6a5f4e-3d2c-4b1a-9e8f-7d6c5b4a3f2e',
-                GrowthAreaStartDate: new Date('2026-06-04'),
-                GrowthAreaEndDate: null
-            }
-        ]
-    }
-]
