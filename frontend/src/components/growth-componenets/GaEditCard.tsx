@@ -4,28 +4,81 @@ import Dropdown from "../primatives/Dropdown"
 import { type dataFormat } from "../primatives/Dropdown"
 import IconTitle from "../primatives/IconTitle"
 import TextBox from "../primatives/Textbox"
-import { useState } from "react"
-import { GaGrowingAreas } from "../../util/constants"
+import { useContext, useState } from "react"
 import { TbEdit } from "react-icons/tb"
 import XsButton from "../primatives/XsButton"
-import type { GAGrowingArea } from "../../util/types"
+import type { APIResult, GAGrowingArea } from "../../util/types"
 import useForm from "../hooks/useFrom"
+import { createGrowingArea, updateGrowingArea } from "../../util/api-service-layer"
+import { userContext } from "../../providers/UserProvider"
 
 interface Props{
     opened: boolean
     setOpend: (state: boolean) => void
+    growingAreas: GAGrowingArea[]
+    setUpdate: (num: number) => void
 }
 
-export default function GaEditCard({setOpend} : Props) {
+export default function GaEditCard({setOpend, growingAreas, setUpdate} : Props) {
     const [editExistingGa, setEditExistingGa] = useState(false)
     const [selectedItem, setSelectedItem] = useState<dataFormat|null>(null)
-    const items: dataFormat[] = GaGrowingAreas.map((g, i) => ({name: g.growingAreaName, id: i, data: g}))
+    const items: dataFormat[] = growingAreas.map((g, i) => ({name: g.growingAreaName, id: i, data: g}))
+
+    const user = useContext(userContext)
 
     const {setForm, form} = useForm({
+        name: "",
         FarmLevel: "",
         SlotCount: ""
     })
 
+    async function changeGA() {
+        const valid = validateInput()
+        if(!valid) return
+
+        user.setLoading(true)
+        let res: APIResult<{success: boolean, msg: string}> = {success: false, msg: ""}
+
+        if(!editExistingGa){
+            res = await createGrowingArea(user.accessToken, {
+                name: form.name,
+                slotCount: Number(form.SlotCount),
+                farmLevel: Number(form.FarmLevel)
+            })
+        }else{
+            res = await updateGrowingArea(user.accessToken, {
+                growingAreaID: `${(selectedItem!.data as GAGrowingArea).growingAreaId}`,
+                name: form.name,
+                slotCount: Number(form.SlotCount),
+                farmLevel: Number(form.FarmLevel)
+            })
+        }
+
+        if(!res.success) {
+            alert(res.msg); 
+        }else{
+            setOpend(false)
+            setUpdate(Math.random())
+        }
+        user.setLoading(false)
+    }
+
+    function validateInput(){
+        if(Number(form.FarmLevel) < 1 || Number(form.FarmLevel) > 2){
+            alert("Farm level can either be 1 or 2")
+            return false
+        }
+        if(!form.name || !form.SlotCount){
+            alert("All fields must have a value")
+            return false
+        }
+
+        if(editExistingGa && !selectedItem){
+            alert("Select a growing area first")
+            return false
+        }
+        return true
+    }
     return (
         <div onClick={e => e.stopPropagation()} className="w-[80%] max-w-120">
             <Panel styles="p-3  flex flex-col gap-3">
@@ -74,8 +127,15 @@ export default function GaEditCard({setOpend} : Props) {
                 <hr className="text-border"/>
                 <div className="flex flex-col gap-3">
                     <TextBox
+                        name="Name"
+                        charLimit={20}
+                        value={form.name}
+                        setValue={(v) => setForm("name", v)}
+                        placeHolder={selectedItem ? `${(selectedItem.data as GAGrowingArea).growingAreaName}` : ""}
+                    />
+                    <TextBox
                         name="Farm Level"
-                        charLimit={2}
+                        charLimit={1}
                         value={form.FarmLevel}
                         setValue={(v) => setForm("FarmLevel", v)}
                         placeHolder={selectedItem ? `${(selectedItem.data as GAGrowingArea).farmLevel}` : ""}
@@ -109,17 +169,19 @@ export default function GaEditCard({setOpend} : Props) {
                     />
                     {!editExistingGa &&
                         <Button
+                            loading={user.loading}
                             name="Create New GA"
                             highlight={true}
-                            onSubmit={() => {}}
+                            onSubmit={() => changeGA()}
                             styles={{ noAnimation: true}}
                         />
                     }
                     {editExistingGa &&
                         <Button
+                            loading={user.loading}
                             name="Update"
                             highlight={true}
-                            onSubmit={() => {}}
+                            onSubmit={() => changeGA()}
                             styles={{ noAnimation: true}}
                         />
                     }

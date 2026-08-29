@@ -1,7 +1,6 @@
 """Shared loading for the farm safety configuration."""
 
 from pathlib import Path
-
 import yaml
 from django.conf import settings
 

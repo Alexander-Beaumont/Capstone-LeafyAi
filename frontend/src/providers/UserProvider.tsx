@@ -1,6 +1,6 @@
 import React, { createContext, useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
-import { API, PAGES } from "../util/constants";
+import { API_ROUTES, PAGES } from "../util/constants";
 import useLocalStorage from "../components/hooks/useLocalStorage";
 import type { AuthResult, SignUpRes } from "../util/types";
 
@@ -107,7 +107,7 @@ export default function UserProvider(props: Props) {
 
         try {
             setLoading(true)
-            const res = await fetch(API.refresh, { 
+            const res = await fetch(API_ROUTES.refresh, { 
                 method: "POST",
                 headers: {"Content-Type": "application/json"},
                 body: JSON.stringify({ refresh: refreshToken }), 
@@ -133,7 +133,7 @@ export default function UserProvider(props: Props) {
         try {
             setLoading(true)
             const response = await fetch(
-                API.login,
+                API_ROUTES.login,
                 {
                     method: "POST",
                     headers: {
@@ -166,7 +166,7 @@ export default function UserProvider(props: Props) {
         try {
             setLoading(true)
             const response = await fetch(
-                API.signup,
+                API_ROUTES.signup,
                 {
                     method: "POST",
                     headers: {
