@@ -88,14 +88,6 @@ class BatchPlacement(models.Model): #
     start_date = models.DateTimeField()
     end_date = models.DateTimeField(blank=True, null=True)
 
-    class Meta:
-        constraints = [
-            models.UniqueConstraint(
-                fields=['plant_batch', 'growing_area'],
-                name='unique_placement_per_batch_and_growing_area'
-            )
-        ]
-
 #camera & vision
 
 class Camera(models.Model):
