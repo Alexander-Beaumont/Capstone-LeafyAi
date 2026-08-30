@@ -64,9 +64,14 @@ export default function BaBatchCard({batchInfo, openPanelId, setOpenPanelId} : P
                         <ImCross size={8} className="text-high"/>  Previous Growing Areas 
                     </p>
                     <div className="flex  gap-3 flex-wrap">
-                         {batchInfo.growingAreas.filter(g => g.endDate).map(g => {
+                        {batchInfo.growingAreas.filter(g => g.endDate).map(g => {
                             return <BaGrowingAreaCard growingArea={g}/>
                         })}
+                        {batchInfo.growingAreas.filter(g => g.endDate).length == 0 &&
+                            <p className="text-xs text-subtext3">
+                                Batch does not have any previous growing areas
+                            </p>
+                        }
                     </div>
                 </div>
             }
