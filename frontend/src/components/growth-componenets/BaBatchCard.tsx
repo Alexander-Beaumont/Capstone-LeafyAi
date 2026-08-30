@@ -28,7 +28,7 @@ export default function BaBatchCard({batchInfo, openPanelId, setOpenPanelId} : P
                             {batchInfo.plantType}
                         </p>
                         <p className="text-xs p-1 w-fit rounded-full px-3 bg-panel3 text-subtext2 border border-border">
-                            {Util.formatDate(batchInfo.batchPlantDate)}
+                            {Util.formatDate(new Date(batchInfo.batchPlantDate))}
                         </p>
                         <p className="text-xs p-1 w-fit rounded-full px-3 bg-panel3 text-subtext2 border border-border">
                             {batchInfo.growthStage}

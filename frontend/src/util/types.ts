@@ -11,18 +11,11 @@ export interface AuthResult {
     msg?: string 
 }
 
-interface APISuccess<T> {
-  success: true;
-  msg: string;
-  data: T;
+export type APIResult<T> = {
+    success: boolean;
+    msg: string;
+    data?: T;
 }
-
-interface APIFailure {
-  success: false;
-  msg: string;
-}
-
-export type APIResult<T> = APISuccess<T> | APIFailure;
 
 export interface SignUpRes{
     user: {
@@ -36,7 +29,7 @@ export interface SignUpRes{
 
 export interface BABatch{
     plantType: string,
-    batchPlantDate: Date,
+    batchPlantDate: string,
     growthStage: string,
     status: string,
     batchId: string,
@@ -46,8 +39,8 @@ export interface BAGrowingArea{
     growingAreaName: string,
     slotCount: number,
     farmLevel: number,
-    startDate: Date
-    endDate: Date | null
+    startDate: string
+    endDate: string | null
 }
 
 export interface GAGrowingArea{
@@ -63,8 +56,8 @@ export interface GABatch{
     growthStage: string,
     status: string,
     batchId: string,
-    GrowthAreaStartDate: Date
-    GrowthAreaEndDate: Date | null
+    GrowthAreaStartDate: string
+    GrowthAreaEndDate: string | null
 }
 
 export interface MoveBatch{

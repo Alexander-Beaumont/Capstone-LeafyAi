@@ -17,6 +17,18 @@ export namespace Util{
     export function formatDateTime(date: Date){
         return `${date.getDate()}/${date.getMonth()}/${date.getFullYear()} ${date.getHours()}:${date.getMinutes()}`
     }
+
+    export function avgAge(dates: Date[]){
+        const today = Date.now()
+        const dateSum = dates.reduce((a, c) => a + (today - c.getTime()), 0)
+
+        return dateSum/dates.length
+    }
+
+    export function millisecondsToDays(milliseconds: number, roundTo: number){
+        const multiplier = Number("1".padEnd(roundTo+1, "0"))
+        return Math.round(milliseconds/1000/60/60/24*multiplier)/multiplier
+    }
 }
 
 

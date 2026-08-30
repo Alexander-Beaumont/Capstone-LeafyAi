@@ -1,5 +1,5 @@
 import { useState } from "react"
-import type { GABatch } from "../../util/types"
+import type { GABatch, GAGrowingArea} from "../../util/types"
 import { Util } from "../../util/Util"
 import XsButton from "../primatives/XsButton"
 import Modal from "../primatives/Modal"
@@ -7,8 +7,9 @@ import GaBatchEdit from "./GaBatchEdit"
 
 interface Props{
     batch: GABatch
+    currentGa: GAGrowingArea
 }
-export default function GaBatchCard({batch: b}: Props) {
+export default function GaBatchCard({batch: b, currentGa}: Props) {
     const [editBatch, setEditBatch] = useState(false)
 
     return (
@@ -32,13 +33,13 @@ export default function GaBatchCard({batch: b}: Props) {
                             |
                         </p>
                         <p className="text-xs text-subtext2 ">
-                            <span className="text-subtext3">Start Date </span> {Util.formatDate(b.GrowthAreaStartDate)}
+                            <span className="text-subtext3">Start Date </span> {Util.formatDate(new Date(b.GrowthAreaStartDate))}
                         </p> 
                         <p className="text-xs text-border ">
                             |
                         </p>
                         <p className="text-xs text-subtext2 ">
-                            <span className="text-subtext3">End Date</span> {b.GrowthAreaEndDate ? Util.formatDate(b.GrowthAreaEndDate) : "N/A"}
+                            <span className="text-subtext3">End Date</span> {b.GrowthAreaEndDate ? Util.formatDate(new Date(b.GrowthAreaEndDate)) : "N/A"}
                         </p>              
                     </div>
                 </div>
@@ -51,7 +52,7 @@ export default function GaBatchCard({batch: b}: Props) {
                     ""
                 }
                 <Modal onClose={() => setEditBatch(false)} open={editBatch}>
-                    <GaBatchEdit opened={editBatch} setOpend={setEditBatch}/>
+                    <GaBatchEdit opened={editBatch} setOpend={setEditBatch} currentGrowingArea={currentGa} currentBatch={b}/>
                 </Modal>
         </div>
     )
