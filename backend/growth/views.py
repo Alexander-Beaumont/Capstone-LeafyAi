@@ -3,7 +3,8 @@ from django.shortcuts import get_object_or_404
 from django.utils import timezone
 
 from rest_framework import status
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from telemetry.models import (
@@ -164,18 +165,21 @@ def batch_response(batch):
 
 
 @api_view(["GET"])
+@permission_classes([IsAuthenticated])
 def growing_areas(request):
     areas = GrowingArea.objects.select_related("farm_level").order_by("id")
     return Response([growing_area_response(area) for area in areas])
 
 
 @api_view(["GET"])
+@permission_classes([IsAuthenticated])
 def batches(request):
     plant_batches = PlantBatch.objects.order_by("-planting_date", "-id")
     return Response([batch_response(batch) for batch in plant_batches])
 
 
 @api_view(["PATCH"])
+@permission_classes([IsAuthenticated])
 def move_batch(request):
     batch = get_object_or_404(PlantBatch, id=request.data.get("batchID"))
     current_area = get_object_or_404(GrowingArea, id=request.data.get("currentGaID"))
@@ -214,6 +218,7 @@ def move_batch(request):
 
 
 @api_view(["POST"])
+@permission_classes([IsAuthenticated])
 def create_growing_area(request):
     name = (request.data.get("name") or "").strip()
     if not name:
@@ -239,6 +244,7 @@ def create_growing_area(request):
 
 
 @api_view(["PATCH"])
+@permission_classes([IsAuthenticated])
 def update_growing_area(request):
     growing_area = get_object_or_404(GrowingArea, id=request.data.get("growingAreaID"))
 
@@ -271,7 +277,16 @@ def update_growing_area(request):
     return success_response()
 
 
+@api_view(["DELETE"])
+@permission_classes([IsAuthenticated])
+def delete_growing_area(request):
+    growing_area = get_object_or_404(GrowingArea, id=request.data.get("growingAreaID"))
+    growing_area.delete()
+    return success_response()
+
+
 @api_view(["PATCH"])
+@permission_classes([IsAuthenticated])
 def update_batch(request):
     batch = get_object_or_404(PlantBatch, id=request.data.get("batchID"))
     action = (request.data.get("action") or "").strip().lower()
@@ -291,6 +306,7 @@ def update_batch(request):
 
 
 @api_view(["POST"])
+@permission_classes([IsAuthenticated])
 def create_batch(request):
     growing_area = get_object_or_404(GrowingArea, id=request.data.get("growingAreaID"))
 
@@ -316,4 +332,3 @@ def create_batch(request):
     )
 
     return success_response(response_status=status.HTTP_201_CREATED)
-
