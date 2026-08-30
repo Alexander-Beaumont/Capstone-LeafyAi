@@ -41,25 +41,6 @@ class GrowingArea(models.Model):
     name = models.CharField(max_length=255)
     slot_count = models.IntegerField()
 
-class Slot(models.Model):
-    growing_area = models.ForeignKey(GrowingArea, on_delete=models.CASCADE)
-    slot_number = models.IntegerField()
-    row = models.IntegerField(
-        blank=True,
-        null=True
-    )
-    column = models.IntegerField(
-        blank=True,
-        null=True
-    )
-
-    class Meta:
-        constraints = [
-            models.UniqueConstraint(
-                fields=['growing_area', 'slot_number'],
-                name='unique_slot_per_growing_area'
-            )
-        ]
 
 #Batch Management
 class PlantBatch(models.Model):
@@ -117,37 +98,12 @@ class Camera(models.Model):
     roi_points = models.JSONField(blank=True, null=True) #Normalised rectangle: x, y, width, height  
     growth_baseline_reset_at = models.DateTimeField(null=True, blank=True)
 
-
-
-
-class CameraSlotPosition(models.Model): #composite may need fixing
-    camera = models.ForeignKey(Camera, on_delete=models.CASCADE)
-    slot = models.ForeignKey(Slot, on_delete=models.CASCADE)
-    centre_x = models.DecimalField(
-        max_digits=8, 
-        decimal_places=6)
-    centre_y = models.DecimalField(
-        max_digits=8,
-        decimal_places=6)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        constraints = [
-            models.UniqueConstraint(
-                fields=['camera', 'slot'],
-                name='unique_camera_slot_position'
-            )
-        ]
-
 class CameraImage(models.Model):
     camera = models.ForeignKey(Camera, on_delete=models.PROTECT)
     captured_at = models.DateTimeField()
     path = models.ImageField(
         upload_to="camera_images/"
     )
-    
-
 
 class Sensor(models.Model):
     device = models.ForeignKey(FarmDevice, on_delete=models.CASCADE)

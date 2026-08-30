@@ -1,118 +1,114 @@
-import json
+from decimal import Decimal, InvalidOperation
 
 from django.db import transaction
 from django.shortcuts import get_object_or_404
-from django.utils.dateparse import parse_datetime
 
-from rest_framework import status, viewsets
-from rest_framework.decorators import api_view, parser_classes
-from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework import status
+from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
 from telemetry.models import (
     Camera,
     CameraImage,
-    Slot,
 )
 
-from cv.models import (
-    ImageAnalysis,
-    PlantVisionMeasurement,
-)
-
-from cv.serializers import (
-    ImageAnalysisSerializer,
-    PlantVisionMeasurementSerializer,
-)
+from cv.models import ImageAnalysis
 
 
 # ============================================================
-# STANDARD CRUD VIEWSETS
+# HELPER FUNCTIONS
 # ============================================================
 
-class ImageAnalysisViewSet(viewsets.ModelViewSet):
-    queryset = ImageAnalysis.objects.all()
-    serializer_class = ImageAnalysisSerializer
+def get_image_url(camera_image):
+    """
+    Return the media URL for a CameraImage.
+
+    Example:
+        /media/camera_images/example.jpg
+    """
+
+    if not camera_image.path:
+        return None
+
+    try:
+        return camera_image.path.url
+    except ValueError:
+        return None
 
 
-class PlantVisionMeasurementViewSet(viewsets.ModelViewSet):
-    queryset = PlantVisionMeasurement.objects.all()
-    serializer_class = PlantVisionMeasurementSerializer
+def validate_percentage(value, field_name):
+    """
+    Percentage fields may be NULL, but when supplied
+    they must be between 0 and 100 inclusive.
+
+    Returns:
+        None if valid
+        Error message string if invalid
+    """
+
+    if value is None:
+        return None
+
+    try:
+        decimal_value = Decimal(str(value))
+    except (InvalidOperation, TypeError, ValueError):
+        return f"{field_name} must be a number or null"
+
+    if decimal_value < 0 or decimal_value > 100:
+        return f"{field_name} must be between 0 and 100"
+
+    return None
 
 
 # ============================================================
-# LEAFYCV INGEST
+# CV INGEST
+#
 # POST /api/cv/ingest/
+# Content-Type: application/json
 # ============================================================
 
 # Written with AI assistance
 @api_view(["POST"])
-@parser_classes([MultiPartParser, FormParser])
 @transaction.atomic
 def ingest_cv_result(request):
     """
-    Receives one completed LeafyCV analysis.
+    Store one LeafyCV analysis for an existing CameraImage.
 
-    Expected multipart/form-data:
+    Expected JSON:
 
-        metadata = JSON string
-        raw_image = JPEG file
+    {
+        "camera_id": 1,
+        "image_id": 152,
+        "analysis": {
+            "total_canopy_coverage": 37.50,
+            "growth_change": null,
+            "crowding_percentage": 31.40,
+            "green_percentage": 86.20,
+            "yellow_percentage": 4.80,
+            "measurement_valid": true,
+            "processing_time_ms": 105,
+            "vlm_ready": true,
+            "quality_status": "PASS",
+            "quality_flags": [],
+            "quality_message": "..."
+        }
+    }
 
-    The metadata contains:
-        camera_id
-        captured_at
-        analysis
-        plants
+    This endpoint creates ONLY an ImageAnalysis.
 
-    Creates:
-        1 CameraImage
-        1 ImageAnalysis
-        N PlantVisionMeasurement records
+    It does NOT create:
+        - CameraImage
+        - raw images
+        - plant measurements
+        - SLOT measurements
+        - PlantVisionMeasurement records
     """
 
     # --------------------------------------------------------
-    # 1. Validate metadata
+    # 1. Validate camera_id
     # --------------------------------------------------------
 
-    metadata = request.data.get("metadata")
-
-    if not metadata:
-        return Response(
-            {
-                "error": "metadata is required"
-            },
-            status=status.HTTP_400_BAD_REQUEST
-        )
-
-    try:
-        data = json.loads(metadata)
-    except (json.JSONDecodeError, TypeError):
-        return Response(
-            {
-                "error": "metadata must contain valid JSON"
-            },
-            status=status.HTTP_400_BAD_REQUEST
-        )
-
-    # --------------------------------------------------------
-    # 2. Validate raw image
-    # --------------------------------------------------------
-
-    raw_image = request.FILES.get("raw_image")
-
-    if not raw_image:
-        return Response(
-            {
-                "error": "raw_image is required"
-            },
-            status=status.HTTP_400_BAD_REQUEST
-        )
-
-    # --------------------------------------------------------
-    # 3. Validate camera
-    # --------------------------------------------------------
-
-    camera_id = data.get("camera_id")
+    camera_id = request.data.get("camera_id")
 
     if camera_id is None:
         return Response(
@@ -128,148 +124,126 @@ def ingest_cv_result(request):
     )
 
     # --------------------------------------------------------
-    # 4. Validate analysis section
+    # 2. Validate image_id
     # --------------------------------------------------------
 
-    analysis_data = data.get("analysis")
+    image_id = request.data.get("image_id")
 
-    if not analysis_data:
+    if image_id is None:
         return Response(
             {
-                "error": "analysis is required"
+                "error": "image_id is required"
             },
             status=status.HTTP_400_BAD_REQUEST
         )
 
-    # --------------------------------------------------------
-    # 5. Validate captured_at
-    # --------------------------------------------------------
-
-    captured_at = data.get("captured_at")
-
-    if not captured_at:
-        return Response(
-            {
-                "error": "captured_at is required"
-            },
-            status=status.HTTP_400_BAD_REQUEST
-        )
-
-    timestamp = parse_datetime(captured_at)
-
-    if timestamp is None:
-        return Response(
-            {
-                "error":
-                    "captured_at must be a valid ISO 8601 datetime"
-            },
-            status=status.HTTP_400_BAD_REQUEST
-        )
-
-    # --------------------------------------------------------
-    # 6. Validate plant measurements
-    # --------------------------------------------------------
-
-    plants = data.get("plants", [])
-
-    if not isinstance(plants, list):
-        return Response(
-            {
-                "error": "plants must be a list"
-            },
-            status=status.HTTP_400_BAD_REQUEST
-        )
-
-    slot_ids = []
-
-    for plant in plants:
-
-        if not isinstance(plant, dict):
-            return Response(
-                {
-                    "error":
-                        "Each item in plants must be an object"
-                },
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        slot_id = plant.get("slot_id")
-
-        if slot_id is None:
-            return Response(
-                {
-                    "error":
-                        "Every plant measurement requires slot_id"
-                },
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        slot_ids.append(str(slot_id))
-
-    # --------------------------------------------------------
-    # 7. Prevent duplicate SLOT measurements
-    # --------------------------------------------------------
-
-    if len(slot_ids) != len(set(slot_ids)):
-        return Response(
-            {
-                "error":
-                    "Duplicate slot_id in measurements"
-            },
-            status=status.HTTP_400_BAD_REQUEST
-        )
-
-    # --------------------------------------------------------
-    # 8. Check that every SLOT actually exists
-    # --------------------------------------------------------
-
-    try:
-        slots = Slot.objects.filter(
-            id__in=slot_ids
-        )
-    except (ValueError, TypeError):
-        return Response(
-            {
-                "error": "One or more slot IDs are invalid"
-            },
-            status=status.HTTP_400_BAD_REQUEST
-        )
-
-    slot_map = {
-        str(slot.id): slot
-        for slot in slots
-    }
-
-    for slot_id in slot_ids:
-
-        if slot_id not in slot_map:
-            return Response(
-                {
-                    "error":
-                        f"Unknown slot_id: {slot_id}"
-                },
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-    # ========================================================
-    # ALL VALIDATION ABOVE THIS POINT
-    #
-    # Database writes only begin after the complete request
-    # has passed validation.
-    # ========================================================
-
-    # --------------------------------------------------------
-    # 9. Save raw CameraImage
-    # --------------------------------------------------------
-
-    camera_image = CameraImage.objects.create(
-        camera=camera,
-        timestamp=timestamp,
-        path=raw_image
+    camera_image = get_object_or_404(
+        CameraImage,
+        id=image_id
     )
 
     # --------------------------------------------------------
-    # 10. Create whole-image analysis
+    # 3. Camera/Image identity check
+    #
+    # Prevent LeafyCV accidentally attaching an analysis
+    # from Camera 1 to an image belonging to Camera 2.
+    # --------------------------------------------------------
+
+    if camera_image.camera_id != camera.id:
+        return Response(
+            {
+                "error":
+                    "CameraImage does not belong to the supplied camera"
+            },
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    # --------------------------------------------------------
+    # 4. Prevent duplicate analysis for same CameraImage
+    #
+    # ImageAnalysis.image will also be OneToOneField, but
+    # returning a clean 409 is better than exposing a DB error.
+    # --------------------------------------------------------
+
+    if ImageAnalysis.objects.filter(
+        image=camera_image
+    ).exists():
+
+        return Response(
+            {
+                "error":
+                    "An analysis already exists for this CameraImage"
+            },
+            status=status.HTTP_409_CONFLICT
+        )
+
+    # --------------------------------------------------------
+    # 5. Validate analysis object
+    # --------------------------------------------------------
+
+    analysis_data = request.data.get("analysis")
+
+    if not isinstance(analysis_data, dict):
+        return Response(
+            {
+                "error": "analysis must be a JSON object"
+            },
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    # --------------------------------------------------------
+    # 6. Validate percentage fields
+    #
+    # These may be null, but if supplied must be 0-100.
+    # growth_change is NOT included because it may be
+    # negative.
+    # --------------------------------------------------------
+
+    percentage_fields = [
+        "total_canopy_coverage",
+        "crowding_percentage",
+        "green_percentage",
+        "yellow_percentage",
+    ]
+
+    for field_name in percentage_fields:
+
+        error = validate_percentage(
+            analysis_data.get(field_name),
+            field_name
+        )
+
+        if error:
+            return Response(
+                {
+                    "error": error
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+    # --------------------------------------------------------
+    # 7. Validate quality_flags
+    # --------------------------------------------------------
+
+    quality_flags = analysis_data.get(
+        "quality_flags",
+        []
+    )
+
+    if quality_flags is None:
+        quality_flags = []
+
+    if not isinstance(quality_flags, list):
+        return Response(
+            {
+                "error":
+                    "quality_flags must be a list"
+            },
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    # --------------------------------------------------------
+    # 8. Create exactly ONE ImageAnalysis
     # --------------------------------------------------------
 
     analysis = ImageAnalysis.objects.create(
@@ -279,8 +253,20 @@ def ingest_cv_result(request):
             "total_canopy_coverage"
         ),
 
-        visible_plant_count=analysis_data.get(
-            "visible_plant_count"
+        growth_change=analysis_data.get(
+            "growth_change"
+        ),
+
+        crowding_percentage=analysis_data.get(
+            "crowding_percentage"
+        ),
+
+        green_percentage=analysis_data.get(
+            "green_percentage"
+        ),
+
+        yellow_percentage=analysis_data.get(
+            "yellow_percentage"
         ),
 
         measurement_valid=analysis_data.get(
@@ -291,111 +277,59 @@ def ingest_cv_result(request):
         processing_time_ms=analysis_data.get(
             "processing_time_ms"
         ),
+
+        vlm_ready=analysis_data.get(
+            "vlm_ready",
+            False
+        ),
+
+        quality_status=analysis_data.get(
+            "quality_status",
+            "UNKNOWN"
+        ),
+
+        quality_flags=quality_flags,
+
+        quality_message=analysis_data.get(
+            "quality_message",
+            ""
+        ),
     )
 
     # --------------------------------------------------------
-    # 11. Create per-SLOT measurements
-    # --------------------------------------------------------
-
-    measurement_count = 0
-
-    for plant in plants:
-
-        slot_id = str(
-            plant["slot_id"]
-        )
-
-        slot = slot_map[slot_id]
-
-        PlantVisionMeasurement.objects.create(
-            image_analysis=analysis,
-            slot=slot,
-
-            canopy_coverage=plant.get(
-                "canopy_coverage"
-            ),
-
-            width_px=plant.get(
-                "width_px"
-            ),
-
-            height_px=plant.get(
-                "height_px"
-            ),
-
-            width_cm=plant.get(
-                "width_cm"
-            ),
-
-            height_cm=plant.get(
-                "height_cm"
-            ),
-
-            green_percentage=plant.get(
-                "green_percentage"
-            ),
-
-            yellow_percentage=plant.get(
-                "yellow_percentage"
-            ),
-
-            crowding_percentage=plant.get(
-                "crowding_percentage"
-            ),
-
-            growth_stage=plant.get(
-                "growth_stage"
-            ),
-
-            growth_change=plant.get(
-                "growth_change"
-            ),
-
-            visible=plant.get(
-                "visible",
-                True
-            ),
-
-            measurement_valid=plant.get(
-                "measurement_valid",
-                True
-            ),
-        )
-
-        measurement_count += 1
-
-    # --------------------------------------------------------
-    # 12. Successful response
+    # 9. Successful response
     # --------------------------------------------------------
 
     return Response(
         {
             "message":
-                "CV sample stored successfully",
-
-            "image_id":
-                camera_image.id,
+                "CV analysis stored successfully",
 
             "analysis_id":
                 analysis.id,
 
-            "measurement_count":
-                measurement_count,
+            "camera_id":
+                camera.id,
+
+            "image_id":
+                camera_image.id,
         },
         status=status.HTTP_201_CREATED
     )
 
 
 # ============================================================
-# LATEST CAMERA ANALYSIS
-# GET /api/cv/cameras/<camera_id>/latest-analysis/
+# LATEST OFFICIAL IMAGE
+#
+# GET /api/cv/cameras/<camera_id>/latest-image/
 # ============================================================
 
 @api_view(["GET"])
-def latest_analysis(request, camera_id):
+def latest_image(request, camera_id):
     """
-    Returns the latest ImageAnalysis for a camera together
-    with every PlantVisionMeasurement belonging to it.
+    Return the newest official CameraImage for a Camera.
+
+    Returns 404 when the Camera has no official images.
     """
 
     camera = get_object_or_404(
@@ -403,46 +337,182 @@ def latest_analysis(request, camera_id):
         id=camera_id
     )
 
-    analysis = (
-        ImageAnalysis.objects
+    camera_image = (
+        CameraImage.objects
         .filter(
-            image__camera=camera
+            camera=camera
         )
         .order_by(
-            "-created_at"
+            "-captured_at",
+            "-id"
         )
         .first()
     )
 
-    if not analysis:
+    if camera_image is None:
         return Response(
             {
                 "detail":
-                    "No analysis found for this camera."
+                    "No official image found for this camera."
             },
             status=status.HTTP_404_NOT_FOUND
         )
 
-    measurements = (
-        PlantVisionMeasurement.objects
-        .filter(
-            image_analysis=analysis
-        )
-        .select_related("slot")
+    return Response(
+        {
+            "image_id":
+                camera_image.id,
+
+            "camera_id":
+                camera.id,
+
+            "captured_at":
+                camera_image.captured_at,
+
+            "image_url":
+                get_image_url(camera_image),
+        },
+        status=status.HTTP_200_OK
     )
+
+
+# ============================================================
+# LATEST ANALYSIS
+#
+# GET /api/cv/cameras/<camera_id>/latest-analysis/
+#
+# Optional:
+# GET /api/cv/cameras/<camera_id>/latest-analysis/?valid=true
+# ============================================================
+
+@api_view(["GET"])
+def latest_analysis(request, camera_id):
+    """
+    Return the newest ImageAnalysis for a Camera.
+
+    ?valid=true returns the newest analysis where:
+        measurement_valid=True
+
+    Image and analysis data are returned together so consumers
+    cannot accidentally combine an analysis with a different
+    CameraImage.
+    """
+
+    camera = get_object_or_404(
+        Camera,
+        id=camera_id
+    )
+
+    analyses = (
+        ImageAnalysis.objects
+        .filter(
+            image__camera=camera
+        )
+        .select_related(
+            "image"
+        )
+    )
+
+    # --------------------------------------------------------
+    # Optional valid=true filter
+    # --------------------------------------------------------
+
+    valid_only = (
+        request.query_params
+        .get("valid", "")
+        .lower()
+    )
+
+    if valid_only == "true":
+        analyses = analyses.filter(
+            measurement_valid=True
+        )
+
+    # Newest by actual image capture time.
+    analysis = (
+        analyses
+        .order_by(
+            "-image__captured_at",
+            "-id"
+        )
+        .first()
+    )
+
+    if analysis is None:
+
+        if valid_only == "true":
+            detail = (
+                "No valid analysis found for this camera."
+            )
+        else:
+            detail = (
+                "No analysis found for this camera."
+            )
+
+        return Response(
+            {
+                "detail": detail
+            },
+            status=status.HTTP_404_NOT_FOUND
+        )
+
+    camera_image = analysis.image
+
+    # --------------------------------------------------------
+    # Atomic response
+    #
+    # camera_id, image_id, captured_at and image_url all come
+    # from the SAME CameraImage as this analysis.
+    # --------------------------------------------------------
 
     return Response(
         {
-            "analysis":
-                ImageAnalysisSerializer(
-                    analysis
-                ).data,
+            "camera_id":
+                camera.id,
 
-            "measurements":
-                PlantVisionMeasurementSerializer(
-                    measurements,
-                    many=True
-                ).data
+            "image_id":
+                camera_image.id,
+
+            "captured_at":
+                camera_image.captured_at,
+
+            "image_url":
+                get_image_url(camera_image),
+
+            "analysis": {
+                "total_canopy_coverage":
+                    analysis.total_canopy_coverage,
+
+                "growth_change":
+                    analysis.growth_change,
+
+                "crowding_percentage":
+                    analysis.crowding_percentage,
+
+                "green_percentage":
+                    analysis.green_percentage,
+
+                "yellow_percentage":
+                    analysis.yellow_percentage,
+
+                "measurement_valid":
+                    analysis.measurement_valid,
+
+                "processing_time_ms":
+                    analysis.processing_time_ms,
+
+                "vlm_ready":
+                    analysis.vlm_ready,
+
+                "quality_status":
+                    analysis.quality_status,
+
+                "quality_flags":
+                    analysis.quality_flags,
+
+                "quality_message":
+                    analysis.quality_message,
+            }
         },
         status=status.HTTP_200_OK
     )

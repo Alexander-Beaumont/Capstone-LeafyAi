@@ -22,12 +22,6 @@ class GrowingAreaViewSet(viewsets.ModelViewSet):
     queryset = GrowingArea.objects.all()
     serializer_class = GrowingAreaSerializer
 
-
-class SlotViewSet(viewsets.ModelViewSet):
-    queryset = Slot.objects.all()
-    serializer_class = SlotSerializer
-
-
 class PlantBatchViewSet(viewsets.ModelViewSet):
     queryset = PlantBatch.objects.all()
     serializer_class = PlantBatchSerializer
@@ -41,24 +35,6 @@ class BatchPlacementViewSet(viewsets.ModelViewSet):
 class CameraViewSet(viewsets.ModelViewSet):
     queryset = Camera.objects.all()
     serializer_class = CameraSerializer
-
-
-class CameraSlotPositionViewSet(viewsets.ModelViewSet):
-    queryset = CameraSlotPosition.objects.all()
-    serializer_class = CameraSlotPositionSerializer
-
-#slot position is filterable by camera. so Get /api/camera-slot-postions/?camera=1
-#should only return slots associated with camera 1
-    def get_queryset(self):
-        queryset = CameraSlotPosition.objects.all()
-
-        camera_id = self.request.query_params.get("camera")
-
-        if camera_id:
-            queryset = queryset.filter(camera_id=camera_id)
-
-        return queryset
-
 
 class CameraImageViewSet(viewsets.ModelViewSet):
     queryset = CameraImage.objects.all()

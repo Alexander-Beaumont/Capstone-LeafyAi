@@ -1,5 +1,5 @@
 from django.db import models
-from telemetry.models import CameraImage, Slot
+from telemetry.models import CameraImage
 
 class ImageAnalysis(models.Model):
     image = models.OneToOneField(
@@ -46,7 +46,7 @@ class ImageAnalysis(models.Model):
     vlm_ready = models.BooleanField(default=False)
     quality_status = models.CharField(
         max_length=16,
-        default="UNKOWN"
+        default="UNKNOWN"
     )
     quality_flags = models.JSONField(default=list)
     quality_message = models.TextField(default="")
