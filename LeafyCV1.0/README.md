@@ -1,343 +1,147 @@
-# LeafyCV1.0 - Final Computer Vision Handover
+# LeafyCV1.0 FINAL LOCKED v2.1 - Semantic Canopy + Quality Gate + Baseline-Safe Growth
 
-LeafyCV1.0 is the Computer Vision subsystem for the Leafy AI sweet-basil hydroponic vertical farm.
+## Purpose
 
-The final operating rule is simple:
-
-```text
-LIVE CAMERA PREVIEW
-        |
-        | continuous display only
-        | no historical database write
-        |
-        +---- every 30 minutes ----> ONE SAVED CV SAMPLE
-                                      |
-                                      +-> canopy
-                                      +-> visibility
-                                      +-> width / height
-                                      +-> crowding
-                                      +-> growth change
-                                      +-> optional colour values
-                                      +-> Django/database ingest
-```
-
-The live preview is for monitoring, ROI/SLOT alignment and calibration. Numeric CV history is produced only by scheduled or manually requested saved analyses.
-
-## 1. Folder structure
+LeafyCV analyses Backend-owned official `CameraImage` records. It never opens RTSP/webcam streams and never controls lighting.
 
 ```text
-LeafyCV1.0/
-├── main.py                  Run this file
-├── README.md
-├── requirements.txt
-├── .env.example
-├── .gitignore
-├── configs/                 Standalone/demo camera configurations
-├── demo/                    Offline NORMAL and MAGENTA test images
-├── docs/                    Team integration handover PDF
-├── leafycv/                 Internal CV modules
-└── tests/                   Regression tests
+Camera -> Backend -> CameraImage -> LeafyCV -> ImageAnalysis -> Backend
 ```
 
-Do not run files inside `leafycv/` directly. Use `main.py`.
-
-## 2. What LeafyCV measures
-
-- fixed physical SLOT identity from registered camera coordinates;
-- whole-ROI canopy coverage;
-- per-SLOT canopy coverage;
-- per-SLOT visibility;
-- plant width and height in pixels;
-- width and height in centimetres when a calibration stick is configured;
-- crowding based on neighbouring SLOT canopy contact;
-- growth change relative to the previous valid saved sample;
-- green/yellow estimates under NORMAL lighting only;
-- image-quality validity checks.
-
-Lighting profiles:
+## Final model
 
 ```text
-NORMAL
-MAGENTA
+Architecture: U-Net
+Encoder: EfficientNet-B0
+Input: RGB 512 x 512
+Preprocessing: BGR -> RGB -> resize -> float32 / 255.0
+Output: sigmoid probability -> threshold 0.5 -> binary mask 0/255
 ```
 
-Under MAGENTA lighting, normal-light green/yellow values are returned as `null`.
-
-## 3. First-time Windows setup
-
-Open PowerShell in the folder containing `main.py`.
-
-```powershell
-py -3.11 -m venv .venv
-```
-
-```powershell
-.\.venv\Scripts\python.exe -m pip install --upgrade pip
-```
-
-```powershell
-.\.venv\Scripts\python.exe -m pip install -r requirements.txt
-```
-
-Check the installation:
-
-```powershell
-.\.venv\Scripts\python.exe main.py check
-```
-
-Run the included offline tests:
-
-```powershell
-.\.venv\Scripts\python.exe -m unittest discover tests -v
-```
-
-## 4. Offline demo
-
-NORMAL:
-
-```powershell
-.\.venv\Scripts\python.exe main.py demo --mode NORMAL
-```
-
-MAGENTA:
-
-```powershell
-.\.venv\Scripts\python.exe main.py demo --mode MAGENTA
-```
-
-Outputs are created automatically under `outputs/`.
-
-## 5. Standalone webcam test
-
-Create a webcam configuration:
-
-```powershell
-.\.venv\Scripts\python.exe main.py create-config `
-  --output configs\my_webcam.json `
-  --camera-name "My Webcam" `
-  --source-type WEBCAM `
-  --webcam-index 0 `
-  --lighting NORMAL
-```
-
-Test one frame:
-
-```powershell
-.\.venv\Scripts\python.exe main.py test-source `
-  --config configs\my_webcam.json `
-  --show
-```
-
-If index `0` is not the required camera, recreate the config with `--webcam-index 1` or another valid index and add `--overwrite`.
-
-## 6. Standalone calibration
-
-Example with three temporary SLOT IDs and a 20 cm reference:
-
-```powershell
-.\.venv\Scripts\python.exe main.py calibrate `
-  --config configs\my_webcam.json `
-  --slot-count 3 `
-  --reference-length-cm 20
-```
-
-The calibration workflow sets:
-
-1. monitoring ROI;
-2. SLOT centre positions;
-3. optional calibration-stick endpoints and real length.
-
-For database integration, use the real database SLOT UUIDs instead of temporary `1,2,3`:
-
-```powershell
-.\.venv\Scripts\python.exe main.py calibrate `
-  --config configs\my_webcam.json `
-  --slot-ids "UUID_P01,UUID_P02,UUID_P03" `
-  --reference-length-cm 20
-```
-
-## 7. Final live behaviour on a laptop webcam
-
-Use `monitor` when you want the camera to remain visible while CV data is saved only at the scheduled interval.
-
-```powershell
-.\.venv\Scripts\python.exe main.py monitor `
-  --config configs\my_webcam.json `
-  --interval-minutes 30 `
-  --slot-count 3 `
-  --reference-length-cm 20
-```
-
-The monitor window displays live frames continuously. It does not run/save CV on every displayed frame.
-
-Controls in local-config monitor mode:
+The model checkpoint is bundled at:
 
 ```text
-Q / ESC   Quit
-SPACE     Pause/resume preview
-S         Save one official CV sample now
-R         Set/adjust ROI
-P         Register/re-register SLOT positions
-C         Set/adjust calibration stick
-X         Remove calibration stick
-N         NORMAL lighting
-M         MAGENTA lighting
+models/leafy_canopy_effnet_b0_final.pth
 ```
 
-The screen always labels the timestamp of the latest saved analysis. Between scheduled analyses, the numeric values remain the last saved result.
+## Processing chain
 
-For faster development testing, temporarily use:
-
-```powershell
---interval-minutes 1
-```
-
-Return to `30` for the final system.
-
-## 8. Official one-shot and scheduled modes
-
-Save one official sample:
-
-```powershell
-.\.venv\Scripts\python.exe main.py run-once `
-  --config configs\my_webcam.json
-```
-
-Run one saved sample every 30 minutes:
-
-```powershell
-.\.venv\Scripts\python.exe main.py run-loop `
-  --config configs\my_webcam.json `
-  --interval-minutes 30
-```
-
-`run-loop` is the recommended LeafyCV process for the final lab RTSP deployment because each scheduled capture opens the camera, obtains a fresh frame and releases the connection before waiting for the next interval.
-
-## 9. Integrated Django/database mode
-
-In the final team integration, React saves camera/ROI/calibration/SLOT configuration to Django/database. LeafyCV can read the current database-backed configuration directly from the backend.
-
-Required backend routes are described in `docs/LeafyCV1.0_Integration_Handover_Guide.pdf`.
-
-Example integrated one-shot:
-
-```powershell
-.\.venv\Scripts\python.exe main.py run-once `
-  --backend-base-url http://127.0.0.1:8000 `
-  --camera-id YOUR_CAMERA_UUID
-```
-
-Example integrated 30-minute production scheduler:
-
-```powershell
-.\.venv\Scripts\python.exe main.py run-loop `
-  --backend-base-url http://127.0.0.1:8000 `
-  --camera-id YOUR_CAMERA_UUID `
-  --interval-minutes 30
-```
-
-In integrated mode LeafyCV reads:
+For the newest official image returned for each Camera, when that image has not already been analysed:
 
 ```text
-GET /api/cv/cameras/{camera_id}/config/
-GET /api/cv/cameras/{camera_id}/slot-positions/
+Camera-specific ROI
+-> deterministic image-quality gate
+-> U-Net + EfficientNet-B0 canopy segmentation
+-> binary canopy mask
+-> canopy / crowding / colour metrics
+-> growth_change vs the same Camera's previous valid analysis
+   only inside the current growth baseline
+-> JSON POST /api/cv/ingest/
 ```
 
-and sends each official sample to:
+Quality failures set:
 
 ```text
+measurement_valid = false
+vlm_ready = false
+quality_status = FAIL
+quality_flags = [...]
+quality_message = deterministic warning
+```
+
+
+## Growth baseline reset - plant/layout changes
+
+`growth_change` is relative **visible canopy coverage change** between valid observations inside the same Camera baseline. It is **not normalized by elapsed time** and is not an exact biological growth rate for individual plants. LeafyCV does not track plant IDs.
+
+Backend exposes the nullable Camera field:
+
+```text
+growth_baseline_reset_at
+```
+
+When plants are moved, added, removed, replaced, transferred between Cameras, or the physical view/ROI is materially changed, the affected Camera baseline must be reset. For a transfer Camera 1 -> Camera 2, reset **both** Cameras.
+
+LeafyCV behavior:
+
+```text
+latest valid analysis captured before reset -> ignore for growth
+first valid image after reset              -> growth_change = null
+next valid image                           -> compare with first post-reset image
+```
+
+Historical `CameraImage` and `ImageAnalysis` rows are never edited or deleted. The semantic U-Net model and its checkpoint do not change. Only the temporal comparison logic is reset.
+
+The Backend endpoint paths remain unchanged; the reset timestamp is part of the existing Camera GET/PATCH contract.
+
+## Latest-only processing - MVP
+
+LeafyCV intentionally uses the Backend `latest-image` endpoint rather than a historical pending-image queue.
+
+```text
+newest official CameraImage has no matching analysis -> analyse it
+newest official CameraImage is already analysed     -> skip
+LeafyCV was offline across multiple captures        -> analyse the newest available image only
+older unanalysed CameraImages                       -> no historical backfill in MVP
+```
+
+This means `growth_change` compares two valid observations that may be separated by more than one capture interval. It remains a relative canopy change, not a per-hour or per-day growth rate.
+
+## Multi-camera behavior
+
+LeafyCV can process one Camera or all enabled/CV-enabled Cameras in one process.
+
+All active Cameras:
+
+```powershell
+python main.py run-loop --backend-base-url http://127.0.0.1:8000
+```
+
+One Camera only:
+
+```powershell
+python main.py run-loop --camera-id 1 --backend-base-url http://127.0.0.1:8000
+```
+
+Each Camera is independent:
+
+- duplicate detection uses that Camera's latest analysis;
+- `growth_change` uses that Camera's previous valid canopy only;
+- ROI comes from that Camera's configuration;
+- `camera_id` and `image_id` are preserved in every ingest request.
+
+Camera capture synchronization is handled by the Camera service. LeafyCV does not need to analyse synchronized images at exactly the same instant; it processes each Camera's newest available official image independently and reuses one loaded semantic model.
+
+## Backend APIs
+
+```text
+GET  /api/cameras/
+GET  /api/cameras/{camera_id}/
+GET  /api/cv/cameras/{camera_id}/latest-image/
+GET  /api/cv/cameras/{camera_id}/latest-analysis/
+GET  /api/cv/cameras/{camera_id}/latest-analysis/?valid=true
 POST /api/cv/ingest/
 ```
 
-The backend stores:
-
-```text
-CAMERAIMAGE
-    -> IMAGEANALYSIS
-        -> PLANTVISIONMEASUREMENT for each SLOT
-```
-
-## 10. React live preview in the final lab system
-
-The final React page should display the live/transient preview through the backend:
-
-```text
-GET /api/cv/cameras/{camera_id}/preview/
-```
-
-The live preview is independent from the 30-minute saved CV results.
-
-React also reads the latest saved result from:
-
-```text
-GET /api/cv/cameras/{camera_id}/latest-analysis/
-```
-
-The UI should clearly display, for example:
-
-```text
-Live Camera
-Last analysed: 16:30
-Next scheduled analysis: 17:00
-Visible plants: 18
-Canopy coverage: 64.2%
-```
-
-## 11. Lab RTSP connection
-
-Connect the LeafyCV computer/server to the isolated `Leafy_AI` lab network.
-
-Set the read-only camera credentials in the local environment:
+## Quick checks
 
 ```powershell
-$env:FARM_CAMERA_USER='YOUR_USERNAME'
-$env:FARM_CAMERA_PASSWORD='YOUR_PASSWORD'
+pip install -r requirements.txt
+python main.py check
+pytest -q
 ```
 
-The final configuration/database provides the camera IP, RTSP port/path and lighting mode.
+Analyse one local image:
 
-For scheduled CV operation, use `run-loop --interval-minutes 30`. Do not use an unbounded direct RTSP `monitor` process as the normal production collector. The backend/shared camera preview service should provide the live React image while LeafyCV performs the bounded scheduled capture-and-release workflow.
-
-## 12. Output files
-
-For every official analysis LeafyCV saves local recovery/debug files under:
-
-```text
-outputs/<camera_name>/
+```powershell
+python main.py analyse-file --image path\to\farm.jpg
 ```
 
-Typical files:
 
-```text
-*_raw.jpg
-*_annotated.jpg
-*_mask.png
-*_result.json
-measurements.csv
-state.json
-```
+## Camera scheduling boundary
 
-`state.json` preserves the previous valid per-SLOT baseline used for growth calculation across process restarts.
+LeafyCV does not decide capture timing. The Camera service uses each Camera's latest official CameraImage timestamp plus `capture_interval_minutes`, subject to the active time window. Missed captures are not backfilled. This scheduling rule does not change any LeafyCV endpoint.
 
-## 13. Backend failure behaviour
+## Operational failure vs quality failure
 
-LeafyCV saves local output first. If the Django API is unavailable, the local CV result remains available and the program prints a warning rather than discarding the sample.
-
-## 14. Handover acceptance check
-
-Before final deployment confirm:
-
-- `python main.py check` succeeds;
-- all tests pass;
-- NORMAL demo succeeds;
-- MAGENTA demo succeeds;
-- webcam source test succeeds;
-- ROI and SLOT registration are correct;
-- calibration stick produces sensible centimetre values;
-- `monitor` shows live frames while saved values change only at the scheduled interval;
-- backend-driven config loads using a real CAMERA UUID;
-- one `run-once` creates the expected CameraImage -> ImageAnalysis -> PlantVisionMeasurement records;
-- the final scheduler uses a 30-minute interval;
-- React live preview shows the latest saved-analysis timestamp separately from the live image.
-
-For the exact frontend/backend/database interface, read the integration handover PDF in `docs/`.
+A quality FAIL is a successfully decoded/processed image that is technically unsuitable for trusted CV/VLM use. A model load error, Backend outage, image download failure, or inference exception is an operational failure: LeafyCV logs it and creates no ImageAnalysis. A later poll retries that same image only if it is still the newest unanalysed image; if newer official images have arrived, older unanalysed images are not backfilled. It must not fabricate `quality_status=FAIL` for a job that never completed.

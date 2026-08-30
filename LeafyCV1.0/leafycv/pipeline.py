@@ -1,239 +1,238 @@
+"""LeafyCV1.0 end-to-end analysis pipeline for one official CameraImage."""
+
 from __future__ import annotations
 
-import math
 import time
-from datetime import datetime
-from pathlib import Path
-from typing import Any
+from typing import Any, Protocol
 
 import cv2
 import numpy as np
 
-from . import MODEL_VERSION
-from .api import CVApiClient, build_backend_payload
-from .calibration import pixels_per_cm
-from .camera import capture_frame
-from .config import normalized_point_to_pixels, normalized_roi_to_pixels
-from .crowding import compute_crowding
-from .outputs import save_sample, slugify
-from .quality import evaluate_image_quality
-from .segmentation import segment_vegetation
-from .slots import build_slot_map, measure_slots, slot_boundary_mask
-from .state import apply_growth_and_temporal_checks, load_state, save_state
+from .metrics import colour_percentages, crowding_index, growth_change, percentage
+from .quality import assess_image_quality
+from .segmentation import segment_colour_indicators
+from .semantic_segmenter import get_default_segmenter
 
 
-def _slot_centres_local(config: dict, frame_width: int, frame_height: int, roi: tuple[int, int, int, int]) -> list[tuple[int, int]]:
-    x0, y0, rw, rh = roi
-    centres: list[tuple[int, int]] = []
-    for slot in config["slots"]:
-        gx, gy = normalized_point_to_pixels(slot["centre"], frame_width, frame_height)
-        lx, ly = gx - x0, gy - y0
-        if not (0 <= lx < rw and 0 <= ly < rh):
-            raise ValueError(
-                f"Registered slot {slot['slot_id']} is outside the configured ROI. "
-                "Adjust the ROI or re-register the slot centre."
-            )
-        centres.append((lx, ly))
-    return centres
+class Segmenter(Protocol):
+    """Minimal interface used by the pipeline and easy to mock in unit tests."""
+
+    def segment(self, image_bgr: np.ndarray) -> dict[str, Any]: ...
 
 
-def _draw_annotation(
-    *,
-    frame: np.ndarray,
-    roi: tuple[int, int, int, int],
-    slot_map: np.ndarray,
-    centres_local: list[tuple[int, int]],
-    plants: list[dict],
-    config: dict,
-    ppcm: float | None,
-    total_canopy: float,
-    image_valid: bool,
-) -> np.ndarray:
-    annotated = frame.copy()
-    x0, y0, rw, rh = roi
-    cv2.rectangle(annotated, (x0, y0), (x0 + rw, y0 + rh), (255, 180, 40), 2)
+def _resolve_growth_area(
+    config: dict[str, Any] | None,
+    width: int,
+    height: int,
+) -> tuple[tuple[int, int, int, int], bool, bool]:
+    """Resolve the final normalized rectangle ROI contract.
 
-    boundary = slot_boundary_mask(slot_map)
-    yy, xx = np.where(boundary > 0)
-    annotated[y0 + yy, x0 + xx] = (170, 90, 220)
+    Final format stored on one Camera record:
 
-    for index, (centre, plant) in enumerate(zip(centres_local, plants)):
-        cx, cy = centre
-        gx, gy = x0 + cx, y0 + cy
-        marker_colour = (80, 230, 50) if plant["visible"] else (120, 120, 120)
-        cv2.circle(annotated, (gx, gy), 7, marker_colour, -1)
-        bx, by, bw, bh = plant["bbox"]
-        if bw > 0 and bh > 0:
-            cv2.rectangle(annotated, (x0 + bx, y0 + by), (x0 + bx + bw, y0 + by + bh), (80, 190, 255), 2)
-        label = plant["slot_label"]
-        if ppcm and plant["width_cm"] is not None and plant["height_cm"] is not None:
-            size_text = f"{plant['width_cm']:.1f}x{plant['height_cm']:.1f}cm"
-        else:
-            size_text = f"{int(round(plant['width_px']))}x{int(round(plant['height_px']))}px"
-        text = f"{label} {plant['canopy_coverage']:.1f}% {size_text} crowd:{plant['crowding_percentage']:.0f}%"
-        cv2.putText(annotated, text, (gx + 9, gy - 8), cv2.FONT_HERSHEY_SIMPLEX, 0.45, marker_colour, 1, cv2.LINE_AA)
+        {
+            "x": 0.10,
+            "y": 0.12,
+            "width": 0.80,
+            "height": 0.72
+        }
 
-    stick = config.get("calibration_stick")
-    if stick:
-        start = normalized_point_to_pixels(stick["start"], frame.shape[1], frame.shape[0])
-        end = normalized_point_to_pixels(stick["end"], frame.shape[1], frame.shape[0])
-        cv2.line(annotated, start, end, (255, 200, 50), 3, cv2.LINE_AA)
-        middle = ((start[0] + end[0]) // 2, (start[1] + end[1]) // 2)
-        cv2.putText(annotated, f"{float(stick['length_cm']):g} cm", (middle[0] + 6, middle[1] - 7), cv2.FONT_HERSHEY_SIMPLEX, 0.50, (255, 200, 50), 2, cv2.LINE_AA)
+    Values are normalized to 0..1 so the same ROI works on a small React
+    preview and the original RTSP image.  Missing ROI intentionally means
+    whole-frame analysis.  A malformed configured ROI falls back to the whole
+    frame for debug output but is marked invalid by the quality gate.
+    """
+    config = config or {}
+    roi = config.get("roi_points") or config.get("growth_area") or config.get("roi")
 
-    status = "VALID" if image_valid else "CHECK FRAME"
-    cv2.putText(
-        annotated,
-        f"LeafyCV1.0 | {config['lighting_mode']} | canopy {total_canopy:.1f}% | {status}",
-        (15, 28),
-        cv2.FONT_HERSHEY_SIMPLEX,
-        0.65,
-        (255, 255, 255),
-        2,
-        cv2.LINE_AA,
+    if roi in (None, ""):
+        return (0, 0, width, height), False, True
+    if not isinstance(roi, dict):
+        return (0, 0, width, height), True, False
+
+    try:
+        x = float(roi["x"])
+        y = float(roi["y"])
+        w = float(roi["width"])
+        h = float(roi["height"])
+    except (KeyError, TypeError, ValueError):
+        return (0, 0, width, height), True, False
+
+    valid = (
+        0.0 <= x < 1.0
+        and 0.0 <= y < 1.0
+        and 0.0 < w <= 1.0
+        and 0.0 < h <= 1.0
+        and x + w <= 1.0 + 1e-9
+        and y + h <= 1.0 + 1e-9
     )
-    return annotated
+    if not valid:
+        return (0, 0, width, height), True, False
+
+    x0 = max(0, min(width - 1, round(x * width)))
+    y0 = max(0, min(height - 1, round(y * height)))
+    x1 = max(x0 + 1, min(width, round((x + w) * width)))
+    y1 = max(y0 + 1, min(height, round((y + h) * height)))
+    return (x0, y0, x1, y1), True, True
 
 
-def analyse_frame(
+def analyse_image(
+    image: np.ndarray,
     *,
-    frame: np.ndarray,
-    config: dict[str, Any],
-    output_root: Path,
-    captured_at: datetime | None = None,
-    api_client: CVApiClient | None = None,
-    api_send_images: str = "raw",
-) -> tuple[dict[str, Any], dict[str, Path]]:
-    if not config.get("slots"):
-        raise RuntimeError("No slot centres are registered. Run the calibration/registration command first.")
+    camera_config: dict[str, Any] | None = None,
+    previous_canopy: float | None = None,
+    segmenter: Segmenter | None = None,
+) -> dict[str, Any]:
+    """Analyse one official image as one camera-level growth area.
 
-    captured_at = captured_at or datetime.now().astimezone()
+    Processing order:
+
+    1. Resolve the Camera-specific ROI.
+    2. Run deterministic image-quality checks on that growth area.
+    3. Run U-Net + EfficientNet-B0 semantic canopy segmentation.
+    4. Restrict OpenCV colour indicators to semantic canopy pixels.
+    5. Calculate canopy/crowding/colour metrics.
+    6. Calculate growth_change only when the current measurement is valid.
+    7. Return aggregate JSON fields plus local debug images.
+
+    A quality FAIL does not crash analysis.  Metrics are still available for
+    debugging, but measurement_valid=False and vlm_ready=False tell downstream
+    systems not to trust the image for growth baselines or VLM visual analysis.
+    """
     started = time.perf_counter()
-    height, width = frame.shape[:2]
-    roi = normalized_roi_to_pixels(config.get("roi"), width, height)
-    x0, y0, rw, rh = roi
-    zone = frame[y0 : y0 + rh, x0 : x0 + rw]
-    centres_local = _slot_centres_local(config, width, height, roi)
+    if image is None or image.size == 0:
+        raise ValueError("Image is empty or unreadable.")
 
-    quality = evaluate_image_quality(
-        zone,
-        min_blur_score=float(config["analysis"]["min_blur_score"]),
-        min_mean_brightness=float(config["analysis"]["min_mean_brightness"]),
-        max_mean_brightness=float(config["analysis"]["max_mean_brightness"]),
+    # ------------------------------------------------------------------
+    # Camera-specific Growth Area ROI
+    # ------------------------------------------------------------------
+    height, width = image.shape[:2]
+    (x0, y0, x1, y1), roi_configured, roi_valid = _resolve_growth_area(
+        camera_config,
+        width,
+        height,
     )
-    masks = segment_vegetation(
-        zone,
-        str(config["lighting_mode"]).upper(),
-        config["segmentation"],
-        config["analysis"],
-    )
-    slot_map = build_slot_map(rw, rh, centres_local)
-    ppcm = pixels_per_cm(config, width, height)
-    plants = measure_slots(
-        masks=masks,
-        slot_map=slot_map,
-        centres_local=centres_local,
-        slots=config["slots"],
-        lighting_mode=config["lighting_mode"],
-        analysis_cfg=config["analysis"],
-        pixels_per_cm=ppcm,
+    roi = image[y0:y1, x0:x1].copy()
+
+    # ------------------------------------------------------------------
+    # Quality gate before the image is considered safe for VLM usage
+    # ------------------------------------------------------------------
+    quality = assess_image_quality(
+        roi,
+        roi_configured=roi_configured,
+        roi_valid=roi_valid,
     )
 
-    crowding = compute_crowding(
-        mask=masks["combined"],
-        slot_map=slot_map,
-        plant_count=len(plants),
-        gap_px=int(config["analysis"]["crowding_gap_px"]),
-        min_contact_pixels=int(config["analysis"]["crowding_min_contact_pixels"]),
-    )
-    for index, plant in enumerate(plants, start=1):
-        pid = f"P{index}"
-        plant["crowding_percentage"] = float(crowding["per_plant_crowding_percent"].get(pid, 0.0))
-        plant["touching_neighbors"] = list(crowding["per_plant_touching_neighbors"].get(pid, []))
+    # ------------------------------------------------------------------
+    # Semantic canopy segmentation - source of truth for plant pixels
+    # ------------------------------------------------------------------
+    semantic = (segmenter or get_default_segmenter()).segment(roi)
+    canopy_mask = np.asarray(semantic["mask"], dtype=np.uint8)
+    if canopy_mask.shape[:2] != roi.shape[:2]:
+        raise ValueError("Semantic segmenter returned a mask with the wrong size.")
 
-    total_canopy = 100.0 * cv2.countNonZero(masks["combined"]) / max(1, masks["combined"].size)
-    visible_count = sum(1 for item in plants if item["visible"])
-
-    state_path = output_root / slugify(config["camera"]["name"]) / "state.json"
-    state = load_state(state_path, config)
-    final_image_valid, temporal_reasons = apply_growth_and_temporal_checks(
-        results=plants,
-        total_canopy=total_canopy,
-        image_valid=bool(quality["measurement_valid"]),
-        state=state,
-        analysis_cfg=config["analysis"],
-    )
-    save_state(state_path, state)
-
-    processing_time_ms = int(round((time.perf_counter() - started) * 1000.0))
-    result: dict[str, Any] = {
-        "model_version": MODEL_VERSION,
-        "camera_id": config["camera"].get("camera_id"),
-        "camera_name": config["camera"]["name"],
-        "source_type": config["camera"]["source_type"],
-        "captured_at": captured_at.isoformat(timespec="seconds"),
-        "lighting_mode": str(config["lighting_mode"]).upper(),
-        "size_calibrated": bool(ppcm),
-        "calibration_pixels_per_cm": None if ppcm is None else round(float(ppcm), 6),
-        "colour_measurement_valid": str(config["lighting_mode"]).upper() == "NORMAL",
-        "roi_pixels": [x0, y0, rw, rh],
-        "image_quality": {
-            **quality,
-            "temporal_reasons": temporal_reasons,
-        },
-        "analysis": {
-            "total_canopy_coverage": round(float(total_canopy), 4),
-            "visible_plant_count": int(visible_count),
-            "measurement_valid": bool(final_image_valid),
-            "processing_time_ms": processing_time_ms,
-            "crowding_percentage": round(float(crowding["crowding_percent"]), 4),
-        },
-        "plants": plants,
+    # ------------------------------------------------------------------
+    # Colour indicators remain OpenCV-based, but are restricted to pixels
+    # already classified as canopy by the semantic model.
+    # ------------------------------------------------------------------
+    colour_candidates = segment_colour_indicators(roi)
+    green = cv2.bitwise_and(colour_candidates["green"], canopy_mask)
+    yellow = cv2.bitwise_and(colour_candidates["yellow"], canopy_mask)
+    brown = cv2.bitwise_and(colour_candidates["brown"], canopy_mask)
+    masks = {
+        "combined": canopy_mask,
+        "green": green,
+        "yellow": yellow,
+        "brown": brown,
     }
 
-    annotated = _draw_annotation(
-        frame=frame,
-        roi=roi,
-        slot_map=slot_map,
-        centres_local=centres_local,
-        plants=plants,
-        config=config,
-        ppcm=ppcm,
-        total_canopy=total_canopy,
-        image_valid=final_image_valid,
-    )
-    files = save_sample(
-        output_root=output_root,
-        result=result,
-        frame=frame,
-        annotated=annotated,
-        mask=masks["combined"],
+    # ------------------------------------------------------------------
+    # Aggregate Growth Area metrics
+    # ------------------------------------------------------------------
+    canopy = percentage(canopy_mask)
+    green_pct, yellow_pct, _brown_pct = colour_percentages(masks)
+    crowding = crowding_index(canopy_mask)
+
+    # Invalid current images must not create a misleading growth comparison.
+    change = (
+        growth_change(canopy, previous_canopy)
+        if quality["measurement_valid"]
+        else None
     )
 
-    if api_client and api_client.enabled:
-        api_client.send_sample(
-            payload=build_backend_payload(result),
-            raw_path=files["raw"],
-            annotated_path=files["annotated"],
-            mask_path=files["mask"],
-            image_mode=api_send_images,
+    processing_ms = int(round((time.perf_counter() - started) * 1000.0))
+
+    # These names are the final Backend/Frontend/AI Agent contract.  Do not
+    # rename them independently in LeafyCV, Django serializers, or React.
+    analysis = {
+        "total_canopy_coverage": round(canopy, 2),
+        "growth_change": None if change is None else round(change, 2),
+        "crowding_percentage": round(crowding, 2),
+        "green_percentage": round(green_pct, 2),
+        "yellow_percentage": round(yellow_pct, 2),
+        "measurement_valid": bool(quality["measurement_valid"]),
+        "vlm_ready": bool(quality["vlm_ready"]),
+        "quality_status": str(quality["quality_status"]),
+        "quality_flags": list(quality["quality_flags"]),
+        "quality_message": str(quality["quality_message"]),
+        "processing_time_ms": processing_ms,
+    }
+
+    # ------------------------------------------------------------------
+    # Local debug annotation.  These images are not part of the Backend
+    # production contract and do not need to be stored in the database.
+    # ------------------------------------------------------------------
+    annotated = image.copy()
+    cv2.rectangle(annotated, (x0, y0), (x1 - 1, y1 - 1), (255, 255, 255), 2)
+    lines = [
+        f"Canopy: {analysis['total_canopy_coverage']:.1f}%",
+        f"Crowding: {analysis['crowding_percentage']:.1f}%",
+        "Growth: N/A"
+        if analysis["growth_change"] is None
+        else f"Growth: {analysis['growth_change']:+.1f}%",
+        f"Green/Yellow: {analysis['green_percentage']:.1f}/{analysis['yellow_percentage']:.1f}%",
+        f"Quality: {analysis['quality_status']} | VLM: {analysis['vlm_ready']}",
+    ]
+
+    text_y = max(22, y0 + 22)
+    for line in lines:
+        cv2.putText(
+            annotated,
+            line,
+            (max(5, x0 + 6), text_y),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.55,
+            (255, 255, 255),
+            2,
+            cv2.LINE_AA,
         )
-    return result, files
+        text_y += 22
 
+    # Restore ROI-only semantic outputs to full-frame debug canvases.
+    full_mask = np.zeros((height, width), dtype=np.uint8)
+    full_mask[y0:y1, x0:x1] = canopy_mask
 
-def capture_and_analyse(
-    *,
-    config: dict[str, Any],
-    output_root: Path,
-    api_client: CVApiClient | None = None,
-    api_send_images: str = "raw",
-) -> tuple[dict[str, Any], dict[str, Path]]:
-    frame = capture_frame(config)
-    return analyse_frame(
-        frame=frame,
-        config=config,
-        output_root=output_root,
-        captured_at=datetime.now().astimezone(),
-        api_client=api_client,
-        api_send_images=api_send_images,
-    )
+    probability_roi = semantic.get("probability")
+    full_probability: np.ndarray | None = None
+    if isinstance(probability_roi, np.ndarray):
+        full_probability = np.zeros((height, width), dtype=np.float32)
+        full_probability[y0:y1, x0:x1] = probability_roi.astype(np.float32)
+
+    return {
+        "analysis": analysis,
+        "quality": quality,
+        "growth_area_pixels": {
+            "x0": x0,
+            "y0": y0,
+            "x1": x1,
+            "y1": y1,
+            "roi_configured": roi_configured,
+            "roi_valid": roi_valid,
+        },
+        "annotated": annotated,
+        "mask": full_mask,
+        "probability": full_probability,
+        "model": {
+            "threshold": semantic.get("threshold"),
+            "device": semantic.get("device"),
+        },
+    }
