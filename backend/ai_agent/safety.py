@@ -47,11 +47,10 @@ def rollup_farm_state_confidence(farm_state, device_id=None):
             statuses["missing"] += 1
 
         for level in device.get("levels", []):
-            for area in level.get("growing_areas", []):
-                for slot in area.get("slots", []):
-                    status = slot.get("status")
-                    if status in statuses:
-                        statuses[status] += 1
+            for camera in level.get("cameras", []):
+                status = camera.get("status")
+                if status in statuses:
+                    statuses[status] += 1
 
     if statuses["missing"] or statuses["stale"]:
         confidence_level = "low" if statuses["missing"] else "medium"

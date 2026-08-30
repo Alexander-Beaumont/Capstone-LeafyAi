@@ -4,11 +4,9 @@ from telemetry.models import (
     FarmDevice,
     FarmLevel,
     GrowingArea,
-    Slot,
     PlantBatch,
     BatchPlacement,
     Camera,
-    CameraSlotPosition,
     CameraImage,
     Sensor,
     SensorReading,
@@ -52,17 +50,6 @@ class GrowingAreaSerializer(serializers.ModelSerializer):
             'name',
             'slot_count',
         ]
-class SlotSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Slot
-        fields = [
-            'id',
-            'growing_area',
-            'slot_number',
-            'row',
-            'column',
-        ]
-
 class PlantBatchSerializer(serializers.ModelSerializer):
     class Meta:
         model = PlantBatch
@@ -104,36 +91,18 @@ class CameraSerializer(serializers.ModelSerializer):
             'active_end_time',
             'growth_baseline_reset_at',
         ]
-class CameraSlotPositionSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = CameraSlotPosition
-        fields = [
-            'id',
-            'camera',
-            'slot',
-            'centre_x',
-            'centre_y',
-            'created_at',
-            'updated_at',
-        ]
-
-        read_only_fields = [
-            'created_at',
-            'updated_at',
-        ]
-
 class CameraImageSerializer(serializers.ModelSerializer):
     class Meta:
         model = CameraImage
         fields = [
             'id',
             'camera',
-            'timestamp',
+            'captured_at',
             'path',
         ]
 
         read_only_fields = [
-            'timestamp',
+            'captured_at',
         ]
 
 

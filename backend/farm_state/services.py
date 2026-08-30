@@ -1,11 +1,11 @@
 from django.utils import timezone
 
 from telemetry.models import (
-    FarmDevice, FarmLevel, GrowingArea, Slot,
+    FarmDevice, FarmLevel, GrowingArea, Camera,
     Sensor, SensorReading, NutrientTank,
     BatchPlacement, PlantBatch,
 )
-from cv.models import PlantVisionMeasurement, ImageAnalysis
+from cv.models import ImageAnalysis
 from farm_state.thresholds import FRESH_THRESHOLD_SECONDS
 
 def _status_for(as_of, now=None):
@@ -29,28 +29,14 @@ def latest_reading(sensor):
         .first()
     )
 
-def latest_vision_by_slot(area):
-    """{slot_id: latest PlantVisionMeasurement} for every slot in an area.
-
-    One query for all slots, ordered so per-slot ordering is correct,
-    then grouped in Python by keeping the first of each slot.
-    """
-    slot_ids = list(
-        Slot.objects
-        .filter(growing_area=area)
-        .values_list("id", flat=True)
+def latest_analysis(camera):
+    return (
+        ImageAnalysis.objects
+        .filter(image__camera=camera)
+        .select_related("image")
+        .order_by("-image__captured_at", "-id")
+        .first()
     )
-    measurements = (
-        PlantVisionMeasurement.objects
-        .filter(slot_id__in=slot_ids)
-        .select_related("image_analysis", "slot")
-        .order_by("slot_id", "-image_analysis__created_at")
-    )
-    latest = {}
-    for m in measurements:
-        # setdefault keeps the FIRST (= newest, given the ordering) per slot
-        latest.setdefault(m.slot_id, m)
-    return latest
 
 def current_batch(area):
     """PlantBatch currently placed in an area, or None.
@@ -77,20 +63,26 @@ def tank_info(device):
         .first()
     )
 
-def _slot_state(slot, measurement, now):
-    if measurement is None:
-        return {"slot_id": slot.id, "status": "missing"}
+def _camera_state(camera, now):
+    analysis = latest_analysis(camera)
+    if analysis is None:
+        return {"camera_id": camera.id, "name": camera.name, "status": "missing", "analysis": None}
 
-    as_of = measurement.image_analysis.created_at
+    as_of = analysis.image.captured_at
     return {
-        "slot_id": slot.id,
-        "canopy_coverage": float(measurement.canopy_coverage) if measurement.canopy_coverage is not None else None,
-        "growth_stage": measurement.growth_stage,
-        "measurement_valid": measurement.measurement_valid,
+        "camera_id": camera.id,
+        "name": camera.name,
+        "measurement_valid": analysis.measurement_valid,
+        "total_canopy_coverage": float(analysis.total_canopy_coverage) if analysis.total_canopy_coverage is not None else None,
+        "growth_change": float(analysis.growth_change) if analysis.growth_change is not None else None,
+        "crowding_percentage": float(analysis.crowding_percentage) if analysis.crowding_percentage is not None else None,
+        "green_percentage": float(analysis.green_percentage) if analysis.green_percentage is not None else None,
+        "yellow_percentage": float(analysis.yellow_percentage) if analysis.yellow_percentage is not None else None,
         "as_of": as_of.isoformat(),
         "age_seconds": round((now - as_of).total_seconds()),
         "status": _status_for(as_of, now),
-        "analysis_id": measurement.image_analysis_id,
+        "analysis_id": analysis.id,
+        "image_id": analysis.image_id,
     }
 
 def _sensor_state(sensor, now):
@@ -115,26 +107,26 @@ def _sensor_state(sensor, now):
     }
 
 def _area_state(area, now):
-    latest = latest_vision_by_slot(area)
     batch = current_batch(area)
     return {
         "growing_area_id": area.id,
         "name": area.name,
+        "slot_count": area.slot_count,
         "current_batch": {
             "batch_id": batch.id,
             "plant_type": batch.plant_type,
             "planting_date": batch.planting_date.isoformat(),
             "growth_stage": batch.growth_stage,
         } if batch else None,
-        "slots": [
-            _slot_state(slot, latest.get(slot.id), now)
-            for slot in Slot.objects.filter(growing_area=area)
-        ],
     }
 
 def _level_state(level, now):
     return {
         "level_number": level.level_number,
+        "cameras": [
+            _camera_state(camera, now)
+            for camera in Camera.objects.filter(farm_level=level).order_by("id")
+        ],
         "growing_areas": [
             _area_state(area, now)
             for area in GrowingArea.objects.filter(farm_level=level)

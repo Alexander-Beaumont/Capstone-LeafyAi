@@ -7,7 +7,6 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from cv.models import PlantVisionMeasurement
 from telemetry.models import (
     BatchPlacement,
     Farm,
@@ -227,19 +226,24 @@ def create_growing_area(request):
 
     try:
         farm_level_number = int(request.data.get("farmLevel"))
-        slot_count = int(request.data.get("slotCount"))
     except (TypeError, ValueError):
-        return error_response("farmLevel and slotCount must be numbers")
+        return error_response("farmLevel must be a number")
 
     if farm_level_number not in [1, 2]:
         return error_response("farmLevel must be 1 or 2")
-    if slot_count <= 0:
-        return error_response("slotCount must be greater than 0")
+
+    try:
+        slot_count = int(request.data.get("slotCount"))
+    except (TypeError, ValueError):
+        return error_response("slotCount must be a number")
+
+    if slot_count < 1:
+        return error_response("slotCount must be at least 1")
 
     GrowingArea.objects.create(
         name=name,
-        farm_level=get_or_create_farm_level(farm_level_number),
         slot_count=slot_count,
+        farm_level=get_or_create_farm_level(farm_level_number),
     )
     return success_response(response_status=status.HTTP_201_CREATED)
 
@@ -270,8 +274,8 @@ def update_growing_area(request):
             slot_count = int(request.data.get("slotCount"))
         except (TypeError, ValueError):
             return error_response("slotCount must be a number")
-        if slot_count <= 0:
-            return error_response("slotCount must be greater than 0")
+        if slot_count < 1:
+            return error_response("slotCount must be at least 1")
         growing_area.slot_count = slot_count
 
     growing_area.save()
@@ -284,7 +288,6 @@ def delete_growing_area(request):
     growing_area = get_object_or_404(GrowingArea, id=request.data.get("growingAreaID"))
 
     with transaction.atomic():
-        PlantVisionMeasurement.objects.filter(slot__growing_area=growing_area).delete()
         growing_area.delete()
 
     return success_response()

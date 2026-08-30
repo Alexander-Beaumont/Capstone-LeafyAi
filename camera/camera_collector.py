@@ -164,7 +164,7 @@ def capture_decision(
         )
 
     captured_at = _parse_backend_datetime(
-        latest_image.get("captured_at") or latest_image.get("timestamp"),
+        latest_image.get("captured_at"),
         timezone_name,
     )
     if captured_at is None:
