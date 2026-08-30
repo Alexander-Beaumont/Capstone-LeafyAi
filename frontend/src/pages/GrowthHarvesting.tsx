@@ -40,11 +40,11 @@ export default function GrowthHarvesting() {
                 />
                 <InformationPanel
                     name="Avg Batch Age"
-                    value={`${Util.millisecondsToDays(Util.avgAge(growthHarvesting.batches.map(b => new Date(b.batchPlantDate))), 2)}d`}
+                    value={`${Util.millisecondsToDays(Util.avgAge(growthHarvesting.batches.filter(b => b.status == "Growing").map(b => new Date(b.batchPlantDate))),0)}d`}
                 />
                 <InformationPanel
                     name="Growing Area Usage"
-                    value={`${growthHarvesting.growingAreas.filter(ga => ga.batches.filter(b => !b.GrowthAreaEndDate).length > 0).length / growthHarvesting.growingAreas.length * 100}%`}
+                    value={`${Math.round(growthHarvesting.growingAreas.filter(ga => ga.batches.filter(b => !b.GrowthAreaEndDate).length > 0).length / growthHarvesting.growingAreas.length * 100)}%`}
                 />
             </div>
             <Panel styles="w-full p-3 flex flex-col gap-3">
@@ -73,7 +73,7 @@ export default function GrowthHarvesting() {
                     })}
                 </div>
             </Panel>
-            <Panel styles="w-full p-3 flex flex-col gap-3 mb-20">
+            <Panel styles="w-full p-3 flex flex-col gap-3">
                 <div className="flex items-center justify-between">
                     <IconTitle
                         title="Active Batches"
@@ -86,10 +86,26 @@ export default function GrowthHarvesting() {
                     />
                 </div>
                 <div className="flex flex-col gap-3 max-h-108 h-108 overflow-y-scroll rounded-md no-scrollbar">
-                    {growthHarvesting.batches.filter(b => b.status != "Terminated").map(b => {
+                    {growthHarvesting.batches.filter(b => (b.status == "active" || b.status == "Growing")).map(b => {
                         return <BaBatchCard key={Math.random()} batchInfo={b} openPanelId={openPanelId} setOpenPanelId={setOpenPanelId}/>
                     })}
-                    {new Array(5 - growthHarvesting.batches.filter(b => b.status == "Active").length).fill(undefined).map(_ => {
+                    {new Array(5 - growthHarvesting.batches.filter(b => b.status == "active" || b.status == "Growing").length).fill(undefined).map(_ => {
+                        return <div key={Math.random()} className="border border-dashed border-border min-h-19 rounded-md bg-panel2"></div>
+                    })}
+                </div>
+            </Panel>
+            <Panel styles="w-full p-3 flex flex-col gap-3 mb-20">
+                <div className="flex items-center justify-between">
+                    <IconTitle
+                        title="Archived Batches"
+                        icon={<TiTick size={15}/>}
+                    />
+                </div>
+                <div className="flex flex-col gap-3 max-h-108 h-108 overflow-y-scroll rounded-md no-scrollbar">
+                    {growthHarvesting.batches.filter(b => (b.status != "Growing")).map(b => {
+                        return <BaBatchCard key={Math.random()} batchInfo={b} openPanelId={openPanelId} setOpenPanelId={setOpenPanelId}/>
+                    })}
+                    {new Array(5 - growthHarvesting.batches.filter(b => b.status != "Growing").length).fill(undefined).map(_ => {
                         return <div key={Math.random()} className="border border-dashed border-border min-h-19 rounded-md bg-panel2"></div>
                     })}
                 </div>

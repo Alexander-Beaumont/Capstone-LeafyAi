@@ -1,4 +1,19 @@
+import type { dataFormat } from "../components/primatives/Dropdown"
+
 export const SMALL_WINDOW_WIDTH = 1000
+export const GROWTH_STAGES: dataFormat[] = [
+    {name: "seedling", id: 0},
+    {name: "early", id: 1},
+    {name: "growth", id: 2},
+    {name: "mature", id: 3}
+]
+
+export const BATCH_STATUS: dataFormat[] = [
+    {name: "active", id: 0},
+    {name: "harvested", id: 1},
+    {name: "failed", id: 2},
+]
+
 
 export const API_ROUTES = {
     login: `${import.meta.env.VITE_BACKEND_BASEURL}/api/auth/login/`,
@@ -11,6 +26,8 @@ export const API_ROUTES = {
     updateGrowingAreas: `${import.meta.env.VITE_BACKEND_BASEURL}/api/update-growing-area`,
     updateBatch: `${import.meta.env.VITE_BACKEND_BASEURL}/api/update-batch`,
     createBatch: `${import.meta.env.VITE_BACKEND_BASEURL}/api/create-batch`,
+    deleteGrowingArea: `${import.meta.env.VITE_BACKEND_BASEURL}/api/delete-growing-area
+`,
 }
 
 export const PAGES = {

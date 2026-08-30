@@ -33,6 +33,9 @@ export default function BaBatchCard({batchInfo, openPanelId, setOpenPanelId} : P
                         <p className="text-xs p-1 w-fit rounded-full px-3 bg-panel3 text-subtext2 border border-border">
                             {batchInfo.growthStage}
                         </p>
+                        <p className="text-xs p-1 w-fit rounded-full px-3 bg-panel3 text-subtext2 border border-border">
+                            {batchInfo.status}
+                        </p>
                     </div>
                 </div>
                 <div className={`hover:cursor-pointer  text-sm p-1 py-2 rounded-md text-subtext1 
@@ -51,6 +54,11 @@ export default function BaBatchCard({batchInfo, openPanelId, setOpenPanelId} : P
                         {batchInfo.growingAreas.filter(g => !g.endDate).map(g => {
                             return <BaGrowingAreaCard growingArea={g}/>
                         })}
+                        {batchInfo.growingAreas.filter(g => !g.endDate).length == 0 &&
+                            <p className="text-xs text-subtext3">
+                                Batch is not currently in a growing area
+                            </p>
+                        }
                     </div>
                     <p className="text-xs text-subtext1 font-bold flex items-center gap-1">
                         <ImCross size={8} className="text-high"/>  Previous Growing Areas 

@@ -78,3 +78,11 @@ export async function createBatch(accessToken: string | undefined, details: Batc
         headers: {"Content-Type": "application/json",}
     })
 }
+
+export async function deleteGrowingArea(accessToken: string | undefined, GaId: string): Promise<APIResult<{success: boolean, msg: string}>>{
+    return await apiRequest<{success: boolean, msg: string}>(API_ROUTES.deleteGrowingArea, accessToken, {
+        method: "DELETE",
+        body: JSON.stringify({growingAreaID: GaId}),
+        headers: {"Content-Type": "application/json",}
+    })
+}
