@@ -13,6 +13,27 @@ from telemetry.models import (
 )
 
 
+class GrowthAuthenticationTests(APITestCase):
+    def test_growth_endpoints_require_authentication(self):
+        endpoints = [
+            ("get", "/api/growing-areas", None),
+            ("get", "/api/batches", None),
+            ("patch", "/api/move-batch", {}),
+            ("post", "/api/create-growing-area", {}),
+            ("patch", "/api/update-growing-area", {}),
+            ("delete", "/api/delete-growing-area", {}),
+            ("patch", "/api/update-batch", {}),
+            ("post", "/api/create-batch", {}),
+        ]
+
+        for method, path, payload in endpoints:
+            request = getattr(self.client, method)
+            response = request(path, payload, format="json")
+
+            with self.subTest(path=path):
+                self.assertEqual(response.status_code, 401)
+
+
 class MoveBatchTests(APITestCase):
     def setUp(self):
         self.user = User.objects.create_user(username="tester", password="Test123!")
