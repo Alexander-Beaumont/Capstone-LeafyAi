@@ -111,7 +111,6 @@ class CVIngestTests(APITestCase):
             position="Top",
             source_type="WEBCAM",
             webcam_index=0,
-            lighting_mode="NORMAL",
             enabled=True
         )
 
@@ -505,18 +504,10 @@ class CVIngestTests(APITestCase):
 
     # ========================================================
     # TEST 4
-    # MAGENTA / NULL MEASUREMENTS
+    # NULL MEASUREMENTS
     # ========================================================
 
     def test_ingest_accepts_null_colour_and_size_measurements(self):
-
-        # Simulate camera using MAGENTA grow lighting
-        self.camera.lighting_mode = "MAGENTA"
-
-        self.camera.save(
-            update_fields=["lighting_mode"]
-        )
-
         metadata = {
             "camera_id": self.camera.id,
 

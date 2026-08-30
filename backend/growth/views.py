@@ -7,6 +7,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from cv.models import PlantVisionMeasurement
 from telemetry.models import (
     BatchPlacement,
     Farm,
@@ -281,7 +282,11 @@ def update_growing_area(request):
 @permission_classes([IsAuthenticated])
 def delete_growing_area(request):
     growing_area = get_object_or_404(GrowingArea, id=request.data.get("growingAreaID"))
-    growing_area.delete()
+
+    with transaction.atomic():
+        PlantVisionMeasurement.objects.filter(slot__growing_area=growing_area).delete()
+        growing_area.delete()
+
     return success_response()
 
 

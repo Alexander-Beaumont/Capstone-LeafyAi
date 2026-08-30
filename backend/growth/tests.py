@@ -4,6 +4,8 @@ from rest_framework.test import APITestCase
 
 from telemetry.models import (
     BatchPlacement,
+    Camera,
+    CameraImage,
     Farm,
     FarmDevice,
     FarmLevel,
@@ -11,6 +13,8 @@ from telemetry.models import (
     PlantBatch,
     Slot,
 )
+
+from cv.models import ImageAnalysis, PlantVisionMeasurement
 
 
 class GrowthAuthenticationTests(APITestCase):
@@ -112,7 +116,7 @@ class DeleteGrowingAreaTests(APITestCase):
             name="Greenhouse A",
             slot_count=2,
         )
-        Slot.objects.create(growing_area=self.growing_area, slot_number=1)
+        self.slot_1 = Slot.objects.create(growing_area=self.growing_area, slot_number=1)
         Slot.objects.create(growing_area=self.growing_area, slot_number=2)
 
         self.batch = PlantBatch.objects.create(
@@ -125,6 +129,21 @@ class DeleteGrowingAreaTests(APITestCase):
             plant_batch=self.batch,
             growing_area=self.growing_area,
             start_date=timezone.now(),
+        )
+        self.camera = Camera.objects.create(
+            farm_level=level,
+            name="Test Camera",
+            source_type="WEBCAM",
+            webcam_index=0,
+        )
+        self.camera_image = CameraImage.objects.create(
+            camera=self.camera,
+            path="camera_images/test.jpg",
+        )
+        self.image_analysis = ImageAnalysis.objects.create(image=self.camera_image)
+        self.measurement = PlantVisionMeasurement.objects.create(
+            image_analysis=self.image_analysis,
+            slot=self.slot_1,
         )
 
     def test_delete_growing_area_cascades_related_slots_and_placements(self):
@@ -141,6 +160,11 @@ class DeleteGrowingAreaTests(APITestCase):
         self.assertFalse(
             BatchPlacement.objects.filter(growing_area_id=self.growing_area.id).exists()
         )
+        self.assertFalse(
+            PlantVisionMeasurement.objects.filter(id=self.measurement.id).exists()
+        )
+        self.assertTrue(ImageAnalysis.objects.filter(id=self.image_analysis.id).exists())
+        self.assertTrue(CameraImage.objects.filter(id=self.camera_image.id).exists())
         self.assertTrue(PlantBatch.objects.filter(id=self.batch.id).exists())
 
     def test_delete_growing_area_returns_404_for_missing_id(self):

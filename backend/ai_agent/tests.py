@@ -79,7 +79,6 @@ def seed_toy_farm():
         name="Top Camera",
         source_type="WEBCAM",
         webcam_index=0,
-        lighting_mode="NORMAL",
     )
     image = CameraImage.objects.create(camera=camera, path="camera_images/test.jpg")
     analysis = ImageAnalysis.objects.create(
