@@ -96,14 +96,13 @@ class CameraSerializer(serializers.ModelSerializer):
             'rtsp_port',
             'rtsp_path',
             'webcam_index',
-            'lighting_mode',
             'roi_points',
-            'calibration_start_x',
-            'calibration_start_y',
-            'calibration_end_x',
-            'calibration_end_y',
-            'calibration_length_cm',
             'enabled',
+            'cv_enabled',
+            'capture_interval_minutes',
+            'active_start_time',
+            'active_end_time',
+            'growth_baseline_reset_at',
         ]
 class CameraSlotPositionSerializer(serializers.ModelSerializer):
     class Meta:
