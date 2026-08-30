@@ -142,7 +142,7 @@ class CameraSlotPosition(models.Model): #composite may need fixing
 
 class CameraImage(models.Model):
     camera = models.ForeignKey(Camera, on_delete=models.PROTECT)
-    timestamp = models.DateTimeField(auto_now=True)
+    captured_at = models.DateTimeField()
     path = models.ImageField(
         upload_to="camera_images/"
     )
