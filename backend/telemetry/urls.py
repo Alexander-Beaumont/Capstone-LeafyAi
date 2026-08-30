@@ -15,8 +15,6 @@ router.register(r'plant-batches', views.PlantBatchViewSet)
 router.register(r'batch-placements', views.BatchPlacementViewSet)
 
 router.register(r'cameras', views.CameraViewSet)
-router.register(r'camera-images', views.CameraImageViewSet)
-
 router.register(r'sensors', views.SensorViewSet)
 router.register(r'sensor-readings', views.SensorReadingViewSet)
 
