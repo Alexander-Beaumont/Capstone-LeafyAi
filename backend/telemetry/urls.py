@@ -10,13 +10,10 @@ router.register(r'farms', views.FarmViewSet)
 router.register(r'farm-devices', views.FarmDeviceViewSet)
 router.register(r'farm-levels', views.FarmLevelViewSet)
 router.register(r'growing-areas', views.GrowingAreaViewSet)
-router.register(r'slots', views.SlotViewSet)
-
 router.register(r'plant-batches', views.PlantBatchViewSet)
 router.register(r'batch-placements', views.BatchPlacementViewSet)
 
 router.register(r'cameras', views.CameraViewSet)
-router.register(r'camera-slot-positions', views.CameraSlotPositionViewSet)
 router.register(r'camera-images', views.CameraImageViewSet)
 
 router.register(r'sensors', views.SensorViewSet)

@@ -7,7 +7,7 @@
 ## Table of Contents
 
 1. [Core Farm Structure](#1-core-farm-structure)
-2. [Growing Areas & Slots](#2-growing-areas--slots)
+2. [Growing Areas](#2-growing-areas)
 3. [Batch Management](#3-batch-management)
 4. [Camera & Vision](#4-camera--vision)
 5. [Sensors](#5-sensors)
@@ -54,7 +54,7 @@ Each device has exactly 2 levels. The top level (level 1) contains the seedling 
 
 ---
 
-## 2. Growing Areas & Slots
+## 2. Growing Areas
 
 ### GROWING_AREA
 
@@ -71,23 +71,6 @@ Each level is divided into distinct growing areas with different purposes.
 | `slot_count` | INTEGER | NOT NULL | Number of NFT positions |
 
 **Relationships:** FARMLEVEL — GROWING_AREA: 1:M
-
-### SLOT
-
-An individual NFT position within a growing area. Each slot can hold one plant (or one cluster in the seedling stage). The telescopic NFT channels allow spacing to be adjusted as plants mature.
-
-| Column | Type | Constraints | Description |
-|---|---|---|---|
-| `slot_id` | INTEGER AUTO-INCREMENT | PK | Unique identifier |
-| `growing_area_id` | INTEGER AUTO-INCREMENT | FK → GROWING_AREA, NOT NULL | Parent area |
-| `slot_number` | INTEGER | NOT NULL | Position number within the area |
-| `row` | INTEGER | | Row index (for multi-row layouts) |
-| `column` | INTEGER | | Column index |
-
-**Unique constraint:** (`growing_area_id`, `slot_number`)
-
-**Relationships:** GROWING_AREA — SLOT: 1:M
-**Relationships:** CAMERA — SLOT: M:M
 
 ---
 
@@ -107,7 +90,7 @@ A group of plants of the same type planted together on the same date. The batch 
 
 ### BATCH_PLACEMENT
 
-Tracks where a batch is located over time. This is the key table for the movement workflow: a batch starts in the seedling chamber, then moves to the early growth area, then to the main growth area. Each placement can span multiple slots.
+Tracks where a batch is located over time. This is the key table for the movement workflow: a batch starts in the seedling chamber, then moves to the early growth area, then to the main growth area.
 
 | Column | Type | Constraints | Description |
 |---|---|---|---|
@@ -138,28 +121,16 @@ Multiple cameras per level for visual monitoring.
 | `ip_address` | VARCHAR(255) | | IP address for RTSP |
 | `rtsp_port` | INTEGER | | RTSP port, normally 554 |
 | `webcam_index` | INTEGER | | Local webcam index, e.g. 0, 1, 2 |
-| `lighting_mode` | VARCHAR(20) | NOT NULL, CHECK IN (NORMAL, MAGENTA) | Lighting/preprocessing mode |
 | `roi_points` | JSON | | Monitoring Region of Interest |
-| `calibration_start_x` | DECIMAL(8,6) | | Calibration line start X, normalized 0-1 |
-| `calibration_start_y` | DECIMAL(8,6) | | Calibration line start Y, normalized 0-1 |
-| `calibration_end_x` | DECIMAL(8,6) | | Calibration line end X, normalized 0-1 |
-| `calibration_end_y` | DECIMAL(8,6) | | Calibration line end Y, normalized 0-1 |
-| `calibration_length_cm` | DECIMAL(8,2) | | Real-world calibration length |
+| `rtsp_path` | VARCHAR(255) | | RTSP stream path |
 | `enabled` | BOOLEAN | NOT NULL, DEFAULT TRUE | Whether camera is active |
+| `cv_enabled` | BOOLEAN | NOT NULL, DEFAULT TRUE | Whether CV processing is active |
+| `capture_interval_minutes` | INTEGER | NOT NULL, DEFAULT 30 | Capture interval |
+| `active_start_time` | TIME | | Start of capture window |
+| `active_end_time` | TIME | | End of capture window |
+| `growth_baseline_reset_at` | TIMESTAMP | | Reset point for growth comparisons |
 
 **Relationships:** FARMLEVEL — CAMERA: 1:M
-**Relationships:** SLOT — CAMERA: M:M
-
-### CAMERA_SLOT_POSITION
-
-| Column | Type | Constraints | Description |
-|---|---|---|---|
-| `camera_id` | INTEGER AUTO-INCREMENT | COMPOSITE PK, FK → CAMERA, NOT NULL | Camera |
-| `slot_id` | TIMESTAMP | COMPOSITE PK, FK → SLOT, NOT NULL | Physical slot |
-| `centre_x` | DECIMAL(8,6) | NOT NULL | Slot centre X |
-| `centre_y` | DECIMAL(8,6) | NOT NULL | Slot centre Y |
-| `created_at` | TIMESTAMP | NOT NULL, DEFAULT NOW() | Creation time |
-| `updated_at` | TIMESTAMP | NOT NULL, DEFAULT NOW() | Last adjustment |
 
 ### CAMERAIMAGE
 
@@ -169,7 +140,7 @@ Captured frames from cameras.
 |---|---|---|---|
 | `image_id` | INTEGER AUTO-INCREMENT | PK | Unique identifier |
 | `camera_id` | INTEGER AUTO-INCREMENT | FK → CAMERA, NOT NULL | Source camera |
-| `timestamp` | TIMESTAMP | NOT NULL | When captured |
+| `captured_at` | TIMESTAMP | NOT NULL | When captured |
 | `path` | VARCHAR(500) | NOT NULL | Storage path |
 
 **Relationships:** CAMERA — CAMERAIMAGE: 1:M
@@ -184,38 +155,19 @@ Results from running vision models on captured images.
 | `image_id` | INTEGER AUTO-INCREMENT | FK → CAMERAIMAGE, NOT NULL | Source image |
 | `created_at` | TIMESTAMP | NOT NULL, DEFAULT NOW() | |
 | `total_canopy_coverage` | DECIMAL(5,2) | | Percentage of image covered by foliage |
-| `visible_plant_count` | INTEGER | | Number of plants detected |
+| `growth_change` | DECIMAL(8,2) | | Change from the previous valid image |
+| `crowding_percentage` | DECIMAL(5,2) | | Aggregate crowding estimate |
+| `green_percentage` | DECIMAL(5,2) | | Green foliage percentage |
+| `yellow_percentage` | DECIMAL(5,2) | | Yellow foliage percentage |
 | `measurement_valid` | BOOLEAN | DEFAULT TRUE | Whether the analysis is reliable |
 | `processing_time_ms` | INTEGER | | Time taken to process |
+| `vlm_ready` | BOOLEAN | DEFAULT FALSE | Whether the image is suitable for VLM use |
+| `quality_status` | VARCHAR(16) | DEFAULT UNKNOWN | Quality result |
+| `quality_flags` | JSON | DEFAULT [] | Quality diagnostics |
+| `quality_message` | TEXT | DEFAULT '' | Quality explanation |
 
-**Relationships:** CAMERAIMAGE — IMAGEANALYSIS: 1:M
+**Relationships:** CAMERAIMAGE — IMAGEANALYSIS: 1:1
 
-### PLANTVISIONMEASUREMENT
-
-Per-plant measurements extracted from image analysis. Each measurement is linked to a specific slot (identifying the plant) and optionally to a batch.
-
-| Column | Type | Constraints | Description |
-|---|---|---|---|
-| `measurement_id` | INTEGER AUTO-INCREMENT | PK | Unique identifier |
-| `analysis_id` | INTEGER AUTO-INCREMENT | FK → IMAGEANALYSIS, NOT NULL | Parent analysis |
-| `slot_id` | INTEGER AUTO-INCREMENT | FK → SLOT | Which slot this plant is in |
-| `canopy_coverage` | DECIMAL(5,2) | | Coverage for this specific plant |
-| `width_px` | INTEGER | | Width in pixels |
-| `height_px` | INTEGER | | Height in pixels |
-| `width_cm` | DECIMAL(5,1) | | Estimated width in cm |
-| `height_cm` | DECIMAL(5,1) | | Estimated height in cm |
-| `green_percentage` | DECIMAL(5,2) | | Healthy green foliage estimate |
-| `yellow_percentage` | DECIMAL(5,2) | | Yellow/discoloured foliage estimate |
-| `crowding_percentage` | DECIMAL(5,2) | | Overlap/crowding estimate |
-| `growth_stage` | VARCHAR(50) | | Detected stage of this plant |
-| `growth_change` | DECIMAL(8,2) | | Change from previous valid scheduled measurement |
-| `visible` | BOOLEAN | DEFAULT TRUE | Whether the plant is clearly visible |
-| `measurement_valid` | BOOLEAN | DEFAULT TRUE | |
-| `created_at` | TIMESTAMP | NOT NULL, DEFAULT NOW() | |
-
-**Relationships:**
-- IMAGEANALYSIS — PLANTVISIONMEASUREMENT: 1:M
-- SLOT — PLANTVISIONMEASUREMENT: 1:M
 
 ---
 
