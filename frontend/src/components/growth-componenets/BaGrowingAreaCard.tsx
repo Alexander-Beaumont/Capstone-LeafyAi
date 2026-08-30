@@ -24,13 +24,13 @@ export default function BaGrowingAreaCard({growingArea: p}: Props) {
                     |
                 </p>
                 <p className="text-xs text-subtext2 ">
-                    <span className="text-subtext3">Start Date </span> {Util.formatDate(p.startDate)}
+                    <span className="text-subtext3">Start Date </span> {Util.formatDate(new Date(p.startDate))}
                 </p> 
                 <p className="text-xs text-border ">
                     |
                 </p>
                 <p className="text-xs text-subtext2 ">
-                    <span className="text-subtext3">End Date </span> {p.endDate ? Util.formatDate(p.endDate) : "N/A"}
+                    <span className="text-subtext3">End Date </span> {p.endDate ? Util.formatDate(new Date(p.endDate)) : "N/A"}
                 </p>              
             </div>
         </div>

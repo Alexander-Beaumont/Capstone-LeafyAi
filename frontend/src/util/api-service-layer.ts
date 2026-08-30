@@ -2,6 +2,7 @@ import { API_ROUTES } from "./constants";
 import type { APIResult, BABatch, BatchDefinition, GaDefinition, GAGrowingArea, MoveBatch } from "./types";
 
 async function apiRequest<T>(url: string, accessToken?: string, options: RequestInit = {}): Promise<APIResult<T>> {
+    let data;
     try {
         const res = await fetch(url, {
             ...options,
@@ -11,18 +12,18 @@ async function apiRequest<T>(url: string, accessToken?: string, options: Request
                 ...options.headers,
             },
         });
+        data = await res.json() as T;
 
         if (!res.ok) {
             let msg = `Request failed (${res.status})`;
             const errBody = await res.json();
             msg = errBody.detail ?? errBody.message ?? msg;
-            return { success: false, msg };
+            return { success: false, msg, data};
         }
 
-        const data = await res.json() as T;
         return { success: true, msg: "", data };
     } catch (error) {
-        return { success: false, msg: (error as Error).message };
+        return { success: false, msg: (error as Error).message, data: data};
     }
 }
 
@@ -72,7 +73,7 @@ export async function updateBatch(accessToken: string | undefined, details: {bat
 
 export async function createBatch(accessToken: string | undefined, details: BatchDefinition): Promise<APIResult<{success: boolean, msg: string}>>{
     return await apiRequest<{success: boolean, msg: string}>(API_ROUTES.createBatch, accessToken, {
-        method: "PATCH",
+        method: "POST",
         body: JSON.stringify(details),
         headers: {"Content-Type": "application/json",}
     })

@@ -20,7 +20,7 @@ export default function GaGrowingAreaCard({growingArea: ga, openPanelId, setOpen
             <div className="flex  items-center justify-between w-full">
                 <div className="flex flex-col gap-2">
                     <div className="flex items-center gap-1.5">
-                        <div className={`text-xs p-1 rounded-full ${ga.batches.length <= 0 ? "bg-high" : "bg-btn"} `}>
+                        <div className={`text-xs p-1 rounded-full ${ga.batches.filter(b => !b.GrowthAreaEndDate).length <= 0 ? "bg-high" : "bg-btn"} `}>
                         </div>
                         <p className="text-xs text-subtext1">
                             Growing Area: {ga.growingAreaName}
@@ -50,7 +50,7 @@ export default function GaGrowingAreaCard({growingArea: ga, openPanelId, setOpen
                     </p>
                     <div className="flex gap-3 flex-wrap">
                         {ga.batches.filter(b => !b.GrowthAreaEndDate).map(b => {
-                            return  <GaBatchCard batch={b}/>
+                            return  <GaBatchCard batch={b} currentGa={ga}/>
                         })}
                         {ga.batches.filter(b => !b.GrowthAreaEndDate).length == 0 &&
                             <p className="text-xs text-subtext3">
@@ -63,7 +63,7 @@ export default function GaGrowingAreaCard({growingArea: ga, openPanelId, setOpen
                     </p>
                     <div className="flex  gap-3 flex-wrap">
                         {ga.batches.filter(b => b.GrowthAreaEndDate != null).map(b => {
-                            return  <GaBatchCard batch={b}/>
+                            return  <GaBatchCard batch={b} currentGa={ga}/>
                         })}
                         {ga.batches.filter(b => b.GrowthAreaEndDate != null).length == 0 &&
                             <p className="text-xs text-subtext3">

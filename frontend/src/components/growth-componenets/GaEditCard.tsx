@@ -11,20 +11,20 @@ import type { APIResult, GAGrowingArea } from "../../util/types"
 import useForm from "../hooks/useFrom"
 import { createGrowingArea, updateGrowingArea } from "../../util/api-service-layer"
 import { userContext } from "../../providers/UserProvider"
+import { GrowthHarvestingContext } from "../../providers/GrowthHarvestProvider"
 
 interface Props{
     opened: boolean
     setOpend: (state: boolean) => void
-    growingAreas: GAGrowingArea[]
-    setUpdate: (num: number) => void
 }
 
-export default function GaEditCard({setOpend, growingAreas, setUpdate} : Props) {
+export default function GaEditCard({setOpend} : Props) {
+    const user = useContext(userContext)
+    const gh = useContext(GrowthHarvestingContext)
+
     const [editExistingGa, setEditExistingGa] = useState(false)
     const [selectedItem, setSelectedItem] = useState<dataFormat|null>(null)
-    const items: dataFormat[] = growingAreas.map((g, i) => ({name: g.growingAreaName, id: i, data: g}))
-
-    const user = useContext(userContext)
+    const items: dataFormat[] = gh.growingAreas.map((g, i) => ({name: g.growingAreaName, id: i, data: g}))
 
     const {setForm, form} = useForm({
         name: "",
@@ -58,7 +58,7 @@ export default function GaEditCard({setOpend, growingAreas, setUpdate} : Props) 
             alert(res.msg); 
         }else{
             setOpend(false)
-            setUpdate(Math.random())
+            gh.setUpdate(Math.random())
         }
         user.setLoading(false)
     }
@@ -79,6 +79,7 @@ export default function GaEditCard({setOpend, growingAreas, setUpdate} : Props) 
         }
         return true
     }
+    
     return (
         <div onClick={e => e.stopPropagation()} className="w-[80%] max-w-120">
             <Panel styles="p-3  flex flex-col gap-3">

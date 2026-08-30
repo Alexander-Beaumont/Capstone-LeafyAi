@@ -73,7 +73,7 @@ export default function Dropdown(props: DropdownProps) {
                 </p>
                 <p>
                     {props.showIcon ? <IoIosArrowDown className={`mt-0.5 transition-transform duration-300 ${
-                        clicked? "rotate-180d" : "rotate-0"
+                        clicked? "rotate-180" : "rotate-0"
                     }`}/> : null}
                 </p>
             </button>

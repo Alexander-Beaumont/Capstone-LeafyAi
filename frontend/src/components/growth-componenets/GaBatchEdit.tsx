@@ -3,18 +3,51 @@ import Button from "../primatives/Button"
 import Dropdown from "../primatives/Dropdown"
 import { type dataFormat } from "../primatives/Dropdown"
 import IconTitle from "../primatives/IconTitle"
-import { useState } from "react"
+import { useContext, useState } from "react"
 import { TbEdit } from "react-icons/tb"
+import type { GABatch, GAGrowingArea } from "../../util/types"
+import { GrowthHarvestingContext } from "../../providers/GrowthHarvestProvider"
+import { userContext } from "../../providers/UserProvider"
+import { moveBatch } from "../../util/api-service-layer"
 
 interface Props{
     opened: boolean
     setOpend: (state: boolean) => void
+    currentGrowingArea: GAGrowingArea
+    currentBatch: GABatch
 }
 
-export default function GaBatchEdit({setOpend} : Props) {
+export default function GaBatchEdit({setOpend, currentGrowingArea, currentBatch} : Props) {
+    const gh = useContext(GrowthHarvestingContext)
+    const user = useContext(userContext)
 
     const [selectedItem, setSelectedItem] = useState<dataFormat|null>(null)
-     const items: dataFormat[] = [].map((g, i) => ({name: g.growingAreaName, id: i, data: g}))
+    const items: dataFormat[] = gh.growingAreas
+        .filter(g => g.growingAreaId != currentGrowingArea.growingAreaId)
+        .map((g, i) => ({name: g.growingAreaName, id: i, data: g}))
+
+    async function moveBatchToGa(){
+        if(!selectedItem){
+            alert("Select a growing area to move the batch to")
+            return
+        }
+
+        user.setLoading(true)
+
+        const res = await moveBatch(user.accessToken, {
+            currentGaID: currentGrowingArea.growingAreaId,
+            destinationGaID: (selectedItem.data as GAGrowingArea).growingAreaId,
+            batchID: currentBatch.batchId
+        })
+
+        if(!res.success) {
+            alert(res.data?.msg); 
+        }else{
+            setOpend(false)
+            gh.setUpdate(Math.random())
+        }
+        user.setLoading(false)
+    }
 
     return (
         <div onClick={e => e.stopPropagation()} className="w-[80%] max-w-120">
@@ -49,7 +82,8 @@ export default function GaBatchEdit({setOpend} : Props) {
                     <Button
                         name="Update"
                         highlight={true}
-                        onSubmit={() => {}}
+                        onSubmit={() => moveBatchToGa()}
+                        loading={user.loading}
                         styles={{ noAnimation: true}}
                     />
                 </div>
