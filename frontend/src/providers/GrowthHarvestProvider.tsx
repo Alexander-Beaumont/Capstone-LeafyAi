@@ -45,7 +45,7 @@ export default function GrowthHarvestProvider({children}: Props) {
             if(!bts.success){ alert(bts.msg); return; }
             setBatchesJSON(JSON.stringify(bts.data))
         }
-        run()
+        if(user.loggedIn) run()
     }, [update])
 
     return (
