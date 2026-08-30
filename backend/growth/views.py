@@ -271,6 +271,13 @@ def update_growing_area(request):
     return success_response()
 
 
+@api_view(["DELETE"])
+def delete_growing_area(request):
+    growing_area = get_object_or_404(GrowingArea, id=request.data.get("growingAreaID"))
+    growing_area.delete()
+    return success_response()
+
+
 @api_view(["PATCH"])
 def update_batch(request):
     batch = get_object_or_404(PlantBatch, id=request.data.get("batchID"))
@@ -316,4 +323,3 @@ def create_batch(request):
     )
 
     return success_response(response_status=status.HTTP_201_CREATED)
-
