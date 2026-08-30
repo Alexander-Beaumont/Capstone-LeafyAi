@@ -40,10 +40,9 @@ export default function Dropdown(props: DropdownProps) {
     }
 
     useEffect(() => {
-        if(props.blur && props.setBlur && focusElement.current != null){
+        if(props.blur  && focusElement.current != null){
             setClicked(false)
             focusElement.current.blur()
-            props.setBlur(false)
         }
         const onClick = (e: MouseEvent) => {
             if (focusElement.current && !focusElement.current.contains(e.target as Node)) {

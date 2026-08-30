@@ -9,7 +9,7 @@ import { TbEdit } from "react-icons/tb"
 import XsButton from "../primatives/XsButton"
 import type { APIResult, GAGrowingArea } from "../../util/types"
 import useForm from "../hooks/useFrom"
-import { createGrowingArea, updateGrowingArea } from "../../util/api-service-layer"
+import { createGrowingArea, deleteGrowingArea, updateGrowingArea } from "../../util/api-service-layer"
 import { userContext } from "../../providers/UserProvider"
 import { GrowthHarvestingContext } from "../../providers/GrowthHarvestProvider"
 
@@ -63,6 +63,29 @@ export default function GaEditCard({setOpend} : Props) {
         user.setLoading(false)
     }
 
+    async function deleteGA(){
+        if(!selectedItem){
+            alert("Select a growing area to delete first")
+            return
+        }
+        if((selectedItem.data as GAGrowingArea).batches.some(b => !b.GrowthAreaEndDate)){
+            alert("Can't delete this growing area as there is a active batch occupying it. Move or termiate this batch before deleting the growing area")
+            return
+        }
+
+        user.setLoading(true)
+        const res = await deleteGrowingArea(user.accessToken, (selectedItem.data as GAGrowingArea).growingAreaId)
+
+
+        if(!res.success) {
+            alert(res.msg); 
+        }else{
+            setOpend(false)
+            gh.setUpdate(Math.random())
+        }
+        user.setLoading(false)
+    }
+
     function validateInput(){
         if(Number(form.FarmLevel) < 1 || Number(form.FarmLevel) > 2){
             alert("Farm level can either be 1 or 2")
@@ -84,7 +107,7 @@ export default function GaEditCard({setOpend} : Props) {
         <div onClick={e => e.stopPropagation()} className="w-[80%] max-w-120">
             <Panel styles="p-3  flex flex-col gap-3">
                 <IconTitle
-                        title="Edit Growing Areas"
+                        title={editExistingGa ? "Edit Growing Areas" : "Create New Growing Area"}
                         icon={<TbEdit />}
                 />
                 <div className="flex gap-2 items-center mt-2 justify-between">
@@ -112,45 +135,52 @@ export default function GaEditCard({setOpend} : Props) {
                 {editExistingGa && 
                 <>
                     <hr className="text-border"/>
-                    <div className="flex gap-2 items-center justify-between">
-                            <p className="text-xs text-subtext1">
-                                Select Growing Area:
-                            </p>
-                            <Dropdown
-                                items={items}
-                                setSelectedItem={id => setSelectedItem(items.find(i => i.id == id)!)}
-                                selectedItem={selectedItem}
-                                defaultText="Select"
-                            />
-                    </div>
+                    {items.length == 0 ? 
+                        <p className="text-xs text-subtext1">
+                            No growing areas exist, create one first...
+                        </p> :
+                        <div className="flex gap-2 items-center justify-between">
+                                <p className="text-xs text-subtext1">
+                                    Select Growing Area:
+                                </p>
+                                <Dropdown
+                                    items={items}
+                                    setSelectedItem={id => setSelectedItem(items.find(i => i.id == id)!)}
+                                    selectedItem={selectedItem}
+                                    defaultText="Select"
+                                />
+                        </div>
+                    }
                 </>
                 }
                 <hr className="text-border"/>
-                <div className="flex flex-col gap-3">
-                    <TextBox
-                        name="Name"
-                        charLimit={20}
-                        value={form.name}
-                        setValue={(v) => setForm("name", v)}
-                        placeHolder={selectedItem ? `${(selectedItem.data as GAGrowingArea).growingAreaName}` : ""}
-                    />
-                    <TextBox
-                        name="Farm Level"
-                        charLimit={1}
-                        value={form.FarmLevel}
-                        setValue={(v) => setForm("FarmLevel", v)}
-                        placeHolder={selectedItem ? `${(selectedItem.data as GAGrowingArea).farmLevel}` : ""}
-                        numeric={true}
-                    />
-                    <TextBox
-                        name="Slot Count"
-                        charLimit={3}
-                        value={form.SlotCount}
-                        setValue={(v) => setForm("SlotCount", v)}
-                        placeHolder={selectedItem ? `${(selectedItem.data as GAGrowingArea).slotCount}` : ""}
-                        numeric={true}
-                    />
-                </div>
+                {editExistingGa && items.length == 0 ? "" :
+                    <div className="flex flex-col gap-3">
+                        <TextBox
+                            name="Name"
+                            charLimit={20}
+                            value={form.name}
+                            setValue={(v) => setForm("name", v)}
+                            placeHolder={selectedItem ? `${(selectedItem.data as GAGrowingArea).growingAreaName}` : ""}
+                        />
+                        <TextBox
+                            name="Farm Level"
+                            charLimit={1}
+                            value={form.FarmLevel}
+                            setValue={(v) => setForm("FarmLevel", v)}
+                            placeHolder={selectedItem ? `${(selectedItem.data as GAGrowingArea).farmLevel}` : ""}
+                            numeric={true}
+                        />
+                        <TextBox
+                            name="Slot Count"
+                            charLimit={3}
+                            value={form.SlotCount}
+                            setValue={(v) => setForm("SlotCount", v)}
+                            placeHolder={selectedItem ? `${(selectedItem.data as GAGrowingArea).slotCount}` : ""}
+                            numeric={true}
+                        />
+                    </div>
+                }
                 <div className="flex gap-3 mt-3">
                     <Button
                         name="Close"
@@ -160,12 +190,6 @@ export default function GaEditCard({setOpend} : Props) {
                             setEditExistingGa(false)
                             setSelectedItem(null)
                         }}
-                        styles={{ noAnimation: true}}
-                    />
-                    <Button
-                        name="Delete"
-                        highlight={false}
-                        onSubmit={() => {}}
                         styles={{ noAnimation: true}}
                     />
                     {!editExistingGa &&
@@ -178,13 +202,21 @@ export default function GaEditCard({setOpend} : Props) {
                         />
                     }
                     {editExistingGa &&
-                        <Button
-                            loading={user.loading}
-                            name="Update"
-                            highlight={true}
-                            onSubmit={() => changeGA()}
-                            styles={{ noAnimation: true}}
-                        />
+                        <>
+                            <Button
+                                name="Delete"
+                                highlight={false}
+                                onSubmit={() => deleteGA()}
+                                styles={{ noAnimation: true}}
+                            />
+                            <Button
+                                loading={user.loading}
+                                name="Update"
+                                highlight={true}
+                                onSubmit={() => changeGA()}
+                                styles={{ noAnimation: true}}
+                            />
+                        </>
                     }
                 </div>
             </Panel>

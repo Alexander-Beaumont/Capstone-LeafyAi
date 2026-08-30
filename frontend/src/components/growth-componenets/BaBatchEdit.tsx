@@ -13,6 +13,7 @@ import { userContext } from "../../providers/UserProvider"
 import type { APIResult } from "../../util/types"
 import { createBatch, updateBatch } from "../../util/api-service-layer"
 import { GrowthHarvestingContext } from "../../providers/GrowthHarvestProvider"
+import { BATCH_STATUS, GROWTH_STAGES } from "../../util/constants"
 
 interface Props{
     opened: boolean
@@ -24,20 +25,21 @@ export default function BaBatchEdit({setOpend} : Props) {
     const gh = useContext(GrowthHarvestingContext)
 
     const [edit, setEdit] = useState(false)
+    const [openId, setOpenId] = useState(0)
     const [selectedBatchItem, setSelectedBatchItem] = useState<dataFormat|null>(null)
 
-    const batchItems: dataFormat[] = gh.batches.map((a, i) => ({name: a.batchId, id: i, data: a}))
+    const batchItems: dataFormat[] = gh.batches.filter(b => b.status == "Growing").map((a, i) => ({name: a.batchId, id: i, data: a}))
     const gaItems: dataFormat[] = gh.growingAreas.map((g, i) => ({name: g.growingAreaName, id: i, data: g}))
 
     const {setForm, form} = useForm<{
         plantType: string,
-        growthStage: string,
-        status: string,
+        growthStage: dataFormat|null
+        status: dataFormat|null
         selectedGA: dataFormat|null
     }>({
         plantType: "",
-        growthStage: "",
-        status: "",
+        growthStage: null,
+        status: null,
         selectedGA: null,
     })
     
@@ -51,8 +53,8 @@ export default function BaBatchEdit({setOpend} : Props) {
         if(!edit){
             res = await createBatch(user.accessToken, {
                plantType: form.plantType,
-               growthStage: form.growthStage,
-               status: form.growthStage,
+               growthStage: form.growthStage!.name,
+               status: form.growthStage!.name,
                growingAreaID: (form.selectedGA!.data as GAGrowingArea).growingAreaId
             })
         }else{
@@ -72,12 +74,16 @@ export default function BaBatchEdit({setOpend} : Props) {
     }
 
     function validateInput(){
-        if((!form.plantType || !form.growthStage || !form.status || !form.selectedGA) && !edit){
+        if((!form.plantType || !form.growthStage?.name || !form.status?.name || !form.selectedGA) && !edit){
             alert("Enter values for all fields")
             return false
         }
         if(!selectedBatchItem && edit){
             alert("Select a batch to edit first")
+            return false
+        }
+        if(!edit && (form.selectedGA!.data as GAGrowingArea).batches.some(b => !b.GrowthAreaEndDate)){
+            alert("Select a growing area that does not currently have a active batch")
             return false
         }
         return true
@@ -117,15 +123,20 @@ export default function BaBatchEdit({setOpend} : Props) {
                     <>
                         <div className="flex gap-2 items-center justify-between">
                                 <p className="text-xs text-subtext1">
-                                    Select Batch To Edit:
+                                   {batchItems.length > 0 ? 
+                                    "Select Batch To Edit:" :
+                                    "No active batches to edit, create one first..."
+                                   } 
                                 </p>
-                                <Dropdown
-                                    items={batchItems}
-                                    setSelectedItem={id => setSelectedBatchItem(batchItems.find(i => i.id == id)!)}
-                                    selectedItem={selectedBatchItem}
-                                    defaultText="Select"
-                                    showIcon={true}
-                                />
+                                {batchItems.length > 0 && 
+                                    <Dropdown
+                                        items={batchItems}
+                                        setSelectedItem={id => setSelectedBatchItem(batchItems.find(i => i.id == id)!)}
+                                        selectedItem={selectedBatchItem}
+                                        defaultText="Select"
+                                        showIcon={true}
+                                    />
+                                }
                         </div>
                         <hr className="text-border"/>
                     </>
@@ -140,20 +151,34 @@ export default function BaBatchEdit({setOpend} : Props) {
                                 setValue={(v) => setForm("plantType", v)}
                                 placeHolder={selectedBatchItem ? `${(selectedBatchItem.data as GAGrowingArea).growingAreaName}` : ""}
                             />
-                            <TextBox
-                                name="Growth Stage"
-                                charLimit={20}
-                                value={form.growthStage}
-                                setValue={(v) => setForm("growthStage", v)}
-                                placeHolder={selectedBatchItem ? `${(selectedBatchItem.data as GAGrowingArea).farmLevel}` : ""}
-                            />
-                            <TextBox
-                                name="Status"
-                                charLimit={10}
-                                value={form.status}
-                                setValue={(v) => setForm("status", v)}
-                                placeHolder={selectedBatchItem ? `${(selectedBatchItem.data as GAGrowingArea).slotCount}` : ""}
-                            />
+                            <div className="flex gap-2 flex-col  justify-between">
+                                <p className="text-xs text-subtext1 font-semibold">
+                                    Select Growth Stage:
+                                </p>
+                                <Dropdown
+                                    items={GROWTH_STAGES}
+                                    setSelectedItem={id => setForm("growthStage", (GROWTH_STAGES.find(i => i.id == id)!))}
+                                    selectedItem={form.growthStage}
+                                    defaultText="Select Growth Stage"
+                                    showIcon={true}
+                                     onBtnClick={() => setOpenId(1)}
+                                    blur={openId != 1}
+                                />
+                            </div>
+                            <div className="flex gap-2 flex-col  justify-between">
+                                <p className="text-xs text-subtext1 font-semibold">
+                                    Status:
+                                </p>
+                                <Dropdown
+                                    items={BATCH_STATUS}
+                                    setSelectedItem={id => setForm("status", (BATCH_STATUS.find(i => i.id == id)!))}
+                                    selectedItem={form.status}
+                                    defaultText="Select Status"
+                                    showIcon={true}
+                                    onBtnClick={() => setOpenId(2)}
+                                    blur={openId != 2}
+                                />
+                            </div>
                             <div className="flex gap-2 flex-col  justify-between">
                                 <p className="text-xs text-subtext1 font-semibold">
                                     Select Growing Area:
@@ -164,6 +189,8 @@ export default function BaBatchEdit({setOpend} : Props) {
                                     selectedItem={form.selectedGA}
                                     defaultText="Select Growing Area"
                                     showIcon={true}
+                                    onBtnClick={() => setOpenId(3)}
+                                    blur={openId != 3}
                                 />
                             </div>
                         </div>
