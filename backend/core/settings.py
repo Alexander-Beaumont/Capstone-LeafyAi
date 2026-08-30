@@ -17,8 +17,6 @@ from datetime import timedelta
 from django.conf import settings
 from django.conf.urls.static import static
 
-from pathlib import Path
-from datetime import timedelta
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -163,7 +161,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = "Australia/Melbourne"
 
 USE_I18N = True
 
