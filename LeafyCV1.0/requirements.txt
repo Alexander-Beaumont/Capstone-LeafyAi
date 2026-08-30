@@ -1,0 +1,7 @@
+numpy>=1.26,<3
+opencv-python-headless>=4.8,<5
+requests>=2.31,<3
+torch>=2.6,<3
+torchvision>=0.21,<1
+segmentation-models-pytorch==0.5.0
+pytest>=8,<9
