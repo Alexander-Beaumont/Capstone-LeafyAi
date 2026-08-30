@@ -109,45 +109,16 @@ class Camera(models.Model):
         null=True
     )
     webcam_index = models.IntegerField(blank=True, null=True)
-    lighting_mode = models.CharField(
-        max_length=20,
-        choices=[
-            ('NORMAL', 'Normal'),
-            ('MAGENTA', 'Magenta'),
-        ]
-    )
-    roi_points = models.JSONField(blank=True, null=True)  # Store ROI points as a list of dictionaries
-    calibration_start_x = models.DecimalField(
-        max_digits=8,
-        decimal_places=6,
-        blank=True,
-        null=True 
-    )
-    calibration_start_y = models.DecimalField(
-        max_digits=8,
-        decimal_places=6,
-        blank=True,
-        null=True
-    )
-    calibration_end_x = models.DecimalField(
-        max_digits=8,
-        decimal_places=6,
-        blank=True,
-        null=True
-    )
-    calibration_end_y = models.DecimalField(
-        max_digits=8,
-        decimal_places=6,
-        blank=True,
-        null=True
-    )
-    calibration_length_cm = models.DecimalField(
-        max_digits=8,
-        decimal_places=2,
-        blank=True,
-        null=True
-    )
     enabled = models.BooleanField(default=True)
+    cv_enabled = models.BooleanField(default=True)
+    capture_interval_minutes = models.PositiveIntegerField(default=30)
+    active_start_time = models.TimeField(blank=True, null=True)
+    active_end_time = models.TimeField(blank=True, null=True)
+    roi_points = models.JSONField(blank=True, null=True) #Normalised rectangle: x, y, width, height  
+    growth_baseline_reset_at = models.DateTimeField(null=True, blank=True)
+
+
+
 
 class CameraSlotPosition(models.Model): #composite may need fixing
     camera = models.ForeignKey(Camera, on_delete=models.CASCADE)
