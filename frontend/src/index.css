@@ -8,7 +8,7 @@
   --color-panel1: hsl(0, 0%, 8%);
   --color-panel2: hsl(0, 0%, 10%);
   --color-panel3: hsl(0, 0%, 12%);
-  --color-progress-panel: hsl(0, 0%, 13%);
+  --color-progress-panel: hsl(0, 0%, 20%);
 
   --color-btn-text: oklch(26.9% 0 0);
   --color-btn: var(--color-emerald-500);
@@ -24,10 +24,18 @@
   --color-highlight: var(--color-emerald-500);
   --color-highlight2: hsl(84, 100%, 41%);
   --color-highlight3: hsl(144, 100%, 6%);
+
+  --color-low: #009924;
+  --color-medium: #B43C00;
+  --color-high: #B40003;
 }
 
 @layer utilities {
   .no-scrollbar::-webkit-scrollbar {
     display: none;
+  }
+   .no-scrollbar {
+    -ms-overflow-style: none;  
+    scrollbar-width: none; 
   }
 }

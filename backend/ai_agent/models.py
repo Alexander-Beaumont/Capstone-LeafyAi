@@ -1,42 +1,118 @@
 from django.db import models
+<<<<<<< HEAD
 from telemetry.models import PlantBatch
+=======
+from telemetry.models import FarmDevice
+>>>>>>> f504721e64d9aad837c24599c8aed59986118f4a
 
 # AI Decision anc Check
 class AIDecision(models.Model):
-    plant_batch = models.ForeignKey(PlantBatch, on_delete=models.CASCADE)
-    decision_type = models.CharField(max_length=100)
+    EXECUTION_TYPE_CHOICES = [
+        ('automated', 'Automated'),
+        ('notification', 'Notification'),
+    ]
+    TARGET_DEVICE_CHOICES = [
+        ('fans', 'Fans'),
+        ('light', 'Light'),
+        ('none', 'None'),
+    ]
+    DEVICE_STATE_CHOICES = [
+        ('on', 'On'),
+        ('off', 'Off'),
+        ('none', 'None'),
+    ]
+    CATEGORY_CHOICES = [
+        ('climate', 'Climate'),
+        ('lighting', 'Lighting'),
+        ('dosing', 'Dosing'),
+        ('water', 'Water'),
+        ('harvest', 'Harvest'),
+        ('alert', 'Alert'),
+    ]
+
+    device = models.ForeignKey(FarmDevice, on_delete=models.CASCADE)
+    decision_type = models.CharField(max_length=50) # May add choices. e.g. schedue_update, dosing_adjustment, lighting_adjustment, fan_adjustment, alert
+    execution_type = models.CharField(
+        max_length=20,
+        choices=EXECUTION_TYPE_CHOICES,
+        default='notification'
+    )
+    target_device = models.CharField(
+        max_length=20,
+        choices=TARGET_DEVICE_CHOICES,
+        default='none'
+    )
+    device_state = models.CharField(
+        max_length=20,
+        choices=DEVICE_STATE_CHOICES,
+        default='none'
+    )
+    category = models.CharField(
+        max_length=20,
+        choices=CATEGORY_CHOICES,
+        default='alert'
+    )
     recommendation = models.TextField()
     explanation = models.TextField()
-    confidence_score = models.FloatField()
+    confidence_score = models.DecimalField(
+        max_digits=3,
+        decimal_places=2,
+        blank=True,
+        null=True
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
-    def __str__(self):
-        return self.recommendation
-
-
-class SafetyCheck(models.Model):
-    ai_decision = models.OneToOneField(AIDecision, on_delete=models.CASCADE)
+class SafetyCheck(models.Model): 
+    decision = models.OneToOneField(AIDecision, on_delete=models.CASCADE)
+    
     checked_at = models.DateTimeField(auto_now_add=True)
-    result = models.CharField(max_length=100)
-    explanation = models.TextField()
-
-    def __str__(self):
-        return f"Safety Check for Action {self.ai_decision.id} - Result: {self.result}"
+    result = models.CharField(
+        max_length=20,
+        choices=[
+            ('passed', 'Passed'),
+            ('failed', 'Failed'),
+            ('requires_review', 'Requires Review'),
+        ]
+    )
+    explanation = models.TextField(
+        blank=True,
+        null=True
+    )
 
 class HumanApproval(models.Model):
-    ai_decision = models.OneToOneField(AIDecision, on_delete=models.CASCADE)
-    result = models.CharField(max_length=100)
-    comment = models.TextField()
-    reviewed_at = models.DateTimeField(auto_now_add=True)
+    decision = models.OneToOneField(AIDecision, on_delete=models.CASCADE)
+    result = models.CharField(
+        max_length=20,
+        choices=[
+            ('approved', 'Approved'),
+            ('denied', 'Denied'),
+            ('overridden', 'Overridden'),
+        ],
+        blank=True,
+        null=True
+    )
+    comment = models.TextField(
+        blank=True,
+        null=True
+    )
 
-    def __str__(self):
-        return f"Action {self.ai_decision.id} - Approved: {self.result}"
-    
 class FarmAction(models.Model):
-    ai_decision = models.ForeignKey(AIDecision, on_delete=models.CASCADE)
-    result = models.CharField(max_length=100)
-    explanation = models.TextField()
-    executed_at = models.DateTimeField(auto_now_add=True)
-
-    def __str__(self):
-        return f"Action {self.ai_decision.id} - Executed: {self.result}"
+    decision = models.ForeignKey(AIDecision, on_delete=models.CASCADE)
+    executed_at = models.DateTimeField(
+        blank=True,
+        null=True
+    )
+    result = models.CharField(
+        max_length=20,
+        choices=[
+            ('success', 'Success'),
+            ('failed', 'Failed'),
+            ('partial', 'Partial'),
+        ],
+        blank=True,
+        null=True
+    )
+    explanation = models.TextField(
+        blank=True,
+        null=True
+    )

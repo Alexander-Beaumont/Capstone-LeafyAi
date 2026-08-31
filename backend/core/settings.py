@@ -12,6 +12,22 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 
 from pathlib import Path
 
+from datetime import timedelta
+
+from django.conf import settings
+from django.conf.urls.static import static
+
+from pathlib import Path
+from datetime import timedelta
+
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"
+
+
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -43,10 +59,28 @@ INSTALLED_APPS = [
     'rest_framework',
 
     #Our apps
-    'computer_vision',
+    'cv',
     'telemetry',
     'ai_agent',
+    'farm_state',
+    'growth',
+    'accounts'
 ]
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+    ),
+    "DEFAULT_PERMISSION_CLASSES": (
+        "rest_framework.permissions.IsAuthenticated",
+    ),
+}
+
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME":
+        timedelta(hours=8),
+    "REFRESH_TOKEN_LIFETIME":
+        timedelta(days=30)
+}
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware', #Must be placed at the top of the middleware list to ensure it runs before other middleware that might block CORS requests.
@@ -62,16 +96,16 @@ MIDDLEWARE = [
 #COMMON SETTINGS FOR CORS (Django + React)
 
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000", #React development server
+    "http://localhost:5173", #vite
     #"production-domain.com", #Replace with your production domain if needed
 ]
 #Cors_allow_all_origins = True # If needed this may be useful for development, but should be avoided in production for security reasons.
 
 # Only allows CORS requests to URLs that start with /api/
-cors_url_regex = r'^/api/.*$'  
+CORS_URLS_REGEX = r'^/api/.*$'  
 
 #cors_allow_credentials = True # This may be useful. If using token-based/session authentication. 
-CORS_PRE_FLIGHT_MAX_AGE = 86400 #24 hours, this is the maximum time the results of a preflight request can be cached by the browser.
+CORS_PREFLIGHT_MAX_AGE = 86400 #24 hours, this is the maximum time the results of a preflight request can be cached by the browser.
 
 ROOT_URLCONF = 'core.urls'
 
