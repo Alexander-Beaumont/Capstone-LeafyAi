@@ -1,62 +1,77 @@
 import requests
 import time
-from datetime import datetime
 
-# The URL of your new Django backend endpoint 
-# (You will need to update this to match the actual path in your urls.py)
-DJANGO_API_URL = "http://127.0.0.1:8000/api/telemetry/sensor-readings/"
+DJANGO_API_URL = "http://127.0.0.1:8000/api/sensor-readings/"
 
-WATER_QUALITY_URL = "http://192.168.1.100/readings"
-AMBIENT_SENSOR_URL = "http://leafy-ai.local:8080/readings"
+# Updated URLs based on your screenshots
+WATER_QUALITY_URL = "http://watersensors.local/readings"
+AMBIENT_SENSOR_URL = "http://Leafy-AI.local:8080/readings"
+
+# UPDATE THESE NUMBERS based on the primary keys of the 'Sensors' in your Django database
+SENSOR_IDS = {
+    "ph": 1,
+    "ec": 2,
+    "water_temp": 3,
+    "ambient_temp": 4,
+    "humidity": 5,
+    "dew_point": 6,
+    "water_level": 7
+}
 
 while True:
+    readings_to_send = []
+
     try:
-        current_time = datetime.now().isoformat()
-        
-        # 1. Fetch data from the original water quality sensors
-        water_resp = requests.get(WATER_QUALITY_URL, timeout=5)
-        water_resp.raise_for_status()
-        water_data = water_resp.json()
+        # 1. Fetch data from Water Sensors
+        try:
+            water_resp = requests.get(WATER_QUALITY_URL, timeout=5)
+            water_resp.raise_for_status()
+            water_data = water_resp.json()
 
-        # 2. Fetch data from the new ambient & level sensors
-        ambient_resp = requests.get(AMBIENT_SENSOR_URL, timeout=5)
-        ambient_resp.raise_for_status()
-        ambient_data = ambient_resp.json()
+            # Check if water readings are valid
+            if water_data.get("ph_valid") and water_data.get("ec_valid") and water_data.get("water_temperature_valid"):
+                readings_to_send.extend([
+                    {"sensor": SENSOR_IDS["ph"], "value": water_data["ph"]},
+                    {"sensor": SENSOR_IDS["ec"], "value": water_data["ec"]},
+                    {"sensor": SENSOR_IDS["water_temp"], "value": water_data["water_temperature_c"]},
+                ])
+        except Exception as e:
+            print(f"Warning: Could not fetch Water Quality data. ({e})")
 
-        # Check if the readings are valid
-        water_valid = water_data.get("ph_valid") and water_data.get("ec_valid") and water_data.get("water_temperature_valid")
-        ambient_valid = ambient_data.get("ambient_valid") and ambient_data.get("water_level_valid")
+        # 2. Fetch data from Ambient Sensors
+        try:
+            ambient_resp = requests.get(AMBIENT_SENSOR_URL, timeout=5)
+            ambient_resp.raise_for_status()
+            ambient_data = ambient_resp.json()
 
-        if water_valid and ambient_valid:
-            
-            # 4. Package the extracted data into a single payload
-            payload = {
-                "time": current_time,
-                # Water Quality Data
-                "ph": water_data["ph"],
-                "ec": water_data["ec"],
-                "water_temp": water_data["water_temperature_c"],
-                # New Ambient & Level Data
-                "ambient_temp": ambient_data["ambient_temperature_c"],
-                "humidity": ambient_data["humidity_percent"],
-                "dew_point": ambient_data["dew_point_c"],
-                "water_level": ambient_data["water_level"]
-            }
-            
-            print(f"[{current_time}] Sending data to backend: {payload}")
-            
-            # 2. Send the data to the Django backend via POST
-            post_response = requests.post(DJANGO_API_URL, json=payload)
-            
-            if post_response.status_code in [200, 201]:
-                print("Successfully saved to backend!")
-            else:
-                print(f"Failed to save. Backend responded with: {post_response.status_code} - {post_response.text}")
+            # Check if ambient readings are valid
+            if ambient_data.get("ambient_valid") and ambient_data.get("water_level_valid"):
+                readings_to_send.extend([
+                    {"sensor": SENSOR_IDS["ambient_temp"], "value": ambient_data["ambient_temperature_c"]},
+                    {"sensor": SENSOR_IDS["humidity"], "value": ambient_data["humidity_percent"]},
+                    {"sensor": SENSOR_IDS["dew_point"], "value": ambient_data["dew_point_c"]},
+                    {"sensor": SENSOR_IDS["water_level"], "value": ambient_data["water_level"]}
+                ])
+        except Exception as e:
+            print(f"Warning: Could not fetch Ambient Sensor data. ({e})")
 
+        # 3. Post whatever valid readings we collected to Django
+        if readings_to_send:
+            print(f"Sending {len(readings_to_send)} readings to backend...")
+            for payload in readings_to_send:
+                post_response = requests.post(DJANGO_API_URL, json=payload)
+                
+                if post_response.status_code in [200, 201]:
+                    print(f"  -> Successfully saved Sensor {payload['sensor']}: {payload['value']}")
+                else:
+                    print(f"  -> Failed to save Sensor {payload['sensor']}. Error: {post_response.text}")
+            print("-" * 30)
         else:
-            print(f"[{current_time}] Invalid reading received from sensor.")
+            print("No valid readings collected this cycle. Waiting to retry...")
+            print("-" * 30)
 
     except Exception as e:
-        print(f"Network or connection error: {e}")
+        print(f"Unexpected error in main loop: {e}")
 
+    # Wait 10 seconds before polling the sensors again
     time.sleep(10)
