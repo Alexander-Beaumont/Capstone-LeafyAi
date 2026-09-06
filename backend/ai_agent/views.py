@@ -20,26 +20,12 @@ class FarmActionViewSet(viewsets.ModelViewSet):
     queryset = FarmAction.objects.all()
     serializer_class = FarmActionSerializer
 
-<<<<<<< HEAD
-class ActionViewSet(viewsets.ModelViewSet):
-    # Updated to use FarmAction instead of Action
-    queryset = FarmAction.objects.all()
-    # Note: If your serializer is named FarmActionSerializer, change it here too!
-    serializer_class = ActionSerializer 
-=======
->>>>>>> f504721e64d9aad837c24599c8aed59986118f4a
-
 class HumanApprovalViewSet(viewsets.ModelViewSet):
     queryset = HumanApproval.objects.all()
     serializer_class = HumanApprovalSerializer
 
 
 class SafetyCheckViewSet(viewsets.ModelViewSet):
-<<<<<<< HEAD
-    # Fixed the typo (capital 'S' for SafetyCheck)
-    queryset = SafetyCheck.objects.all()
-    serializer_class = SafetyCheckSerializer
-=======
     queryset = SafetyCheck.objects.all()
     serializer_class = SafetyCheckSerializer
 
@@ -74,4 +60,3 @@ def recommend(request):
         )
 
     return Response(result, status=status.HTTP_201_CREATED)
->>>>>>> f504721e64d9aad837c24599c8aed59986118f4a

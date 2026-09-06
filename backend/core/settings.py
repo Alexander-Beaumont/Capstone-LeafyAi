@@ -62,6 +62,7 @@ INSTALLED_APPS = [
     'cv',
     'telemetry',
     'ai_agent',
+    'vlm_agent',
     'farm_state',
     'growth',
     'accounts'

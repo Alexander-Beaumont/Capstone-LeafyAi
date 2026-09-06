@@ -11,9 +11,6 @@ from ai_agent.models import (
 class AIDecisionSerializer(serializers.ModelSerializer):
     class Meta:
         model = AIDecision
-<<<<<<< HEAD
-        fields = ['id', 'plant_batch' 'decision_type', 'recommendation', 'explanation', 'confidence_score', 'created_at']
-=======
         fields = [
             'id',
             'device',
@@ -32,14 +29,9 @@ class AIDecisionSerializer(serializers.ModelSerializer):
             'created_at',
         ]
 
->>>>>>> f504721e64d9aad837c24599c8aed59986118f4a
-
 class SafetyCheckSerializer(serializers.ModelSerializer):
     class Meta:
         model = SafetyCheck
-<<<<<<< HEAD
-        fields = ['ai_decision', 'checked_at', 'result', 'explanation']
-=======
         fields = [
             'id',
             'decision',
@@ -51,8 +43,6 @@ class SafetyCheckSerializer(serializers.ModelSerializer):
         read_only_fields = [
             'checked_at',
         ]
-
->>>>>>> f504721e64d9aad837c24599c8aed59986118f4a
 
 class HumanApprovalSerializer(serializers.ModelSerializer):
     class Meta:

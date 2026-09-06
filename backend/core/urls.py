@@ -4,6 +4,7 @@ from django.contrib import admin
 
 from telemetry.urls import router as telemetryrouter
 from ai_agent.urls import router as ai_agent_router 
+from vlm_agent.urls import router as vlm_agent_router
 from cv.urls import router as computer_vision_router
 from rest_framework.routers import DefaultRouter 
 
@@ -18,6 +19,7 @@ router = DefaultRouter()
 
 router.registry.extend(telemetryrouter.registry)
 router.registry.extend(ai_agent_router.registry)
+router.registry.extend(vlm_agent_router.registry)
 router.registry.extend(computer_vision_router.registry)
 
 
@@ -31,6 +33,7 @@ urlpatterns = [
     path("api/", include("farm_state.urls")),
     path("api/", include("growth.urls")),
     path("api/", include("ai_agent.urls")),
+    path("api/", include("vlm_agent.urls")),
 
 ]
 if settings.DEBUG:
