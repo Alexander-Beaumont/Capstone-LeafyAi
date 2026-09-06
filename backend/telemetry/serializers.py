@@ -17,12 +17,6 @@ from telemetry.models import (
 
 class FarmSerializer(serializers.ModelSerializer):
     class Meta:
-<<<<<<< HEAD
-        model = Farm                                                                                                            
-        fields = ['id', 'name', 'location']
-
-
-=======
         model = Farm
         fields = [
             'id',
@@ -38,7 +32,6 @@ class FarmDeviceSerializer(serializers.ModelSerializer):
             'name',
             'device_type',
         ]
->>>>>>> f504721e64d9aad837c24599c8aed59986118f4a
 class FarmLevelSerializer(serializers.ModelSerializer):
     class Meta:
         model = FarmLevel
@@ -101,9 +94,6 @@ class CameraSerializer(serializers.ModelSerializer):
 class CameraImageSerializer(serializers.ModelSerializer):
     class Meta:
         model = CameraImage
-<<<<<<< HEAD
-        fields = ['id', 'camera', 'timestamp']  # , 'image']  # Uncomment 'image' if using ImageField
-=======
         fields = [
             'id',
             'camera',
@@ -114,7 +104,6 @@ class CameraImageSerializer(serializers.ModelSerializer):
         read_only_fields = [
             'captured_at',
         ]
->>>>>>> f504721e64d9aad837c24599c8aed59986118f4a
 
 
 class SensorSerializer(serializers.ModelSerializer):

@@ -1,73 +1,52 @@
+from django.contrib.auth.models import User
 from django.test import TestCase
-from telemetry.models import Sensor, SensorReading
 
-<<<<<<< HEAD
-=======
-from rest_framework.test import APITestCase
 from rest_framework import status
-from telemetry.models import Sensor, SensorReading
+from rest_framework.test import APITestCase
 
->>>>>>> f504721e64d9aad837c24599c8aed59986118f4a
+from telemetry.models import Farm, FarmDevice, Sensor, SensorReading
+
+
 class TelemetryModelTests(TestCase):
-    
     def setUp(self):
-        """
-        Create the prerequisite database objects.
-        A Sensor requires a 'sensor_type' and a 'unit'.
-        """
+        farm = Farm.objects.create(name="Test Farm")
+        device = FarmDevice.objects.create(farm=farm, name="Test Device")
         self.test_sensor = Sensor.objects.create(
+            device=device,
             sensor_type="pH Sensor",
-            unit="pH"
+            unit="pH",
         )
 
     def test_sensor_reading_creation(self):
-        """Test that a new SensorReading correctly links to a Sensor."""
-        
-        #Create a mock reading using the sensor built in setUp
         reading = SensorReading.objects.create(
             sensor=self.test_sensor,
-            value=6.75
+            value=6.75,
         )
 
-        #Fetch it from the test database
         saved_reading = SensorReading.objects.get(id=reading.id)
-
-        #Assert that the link is correct and the value matches
         self.assertEqual(saved_reading.sensor, self.test_sensor)
         self.assertEqual(saved_reading.value, 6.75)
-<<<<<<< HEAD
-        
-=======
+
 
 class SensorAPIIntegrationTests(APITestCase):
-    
     def setUp(self):
-        """Set up the mock database just like a unit test."""
+        farm = Farm.objects.create(name="Test Farm")
+        device = FarmDevice.objects.create(farm=farm, name="Test Device")
         self.sensor = Sensor.objects.create(
+            device=device,
             sensor_type="EC Sensor",
-            unit="uS/cm"
+            unit="uS/cm",
         )
-        
-        # NOTE: You may need to change this URL depending on what is written
-        # inside your backend's main urls.py file!
-        self.api_url = '/api/sensorreadings/' 
+        self.user = User.objects.create_user(username="telemetry-user", password="test-password")
+        self.client.force_authenticate(user=self.user)
 
     def test_sensor_can_post_new_reading(self):
-        """Simulate your ESP32 sending a POST request to the API."""
-        
-        # 1. The exact JSON payload your sensor script will send
-        payload = {
-            "sensor": self.sensor.id,
-            "value": 1450.5
-        }
+        response = self.client.post(
+            "/api/sensor-readings/",
+            {"sensor": self.sensor.id, "value": "1450.5"},
+            format="json",
+        )
 
-        # 2. Fire an actual HTTP POST request to your backend
-        response = self.client.post(self.api_url, data=payload, format='json')
-
-        # 3. Assert the API responded with a "201 Created" success code
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-
-        # 4. Query the database to ensure the data actually saved
         self.assertEqual(SensorReading.objects.count(), 1)
         self.assertEqual(SensorReading.objects.first().value, 1450.5)
->>>>>>> f504721e64d9aad837c24599c8aed59986118f4a
