@@ -1,9 +1,6 @@
 from django.db import models
-<<<<<<< HEAD
-from telemetry.models import PlantBatch
-=======
+
 from telemetry.models import FarmDevice
->>>>>>> f504721e64d9aad837c24599c8aed59986118f4a
 
 # AI Decision anc Check
 class AIDecision(models.Model):
