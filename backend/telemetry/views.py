@@ -1,6 +1,39 @@
 from rest_framework import viewsets
-from telemetry.models import *
-from telemetry.serializers import *
+
+from telemetry.models import (
+    ActuatorStateObservation,
+    BatchPlacement,
+    Camera,
+    CameraImage,
+    Doser,
+    Farm,
+    FarmDevice,
+    FarmLevel,
+    GrowingArea,
+    NutrientTank,
+    PlantBatch,
+    SafeRange,
+    Sensor,
+    SensorReading,
+    SetpointObservation,
+)
+from telemetry.serializers import (
+    ActuatorStateObservationSerializer,
+    BatchPlacementSerializer,
+    CameraImageSerializer,
+    CameraSerializer,
+    DoserSerializer,
+    FarmDeviceSerializer,
+    FarmLevelSerializer,
+    FarmSerializer,
+    GrowingAreaSerializer,
+    NutrientTankSerializer,
+    PlantBatchSerializer,
+    SafeRangeSerializer,
+    SensorReadingSerializer,
+    SensorSerializer,
+    SetpointObservationSerializer,
+)
 
 
 class FarmViewSet(viewsets.ModelViewSet):
@@ -48,9 +81,25 @@ class SensorViewSet(viewsets.ModelViewSet):
     serializer_class = SensorSerializer
 
 
-class SensorReadingViewSet(viewsets.ModelViewSet):
-    queryset = SensorReading.objects.all()
+class SensorReadingViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = SensorReading.objects.select_related("sensor").order_by(
+        "-measured_at", "-id"
+    )
     serializer_class = SensorReadingSerializer
+
+
+class ActuatorStateObservationViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = ActuatorStateObservation.objects.select_related("device").order_by(
+        "-measured_at", "-id"
+    )
+    serializer_class = ActuatorStateObservationSerializer
+
+
+class SetpointObservationViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = SetpointObservation.objects.select_related("device").order_by(
+        "-measured_at", "-id"
+    )
+    serializer_class = SetpointObservationSerializer
 
 
 class NutrientTankViewSet(viewsets.ModelViewSet):
