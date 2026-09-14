@@ -1,3 +1,4 @@
-# How old (in seconds) a value may be before we call it "stale".
-# One uniform threshold for the prototype; per-sensor tuning comes later.
-FRESH_THRESHOLD_SECONDS = 3600  # 1 hour
+# Fallback freshness threshold for values that do not define their own timing.
+# Physical sensors should normally use Sensor.stale_after_seconds, configured by
+# sensor_ingest/seed_sensors.
+FRESH_THRESHOLD_SECONDS = 3600

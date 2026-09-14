@@ -12,6 +12,7 @@
 4. [Camera & Vision](#4-camera--vision)
 5. [Sensors](#5-sensors)
 6. [Device-level Hardware](#6-device-level-hardware)
+7. [Sensor Ingestion & External Observations](#7-sensor-ingestion--external-observations)
 8. [Safety Layer](#8-safety-layer)
 9. [AI Decision Chain](#9-ai-decision-chain)
 
@@ -36,6 +37,7 @@ A vertical farming device is the physical hardware unit. Each device has 2 level
 | `device_id` | INTEGER AUTO-INCREMENT | PK | Unique identifier |
 | `farm_id` | INTEGER AUTO-INCREMENT | FK → FARM, NOT NULL | Owning farm |
 | `name` | VARCHAR(255) | NOT NULL | Human-readable name |
+| `slug` | VARCHAR(80) | UNIQUE, NOT NULL | Stable machine identifier used by integrations |
 | `device_type` | VARCHAR(100) | | Model / variant |
 
 **Relationships:** FARM — DEVICE: 1:M
@@ -175,28 +177,40 @@ Results from running vision models on captured images.
 
 ### SENSOR
 
-Sensors monitor environmental conditions. A sensor is device-specific, which means it reflects the conditions of the whole device.
+Sensors monitor physical environmental conditions. A sensor is device-specific, so it reflects the conditions of the whole hydroponic device unless another scope is introduced later. External integrations address sensors by stable slugs rather than auto-increment database IDs.
 
 | Column | Type | Constraints | Description |
 |---|---|---|---|
-| `sensor_id` | INTEGER AUTO-INCREMENT | PK | Unique identifier |
+| `sensor_id` | INTEGER AUTO-INCREMENT | PK | Unique database identifier |
 | `device_id` | INTEGER AUTO-INCREMENT | FK → DEVICE, NOT NULL | Device this sensor belongs to |
-| `sensor_type` | VARCHAR(50) | NOT NULL | e.g. 'temperature', 'humidity', 'ph', 'ec', 'water_level', 'flow' |
-| `unit` | VARCHAR(50) | NOT NULL | e.g. '°C', '%', 'pH', 'µS/cm', 'L', 'L/min' |
+| `slug` | VARCHAR(80) | NOT NULL, UNIQUE PER DEVICE | Stable integration identifier, e.g. `water_ph` |
+| `sensor_type` | VARCHAR(50) | NOT NULL | Canonical safety/farm-state type, e.g. `ph`, `ec`, `humidity` |
+| `unit` | VARCHAR(50) | NOT NULL | e.g. `°C`, `%`, `pH`, `µS/cm`, `cm` |
+| `enabled` | BOOLEAN | NOT NULL, DEFAULT TRUE | Whether ingestion should create new readings |
+| `expected_interval_seconds` | INTEGER | NULLABLE | Expected source update interval |
+| `stale_after_seconds` | INTEGER | NULLABLE | Sensor-specific farm-state freshness threshold |
 
 **Relationships:**
-- DEVICE — SENSOR: 1:M 
+- DEVICE — SENSOR: 1:M
 
 ### SENSORREADING
 
-Time-series data from sensors.
+Append-oriented time-series measurements from physical sensors. `measured_at` comes from the source system; `received_at` records when Leafy AI persisted it.
 
 | Column | Type | Constraints | Description |
 |---|---|---|---|
 | `reading_id` | INTEGER AUTO-INCREMENT | PK | Unique identifier |
-| `sensor_id` | INTEGER AUTO-INCREMENT | FK → SENSOR, NOT NULL | Source sensor |
-| `timestamp` | TIMESTAMP | NOT NULL | When the reading was taken |
-| `value` | DECIMAL(10,3) | NOT NULL | Measured value |
+| `sensor_id` | INTEGER AUTO-INCREMENT | FK → SENSOR, NOT NULL, PROTECT | Source sensor |
+| `value` | DECIMAL(12,4) | NOT NULL | Measured value |
+| `measured_at` | TIMESTAMP | NOT NULL, INDEXED | When the source says the physical measurement occurred |
+| `received_at` | TIMESTAMP | NOT NULL, AUTO | When Leafy AI stored the observation |
+| `source` | VARCHAR(50) | NOT NULL | e.g. `thingspeak`, `manual` |
+| `source_channel_id` | VARCHAR(100) | | External channel/source identifier |
+| `source_entry_id` | BIGINT | NULLABLE | ThingSpeak `entry_id` or equivalent source identity |
+| `quality_status` | VARCHAR(20) | CHECK IN (`valid`, `unverified`, `suspect`) | Observation-quality classification, independent of crop safety |
+| `quality_notes` | VARCHAR(255) | | Quality explanation |
+
+External readings are unique by `(sensor, source, source_channel_id, source_entry_id)`.
 
 **Relationships:** SENSOR — SENSORREADING: 1:M
 
@@ -233,6 +247,72 @@ Relay-controlled dosing pumps that add nutrients or pH adjusters to the shared w
 | `updated_at` | TIMESTAMP | NOT NULL, DEFAULT NOW() | |
 
 **Relationships:** DEVICE — DOSER: 1:M
+
+---
+
+## 7. Sensor Ingestion & External Observations
+
+The `sensor_ingest` Django app is the integration boundary between the owner-provided ThingSpeak channel and Leafy AI's internal telemetry database. It retrieves data, validates source identity/timestamps, normalises external fields, deduplicates by source entry ID, performs startup/periodic backfill, and records ingestion health. It does **not** decide whether a value is safe for basil or whether hardware should run.
+
+### ACTUATORSTATEOBSERVATION
+
+ThingSpeak field 7 reports irrigation-pump relay state. This is stored as an observed actuator state rather than pretending the relay is a sensor.
+
+| Column | Type | Constraints | Description |
+|---|---|---|---|
+| `id` | INTEGER AUTO-INCREMENT | PK | Unique identifier |
+| `device_id` | INTEGER | FK → FARMDEVICE, NOT NULL, PROTECT | Device being observed |
+| `actuator_slug` | VARCHAR(80) | NOT NULL | e.g. `irrigation_pump` |
+| `state` | VARCHAR(10) | CHECK IN (`on`, `off`) | Observed state |
+| `measured_at` | TIMESTAMP | NOT NULL | Source measurement time |
+| `received_at` | TIMESTAMP | NOT NULL, AUTO | Leafy AI receipt time |
+| `source` | VARCHAR(50) | NOT NULL | External provider |
+| `source_channel_id` | VARCHAR(100) | | External channel |
+| `source_entry_id` | BIGINT | NULLABLE | External entry ID |
+| `quality_status` | VARCHAR(20) | | Observation quality |
+| `quality_notes` | VARCHAR(255) | | Quality explanation |
+
+### SETPOINTOBSERVATION
+
+ThingSpeak field 8 reports the owner's target EC. It is stored as an externally observed setpoint, not a physical sensor measurement and not automatically Leafy AI's authoritative control policy.
+
+| Column | Type | Constraints | Description |
+|---|---|---|---|
+| `id` | INTEGER AUTO-INCREMENT | PK | Unique identifier |
+| `device_id` | INTEGER | FK → FARMDEVICE, NOT NULL, PROTECT | Device whose setpoint was reported |
+| `setpoint_slug` | VARCHAR(80) | NOT NULL | `target_ec` |
+| `value` | DECIMAL(12,4) | NOT NULL | Setpoint value |
+| `unit` | VARCHAR(50) | NOT NULL | `µS/cm` |
+| `measured_at` | TIMESTAMP | NOT NULL | Source observation time |
+| `received_at` | TIMESTAMP | NOT NULL, AUTO | Leafy AI receipt time |
+| `source` | VARCHAR(50) | NOT NULL | External provider |
+| `source_channel_id` | VARCHAR(100) | | External channel |
+| `source_entry_id` | BIGINT | NULLABLE | External entry ID |
+| `quality_status` | VARCHAR(20) | | Observation quality |
+| `quality_notes` | VARCHAR(255) | | Quality explanation |
+
+### INGESTIONSOURCESTATE
+
+Operational health for an external feed. Connection health and source-data freshness are tracked independently so HTTP success is not mistaken for fresh telemetry.
+
+Key fields include `last_attempt_at`, `last_http_success_at`, `last_new_entry_at`, `last_source_entry_id`, `last_source_measured_at`, `consecutive_failures`, and the latest error code/message.
+
+### INGESTIONRECORD
+
+One audit row per external source entry. The pair `(source, source_entry_id)` is unique. A SHA-256 hash of the relevant ThingSpeak entry contract prevents an already-ingested entry ID from silently changing. The record also stores whether ingestion was complete/partial/empty plus counts and missing/invalid field lists.
+
+Current ThingSpeak mapping:
+
+| Field | Meaning | Internal representation |
+|---|---|---|
+| `field1` | Water pH | `SensorReading` / `water_ph` |
+| `field2` | Electrical conductivity | `SensorReading` / `electrical_conductivity` |
+| `field3` | Water temperature | `SensorReading` / `water_temperature` |
+| `field4` | Ambient temperature | `SensorReading` / `ambient_temperature` |
+| `field5` | Relative humidity | `SensorReading` / `relative_humidity` |
+| `field6` | Reservoir water level | `SensorReading` / `reservoir_water_level` |
+| `field7` | Irrigation pump state | `ActuatorStateObservation` |
+| `field8` | Target EC | `SetpointObservation` |
 
 ---
 
