@@ -1,0 +1,142 @@
+name: leafyai-full
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    command: >-
+      sh -c "python manage.py migrate --noinput &&
+             python manage.py seed_base &&
+             python manage.py runserver 0.0.0.0:8000"
+    env_file:
+      - path: ./.env
+        required: false
+    environment:
+      DJANGO_DEBUG: "true"
+      DJANGO_ALLOWED_HOSTS: "localhost,127.0.0.1,backend"
+      DJANGO_CORS_ALLOWED_ORIGINS: "http://localhost:5173,http://127.0.0.1:5173"
+      LEAFY_SQLITE_PATH: /data/db.sqlite3
+      DJANGO_MEDIA_ROOT: /media
+      LEAFY_TIME_ZONE: Australia/Melbourne
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-leafyai-local-development-secret-key-2026-please-override}
+      LEAFY_BOOTSTRAP_USERNAME: ${LEAFY_BOOTSTRAP_USERNAME:-leafyservice}
+      LEAFY_BOOTSTRAP_PASSWORD: ${LEAFY_BOOTSTRAP_PASSWORD:-LeafyLocalService2026!}
+      LEAFY_BOOTSTRAP_EMAIL: ${LEAFY_BOOTSTRAP_EMAIL:-leafyservice@local.invalid}
+    volumes:
+      - leafyai_data:/data
+      - leafyai_media:/media
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/', timeout=3).read()"]
+      interval: 5s
+      timeout: 4s
+      retries: 30
+      start_period: 10s
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    environment:
+      VITE_BACKEND_BASEURL: http://localhost:8000
+      VITE_POWERBOARD_BASEURL: http://localhost:8010
+    ports:
+      - "5173:5173"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Camera starts by default but reads ONLY /api/cameras/. A fresh DB has
+  # zero Camera rows, so no RTSP connection is attempted until Add Camera.
+  camera:
+    build:
+      context: ./backend
+      dockerfile: camera_capture/Dockerfile
+    env_file:
+      - path: ./.env
+        required: false
+    environment:
+      LEAFY_BACKEND_BASE_URL: http://backend:8000
+      LEAFY_BACKEND_USERNAME: ${LEAFY_BOOTSTRAP_USERNAME:-leafyservice}
+      LEAFY_BACKEND_PASSWORD: ${LEAFY_BOOTSTRAP_PASSWORD:-LeafyLocalService2026!}
+      LEAFY_CAMERA_TIMEZONE: Australia/Melbourne
+      LEAFY_LIGHTING_ENABLED: ${LEAFY_LIGHTING_ENABLED:-false}
+      LEAFY_LIGHTING_BASE_URL: http://powerboard:8010
+      LEAFY_LIGHTING_STATE_PATH: /api/lighting/magenta/state/
+      LEAFY_LIGHTING_REQUIRE_CONFIRMATION: "true"
+      LEAFY_LIGHTING_PRE_CAPTURE_OFF_SECONDS: "2"
+      LEAFY_LIGHTING_POST_CAPTURE_DELAY_SECONDS: "1"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+  leafycv:
+    build:
+      context: ./LeafyCV1.0
+    command: ["python", "main.py", "run-loop", "--poll-seconds", "15"]
+    env_file:
+      - path: ./.env
+        required: false
+    environment:
+      LEAFY_BACKEND_BASE_URL: http://backend:8000
+      LEAFY_BACKEND_USERNAME: ${LEAFY_BOOTSTRAP_USERNAME:-leafyservice}
+      LEAFY_BACKEND_PASSWORD: ${LEAFY_BOOTSTRAP_PASSWORD:-LeafyLocalService2026!}
+      LEAFY_BACKEND_TIMEOUT: "20"
+    depends_on:
+      backend:
+        condition: service_healthy
+      camera:
+        condition: service_started
+    restart: unless-stopped
+
+  powerboard:
+    build:
+      context: ./backend
+      dockerfile: powerboard_control/Dockerfile
+    env_file:
+      - path: ./.env
+        required: false
+    environment:
+      # Preserve the confirmed Lab hardware defaults from the working MVP.
+      # These may be overridden in .env. Camera remains zero-config by design.
+      LEAFY_POWERBOARD_1_IP: ${LEAFY_POWERBOARD_1_IP:-192.168.1.102}
+      LEAFY_POWERBOARD_2_IP: ${LEAFY_POWERBOARD_2_IP:-192.168.1.101}
+      LEAFY_KASA_USERNAME: ${LEAFY_KASA_USERNAME:-}
+      LEAFY_KASA_PASSWORD: ${LEAFY_KASA_PASSWORD:-}
+      LEAFY_KASA_DISCOVERY_TIMEOUT: ${LEAFY_KASA_DISCOVERY_TIMEOUT:-5}
+      LEAFY_KASA_RETRIES: ${LEAFY_KASA_RETRIES:-3}
+      LEAFY_KASA_RETRY_DELAY_SECONDS: ${LEAFY_KASA_RETRY_DELAY_SECONDS:-0.75}
+      LEAFY_LIGHTING_WATCHDOG_SECONDS: ${LEAFY_LIGHTING_WATCHDOG_SECONDS:-30}
+    ports:
+      - "8010:8010"
+    restart: unless-stopped
+
+  sensors:
+    build:
+      context: ./backend
+      dockerfile: sensor_ingest/Dockerfile
+    env_file:
+      - path: ./.env
+        required: false
+    environment:
+      LEAFY_BACKEND_BASE_URL: http://backend:8000
+      LEAFY_BACKEND_USERNAME: ${LEAFY_BOOTSTRAP_USERNAME:-leafyservice}
+      LEAFY_BACKEND_PASSWORD: ${LEAFY_BOOTSTRAP_PASSWORD:-LeafyLocalService2026!}
+      # Confirmed Lab sensor endpoints from the working MVP. Override in .env if needed.
+      LEAFY_WATER_QUALITY_URL: ${LEAFY_WATER_QUALITY_URL:-http://192.168.1.100/readings}
+      LEAFY_AMBIENT_SENSOR_URL: ${LEAFY_AMBIENT_SENSOR_URL:-http://192.168.1.111:8080/readings}
+      LEAFY_SENSOR_POLL_SECONDS: ${LEAFY_SENSOR_POLL_SECONDS:-10}
+      LEAFY_SENSOR_HTTP_TIMEOUT: ${LEAFY_SENSOR_HTTP_TIMEOUT:-5}
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  leafyai_data:
+  leafyai_media:
