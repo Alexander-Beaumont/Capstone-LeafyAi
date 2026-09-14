@@ -72,7 +72,6 @@ INSTALLED_APPS = [
     "telemetry",
     "sensor_ingest",
     "ai_agent",
-    "vlm_agent",
     "farm_state",
     "growth",
     "accounts",

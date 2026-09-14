@@ -70,3 +70,11 @@ OLLAMA_BASE_URL = os.environ.get(
     "http://localhost:11434/v1",
 )
 OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "llama3.2")
+
+# Vision-language model. It deliberately shares the OpenRouter connection
+# settings with the text model while allowing an independently selected model.
+VLM_PROVIDER = os.environ.get("VLM_PROVIDER", "openrouter").lower()
+VLM_MODEL = os.environ.get("VLM_MODEL", "qwen/qwen3-vl-8b-instruct")
+VLM_REQUEST_TIMEOUT_SECONDS = int(
+    os.environ.get("VLM_REQUEST_TIMEOUT_SECONDS", "120")
+)
