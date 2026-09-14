@@ -3,17 +3,42 @@ from rest_framework import serializers
 from ai_agent.models import (
     AIDecision,
     SafetyCheck,
-    HumanApproval,
     FarmAction,
 )
 
 
 class AIDecisionSerializer(serializers.ModelSerializer):
+    safety_check = serializers.SerializerMethodField()
+    notification_status = serializers.SerializerMethodField()
+
+    def get_safety_check(self, obj):
+        try:
+            safety_check = obj.safetycheck
+        except SafetyCheck.DoesNotExist:
+            return None
+        return SafetyCheckSerializer(safety_check).data
+
+    def get_notification_status(self, obj):
+        try:
+            return "ready" if obj.safetycheck.result == "passed" else "blocked"
+        except SafetyCheck.DoesNotExist:
+            return "blocked"
+
     class Meta:
         model = AIDecision
         fields = [
             'id',
             'device',
+            'input_mode',
+            'model_name',
+            'source_image',
+            'source_analysis',
+            'used_visual_input',
+            'visual_status',
+            'visual_reason',
+            'fallback_used',
+            'fallback_reason',
+            'output_used_fallback',
             'decision_type',
             'execution_type',
             'target_device',
@@ -23,11 +48,10 @@ class AIDecisionSerializer(serializers.ModelSerializer):
             'explanation',
             'confidence_score',
             'created_at',
+            'safety_check',
+            'notification_status',
         ]
-
-        read_only_fields = [
-            'created_at',
-        ]
+        read_only_fields = fields
 
 class SafetyCheckSerializer(serializers.ModelSerializer):
     class Meta:
@@ -40,19 +64,7 @@ class SafetyCheckSerializer(serializers.ModelSerializer):
             'explanation',
         ]
 
-        read_only_fields = [
-            'checked_at',
-        ]
-
-class HumanApprovalSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = HumanApproval
-        fields = [
-            'id',
-            'decision',
-            'result',
-            'comment',
-        ]
+        read_only_fields = fields
 
 
 class FarmActionSerializer(serializers.ModelSerializer):
@@ -65,3 +77,4 @@ class FarmActionSerializer(serializers.ModelSerializer):
             'result',
             'explanation',
         ]
+        read_only_fields = fields

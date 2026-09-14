@@ -334,9 +334,9 @@ Reference ranges used by the safety layer to validate sensor readings and AI-gen
 
 ## 9. AI Decision Chain
 
-The decision chain follows: **AI Decision → Safety Check → Human Approval → Farm Action**.
+The active decision chain follows: **AI Decision → Safety Check → Notification**.
 
-Each step is recorded in a separate table for auditability.
+AI decisions and safety checks are recorded for auditability. Farm actions are reserved for a future Powerboard integration; the current AI agent does not execute hardware or create action rows.
 
 ### AIDECISION
 
@@ -346,11 +346,21 @@ Every AI recommendation or decision is recorded with a human-readable explanatio
 |---|---|---|---|
 | `decision_id` | INTEGER AUTO-INCREMENT | PK | Unique identifier |
 | `device_id` | INTEGER AUTO-INCREMENT | FK → DEVICE, NOT NULL | Relevant device (if device-level) |
+| `input_mode` | VARCHAR(10) | NOT NULL, CHECK IN ('llm', 'vlm') | Whether sensor-only LLM or image-plus-sensor VLM generated the recommendation |
+| `model_name` | VARCHAR(255) | NOT NULL | Actual model used, including after fallback |
+| `source_image_id` | INTEGER | FK → CAMERAIMAGE, NULL | Latest considered image, when available |
+| `source_analysis_id` | INTEGER | FK → IMAGEANALYSIS, NULL | Quality analysis used for routing |
+| `used_visual_input` | BOOLEAN | NOT NULL | Whether the final recommendation actually used an image |
+| `visual_status` | VARCHAR(32) | NOT NULL | Image routing outcome |
+| `visual_reason` | TEXT | NOT NULL | Human-readable routing explanation |
+| `fallback_used` | BOOLEAN | NOT NULL | Whether a failed image/VLM route fell back to the LLM |
+| `fallback_reason` | TEXT | NOT NULL | Visible reason for model fallback |
+| `output_used_fallback` | BOOLEAN | NOT NULL | Whether malformed model output required text parsing fallback |
 | `decision_type` | VARCHAR(50) | NOT NULL | e.g. 'schedule_update', 'dosing_adjustment', 'lighting_adjustment', 'fan_adjustment', 'harvest_recommendation', 'spacing_adjustment', 'alert' |
-| `execution_type` | VARCHAR(20) | NOT NULL, CHECK IN ('automated', 'notification') | Whether the recommendation can be executed automatically or must be surfaced to a user |
-| `target_device` | VARCHAR(20) | NOT NULL, CHECK IN ('fans', 'light', 'none') | Hardware target for low-risk automated actions |
+| `execution_type` | VARCHAR(20) | NOT NULL, CHECK IN ('notification') | All recommendations are notification-only in the current release |
+| `target_device` | VARCHAR(20) | NOT NULL, CHECK IN ('fans', 'light', 'none') | Suggested future hardware target, never executed by the current agent |
 | `device_state` | VARCHAR(20) | NOT NULL, CHECK IN ('on', 'off', 'none') | Requested state for the target hardware |
-| `category` | VARCHAR(20) | NOT NULL, CHECK IN ('climate', 'lighting', 'dosing', 'water', 'harvest', 'alert') | Safety category used to decide pass/review/fail handling |
+| `category` | VARCHAR(20) | NOT NULL, CHECK IN ('climate', 'lighting', 'dosing', 'water', 'harvest', 'alert') | Safety category used to select relevant evidence and pass/fail handling |
 | `recommendation` | TEXT | NOT NULL | What the AI recommends in plain language |
 | `explanation` | TEXT | NOT NULL | Human-readable explanation of why |
 | `confidence_score` | DECIMAL(3,2) | | AI confidence (0.00–1.00) |
@@ -365,28 +375,14 @@ Software-based safety validation result. The proposal states: *"Implement a soft
 | `safety_check_id` | INTEGER AUTO-INCREMENT | PK | Unique identifier |
 | `decision_id` | INTEGER AUTO-INCREMENT | FK → AIDECISION, NOT NULL, UNIQUE | The decision being checked (1:1) |
 | `checked_at` | TIMESTAMP | NOT NULL, DEFAULT NOW() | |
-| `result` | VARCHAR(20) | NOT NULL, CHECK IN ('passed', 'failed', 'requires_review') | |
+| `result` | VARCHAR(20) | NOT NULL, CHECK IN ('passed', 'failed') | Whether evidence and policy validation passed |
 | `explanation` | TEXT | | Why it passed or failed |
 
 **Relationships:** AIDECISION — SAFETYCHECK: 1:1
 
-### HUMANAPPROVAL
-
-Human review of AI decisions. The proposal states: *"Require human approval for irrigation and dosing actions initially, with a path to automatic control for low-risk actions such as lights and fans."*
-
-| Column | Type | Constraints | Description |
-|---|---|---|---|
-| `approval_id` | INTEGER AUTO-INCREMENT | PK | Unique identifier |
-| `decision_id` | INTEGER AUTO-INCREMENT | FK → AIDECISION, NOT NULL, UNIQUE | The decision being reviewed (1:1) |
-| `reviewed_at` | TIMESTAMP | | When reviewed (null = pending) |
-| `result` | VARCHAR(20) | CHECK IN ('approved', 'denied', 'overridden') | |
-| `comment` | TEXT | | Reviewer's notes |
-
-**Relationships:** AIDECISION — HUMANAPPROVAL: 1:1
-
 ### FARMACTION
 
-Record of an executed farm action. A single decision may result in multiple actions (e.g., adjust lights and fan together).
+Reserved record of an executed farm action. This table is retained for the future Powerboard execution layer and is not written by the current notification-only agent.
 
 | Column | Type | Constraints | Description |
 |---|---|---|---|

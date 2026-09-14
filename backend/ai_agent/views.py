@@ -8,25 +8,24 @@ from telemetry.models import Farm, FarmDevice
 
 from ai_agent.models import *
 from ai_agent.serializers import *
-from ai_agent.services import generate_recommendation, NoDeviceError
+from ai_agent.services import (
+    NoDeviceError,
+    RecommendationGenerationError,
+    generate_recommendation,
+)
 
 
-class AIDecisionViewSet(viewsets.ModelViewSet):
-    queryset = AIDecision.objects.all()
+class AIDecisionViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = AIDecision.objects.select_related("safetycheck").order_by("-created_at", "-id")
     serializer_class = AIDecisionSerializer
 
 
-class FarmActionViewSet(viewsets.ModelViewSet):
-    queryset = FarmAction.objects.all()
+class FarmActionViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = FarmAction.objects.order_by("-id")
     serializer_class = FarmActionSerializer
 
-class HumanApprovalViewSet(viewsets.ModelViewSet):
-    queryset = HumanApproval.objects.all()
-    serializer_class = HumanApprovalSerializer
-
-
-class SafetyCheckViewSet(viewsets.ModelViewSet):
-    queryset = SafetyCheck.objects.all()
+class SafetyCheckViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = SafetyCheck.objects.order_by("-checked_at", "-id")
     serializer_class = SafetyCheckSerializer
 
 
@@ -57,6 +56,11 @@ def recommend(request):
         return Response(
             {"error": str(exc)},
             status=status.HTTP_400_BAD_REQUEST,
+        )
+    except RecommendationGenerationError as exc:
+        return Response(
+            {"error": str(exc)},
+            status=status.HTTP_502_BAD_GATEWAY,
         )
 
     return Response(result, status=status.HTTP_201_CREATED)

@@ -1,3 +1,8 @@
 from django.contrib import admin
 
-# Register your models here.
+from ai_agent.models import AIDecision, FarmAction, SafetyCheck
+
+
+admin.site.register(AIDecision)
+admin.site.register(SafetyCheck)
+admin.site.register(FarmAction)

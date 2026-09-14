@@ -26,11 +26,12 @@ Target Safety Ranges for {crop}:
 - Irrigation Pump: {ranges['irrigation_pump']['min_on_mins']} - {ranges['irrigation_pump']['max_on_mins']} {ranges['irrigation_pump']['unit']}
 
 Execution Rules:
-1. AUTOMATED: Controlling {auto_devices} on/off states.
-2. NOTIFICATION: All other actions (e.g., Nutrient A/B dosing, pH adjustments, harvesting, water refill) cannot be automated and must be flagged for manual human action.
+1. This release is notification-only. Always return execution_type 'notification'.
+2. For a suggested future {auto_devices} change, retain the target device and on/off state so the user can understand the recommendation.
+3. Dosing, pH, harvesting, and water actions must use target_device and device_state 'none'.
 
 Respond with a single raw JSON object only (no markdown, no code blocks) using these exact keys:
-- execution_type: 'automated' (only for {auto_devices} control) or 'notification'
+- execution_type: 'notification'
 - target_device: 'fans', 'light', or 'none'
 - device_state: 'on', 'off', or 'none'
 - category: 'climate', 'lighting', 'dosing', 'water', 'harvest', or 'alert'
@@ -58,3 +59,25 @@ def build_messages(farm_state):
         "Review it and return your recommendation as JSON."
     )
     return DEFAULT_SYSTEM, user
+
+
+def build_vision_messages(farm_state, visual_context):
+    """Build image-aware messages while keeping CV measurements out of text."""
+    system = (
+        generate_system_prompt()
+        + "\n\nUse the supplied image as visual evidence alongside the sensor data. "
+        "Do not invent observations that are not visible in the image."
+    )
+    public_visual_context = {
+        key: value
+        for key, value in visual_context.items()
+        if key != "image_data_url"
+    }
+    user = (
+        "Here is the current non-visual farm context as JSON:\n"
+        + json.dumps(farm_state, default=str)
+        + "\n\nVisual evidence metadata:\n"
+        + json.dumps(public_visual_context, default=str)
+        + "\n\nReview the image and sensor evidence and return the required JSON only."
+    )
+    return system, user

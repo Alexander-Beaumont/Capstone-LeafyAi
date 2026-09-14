@@ -1,11 +1,11 @@
 from django.db import models
 
-from telemetry.models import FarmDevice
+from cv.models import ImageAnalysis
+from telemetry.models import CameraImage, FarmDevice
 
 # AI Decision anc Check
 class AIDecision(models.Model):
     EXECUTION_TYPE_CHOICES = [
-        ('automated', 'Automated'),
         ('notification', 'Notification'),
     ]
     TARGET_DEVICE_CHOICES = [
@@ -26,8 +26,38 @@ class AIDecision(models.Model):
         ('harvest', 'Harvest'),
         ('alert', 'Alert'),
     ]
+    INPUT_MODE_CHOICES = [
+        ('llm', 'Sensor-only LLM'),
+        ('vlm', 'Vision and sensor VLM'),
+    ]
 
     device = models.ForeignKey(FarmDevice, on_delete=models.CASCADE)
+    input_mode = models.CharField(
+        max_length=10,
+        choices=INPUT_MODE_CHOICES,
+        default='llm',
+    )
+    model_name = models.CharField(max_length=255, default='unknown')
+    source_image = models.ForeignKey(
+        CameraImage,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='ai_decisions',
+    )
+    source_analysis = models.ForeignKey(
+        ImageAnalysis,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='ai_decisions',
+    )
+    used_visual_input = models.BooleanField(default=False)
+    visual_status = models.CharField(max_length=32, default='NO_ANALYSIS')
+    visual_reason = models.TextField(blank=True, default='')
+    fallback_used = models.BooleanField(default=False)
+    fallback_reason = models.TextField(blank=True, default='')
+    output_used_fallback = models.BooleanField(default=False)
     decision_type = models.CharField(max_length=50) # May add choices. e.g. schedue_update, dosing_adjustment, lighting_adjustment, fan_adjustment, alert
     execution_type = models.CharField(
         max_length=20,
@@ -68,27 +98,9 @@ class SafetyCheck(models.Model):
         choices=[
             ('passed', 'Passed'),
             ('failed', 'Failed'),
-            ('requires_review', 'Requires Review'),
         ]
     )
     explanation = models.TextField(
-        blank=True,
-        null=True
-    )
-
-class HumanApproval(models.Model):
-    decision = models.OneToOneField(AIDecision, on_delete=models.CASCADE)
-    result = models.CharField(
-        max_length=20,
-        choices=[
-            ('approved', 'Approved'),
-            ('denied', 'Denied'),
-            ('overridden', 'Overridden'),
-        ],
-        blank=True,
-        null=True
-    )
-    comment = models.TextField(
         blank=True,
         null=True
     )

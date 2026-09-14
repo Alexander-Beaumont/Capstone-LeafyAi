@@ -12,6 +12,10 @@ import requests
 from ai_agent import config
 
 
+class ProviderError(RuntimeError):
+    """A configured model provider could not produce a usable response."""
+
+
 class LLMProvider:
     """Base contract every provider must implement."""
 
@@ -28,6 +32,10 @@ class LLMProvider:
         """
         raise NotImplementedError
 
+    @property
+    def model_name(self):
+        return getattr(self, "model", "unknown")
+
 
 class OpenAICompatibleProvider(LLMProvider):
     """Calls any OpenAI-compatible ``/chat/completions`` endpoint."""
@@ -38,24 +46,27 @@ class OpenAICompatibleProvider(LLMProvider):
         self.model = model
 
     def complete(self, system, user, temperature=0.2, timeout=120):
-        response = requests.post(
-            f"{self.base_url}/chat/completions",
-            headers={
-                "Authorization": f"Bearer {self.api_key}",
-                "Content-Type": "application/json",
-            },
-            json={
-                "model": self.model,
-                "messages": [
-                    {"role": "system", "content": system},
-                    {"role": "user", "content": user},
-                ],
-                "temperature": temperature,
-            },
-            timeout=timeout,
-        )
-        response.raise_for_status()
-        return response.json()["choices"][0]["message"]["content"]
+        try:
+            response = requests.post(
+                f"{self.base_url}/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {self.api_key}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": self.model,
+                    "messages": [
+                        {"role": "system", "content": system},
+                        {"role": "user", "content": user},
+                    ],
+                    "temperature": temperature,
+                },
+                timeout=timeout,
+            )
+            response.raise_for_status()
+            return response.json()["choices"][0]["message"]["content"]
+        except (requests.RequestException, KeyError, TypeError, ValueError) as exc:
+            raise ProviderError(f"Text model request failed: {exc}") from exc
 
 
 class OpenRouterProvider(OpenAICompatibleProvider):
@@ -101,6 +112,7 @@ class MockProvider(LLMProvider):
 
     def __init__(self, output=None):
         self.output = output if output is not None else self.DEFAULT_OUTPUT
+        self.model = "mock-llm"
 
     def complete(self, system, user, **kwargs):
         return self.output
@@ -116,3 +128,72 @@ def get_provider():
     if provider_name == "mock":
         return MockProvider()
     raise ValueError(f"Unknown AI_PROVIDER: {provider_name!r}")
+
+
+class VLMProvider:
+    model_name = "unknown"
+
+    def complete(self, system, user, image_data_url, **kwargs):
+        raise NotImplementedError
+
+
+class OpenRouterVLMProvider(VLMProvider):
+    def __init__(self, model=None, api_key=None, base_url=None):
+        self.model_name = model or config.VLM_MODEL
+        self.api_key = api_key if api_key is not None else config.OPENROUTER_API_KEY
+        self.base_url = (base_url or config.OPENROUTER_BASE_URL).rstrip("/")
+
+    def complete(
+        self,
+        system,
+        user,
+        image_data_url,
+        temperature=0.2,
+        timeout=None,
+    ):
+        try:
+            response = requests.post(
+                f"{self.base_url}/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {self.api_key}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": self.model_name,
+                    "messages": [
+                        {"role": "system", "content": system},
+                        {
+                            "role": "user",
+                            "content": [
+                                {"type": "text", "text": user},
+                                {
+                                    "type": "image_url",
+                                    "image_url": {"url": image_data_url},
+                                },
+                            ],
+                        },
+                    ],
+                    "temperature": temperature,
+                },
+                timeout=timeout or config.VLM_REQUEST_TIMEOUT_SECONDS,
+            )
+            response.raise_for_status()
+            return response.json()["choices"][0]["message"]["content"]
+        except (requests.RequestException, KeyError, TypeError, ValueError) as exc:
+            raise ProviderError(f"Vision model request failed: {exc}") from exc
+
+
+class MockVLMProvider(VLMProvider):
+    model_name = "mock-vlm"
+    output = MockProvider.DEFAULT_OUTPUT
+
+    def complete(self, system, user, image_data_url, **kwargs):
+        return self.output
+
+
+def get_vlm_provider():
+    if config.VLM_PROVIDER == "openrouter":
+        return OpenRouterVLMProvider()
+    if config.VLM_PROVIDER == "mock":
+        return MockVLMProvider()
+    raise ValueError(f"Unknown VLM_PROVIDER: {config.VLM_PROVIDER!r}")

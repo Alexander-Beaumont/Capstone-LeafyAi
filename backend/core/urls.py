@@ -8,13 +8,11 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from ai_agent.urls import router as ai_agent_router
 from cv.urls import router as computer_vision_router
 from telemetry.urls import router as telemetry_router
-from vlm_agent.urls import router as vlm_agent_router
 
 
 router = DefaultRouter()
 router.registry.extend(telemetry_router.registry)
 router.registry.extend(ai_agent_router.registry)
-router.registry.extend(vlm_agent_router.registry)
 router.registry.extend(computer_vision_router.registry)
 
 urlpatterns = [
@@ -28,7 +26,6 @@ urlpatterns = [
     path("api/", include("sensor_ingest.urls")),
     path("api/", include("growth.urls")),
     path("api/", include("ai_agent.urls")),
-    path("api/", include("vlm_agent.urls")),
 ]
 
 if settings.DEBUG:
