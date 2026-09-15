@@ -338,7 +338,12 @@ class CameraImageSerializer(serializers.ModelSerializer):
     class Meta:
         model = CameraImage
         fields = ["id", "camera", "captured_at", "path"]
-        read_only_fields = ["captured_at"]
+        read_only_fields = [
+            "id",
+            "camera",
+            "captured_at",
+            "path",
+        ]
 
 
 class SensorSerializer(serializers.ModelSerializer):
