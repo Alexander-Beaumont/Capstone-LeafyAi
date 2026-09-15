@@ -112,13 +112,11 @@ class Camera(models.Model):
         max_length=20,
         choices=[
             ("RTSP", "RTSP"),
-            ("WEBCAM", "Webcam"),
         ],
     )
     ip_address = models.GenericIPAddressField(blank=True, null=True)
     rtsp_port = models.IntegerField(blank=True, null=True)
     rtsp_path = models.CharField(max_length=255, blank=True, null=True)
-    webcam_index = models.IntegerField(blank=True, null=True)
     enabled = models.BooleanField(default=True)
     cv_enabled = models.BooleanField(default=True)
     capture_interval_minutes = models.PositiveIntegerField(default=30)
@@ -126,7 +124,7 @@ class Camera(models.Model):
     active_end_time = models.TimeField(blank=True, null=True)
     roi_points = models.JSONField(blank=True, null=True)
     growth_baseline_reset_at = models.DateTimeField(null=True, blank=True)
-
+    is_archived = models.BooleanField(default=False)
 
 class CameraImage(models.Model):
     camera = models.ForeignKey(Camera, on_delete=models.PROTECT)

@@ -76,6 +76,7 @@ INSTALLED_APPS = [
     "growth",
     "accounts",
     "powerboard_control",
+    "camera_capture",
 ]
 
 REST_FRAMEWORK = {
