@@ -75,6 +75,7 @@ INSTALLED_APPS = [
     "farm_state",
     "growth",
     "accounts",
+    "powerboard_control",
 ]
 
 REST_FRAMEWORK = {
