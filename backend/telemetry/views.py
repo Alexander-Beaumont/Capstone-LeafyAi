@@ -1,4 +1,5 @@
-from rest_framework import viewsets
+from rest_framework import status, viewsets
+from rest_framework.response import Response
 
 from telemetry.models import (
     ActuatorStateObservation,
@@ -67,13 +68,59 @@ class BatchPlacementViewSet(viewsets.ModelViewSet):
 
 
 class CameraViewSet(viewsets.ModelViewSet):
-    queryset = Camera.objects.all()
+    queryset = (
+        Camera.objects
+        .select_related("farm_level")
+        .all()
+        .order_by("id")
+    )
+
     serializer_class = CameraSerializer
 
+    def get_queryset(self):
+        queryset = self.queryset.all()
 
-class CameraImageViewSet(viewsets.ModelViewSet):
-    queryset = CameraImage.objects.all()
-    serializer_class = CameraImageSerializer
+        if self.action == "list":
+            queryset = queryset.filter(
+                is_archived=False
+            )
+
+        return queryset
+
+    def destroy(
+        self,
+        request,
+        *args,
+        **kwargs,
+    ):
+        return Response(
+            {
+                "detail":
+                    "Hard delete is disabled. "
+                    "Archive the camera with "
+                    "PATCH is_archived=true."
+            },
+            status=
+                status.HTTP_405_METHOD_NOT_ALLOWED,
+        )
+
+
+class CameraImageViewSet(
+    viewsets.ReadOnlyModelViewSet
+):
+    queryset = (
+        CameraImage.objects
+        .select_related("camera")
+        .all()
+        .order_by(
+            "-captured_at",
+            "-id",
+        )
+    )
+
+    serializer_class = (
+        CameraImageSerializer
+    )
 
 
 class SensorViewSet(viewsets.ModelViewSet):

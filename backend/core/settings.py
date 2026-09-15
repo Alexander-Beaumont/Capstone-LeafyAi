@@ -76,6 +76,8 @@ INSTALLED_APPS = [
     "growth",
     "accounts",
     "powerboard_control",
+    "camera_capture",
+    "leafy_runtime.apps.LeafyRuntimeConfig",
 ]
 
 REST_FRAMEWORK = {
