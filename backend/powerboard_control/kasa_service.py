@@ -69,7 +69,7 @@ class PowerboardController:
         credential_hint = (
             " TP-Link/Kasa credentials are configured."
             if KASA_USERNAME and KASA_PASSWORD
-            else " If this is a newer authenticated Kasa device, set LEAFY_KASA_USERNAME and LEAFY_KASA_PASSWORD in .env.real."
+            else " If this is a newer authenticated Kasa device, set LEAFY_KASA_USERNAME and LEAFY_KASA_PASSWORD in .env"
         )
         raise RuntimeError(
             f"Unable to query Kasa powerboard {board_key} at {ip} after {KASA_RETRIES} attempt(s): "
