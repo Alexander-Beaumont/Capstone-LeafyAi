@@ -26,6 +26,7 @@ urlpatterns = [
     path("api/", include("sensor_ingest.urls")),
     path("api/", include("growth.urls")),
     path("api/", include("ai_agent.urls")),
+    path("api/", include("powerboard_control.urls")),
 ]
 
 if settings.DEBUG:
