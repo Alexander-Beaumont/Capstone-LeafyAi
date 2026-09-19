@@ -37,10 +37,18 @@ export default function PendingDecisionCard({name, change, reason, onAccept, onD
                     {reason}
                 </p>
                 <div className="flex gap-3 w-full  mt-2">
-                    <button className="border hover:cursor-pointer hover:rounded-lg hover:italic transition-all duration-200 border-border2 rounded-md  text-subtext2 text-xs px-2 p-1 text-center bg-panel3">
+                    <button
+                        className="border rounded-md  text-subtext3 text-xs px-2 p-1 text-center bg-panel3 opacity-60 cursor-not-allowed"
+                        title="Approval is not available yet"
+                        disabled
+                    >
                         Decline
                     </button>
-                    <button className="border hover:cursor-pointer hover:rounded-lg hover:italic transition-all duration-200 border-highlight rounded-md text-highlight text-xs px-2 p-1 text-center bg-panel3">
+                    <button
+                        className="border rounded-md text-highlight text-xs px-2 p-1 text-center bg-panel3 opacity-60 cursor-not-allowed"
+                        title="Approval is not available yet"
+                        disabled
+                    >
                         Accept
                     </button>
                 </div>
