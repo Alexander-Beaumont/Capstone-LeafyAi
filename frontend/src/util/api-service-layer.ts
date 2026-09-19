@@ -1,8 +1,30 @@
-import { API_ROUTES } from "./constants";
-import type { APIResult, BABatch, BatchDefinition, GaDefinition, GAGrowingArea, MoveBatch } from "./types";
+import { API_ROUTES, deviceStateUrl, farmStateUrl } from "./constants";
+import type {
+    AIDecision,
+    APIResult,
+    BABatch,
+    BatchDefinition,
+    DeviceStateResult,
+    Farm,
+    FarmState,
+    GaDefinition,
+    GAGrowingArea,
+    MagentaState,
+    MoveBatch,
+    PowerboardDevice,
+} from "./types";
+
+function errorMessage(body: unknown, fallback: string) {
+    if (!body || typeof body !== "object") return fallback
+    const record = body as Record<string, unknown>
+    const detail = record.detail ?? record.message ?? record.error
+    if (typeof detail === "string" && detail.trim()) return detail
+    if (Array.isArray(detail)) return detail.map(String).join(", ")
+    return fallback
+}
 
 async function apiRequest<T>(url: string, accessToken?: string, options: RequestInit = {}): Promise<APIResult<T>> {
-    let data;
+    let data: T | undefined;
     try {
         const res = await fetch(url, {
             ...options,
@@ -12,18 +34,28 @@ async function apiRequest<T>(url: string, accessToken?: string, options: Request
                 ...options.headers,
             },
         });
-        data = await res.json() as T;
+        const raw = await res.text();
+        let parsed: unknown = undefined;
+        if (raw) {
+            try {
+                parsed = JSON.parse(raw);
+            } catch {
+                parsed = undefined;
+            }
+        }
+        data = parsed as T;
 
         if (!res.ok) {
-            let msg = `Request failed (${res.status})`;
-            const errBody = await res.json();
-            msg = errBody.detail ?? errBody.message ?? msg;
-            return { success: false, msg, data};
+            return {
+                success: false,
+                msg: errorMessage(parsed, `Request failed (${res.status})`),
+                data,
+            };
         }
 
         return { success: true, msg: "", data };
     } catch (error) {
-        return { success: false, msg: (error as Error).message, data: data};
+        return { success: false, msg: (error as Error).message, data };
     }
 }
 
@@ -84,5 +116,56 @@ export async function deleteGrowingArea(accessToken: string | undefined, GaId: s
         method: "DELETE",
         body: JSON.stringify({growingAreaID: GaId}),
         headers: {"Content-Type": "application/json",}
+    })
+}
+
+export async function getFarms(accessToken: string | undefined): Promise<APIResult<Farm[]>> {
+    return await apiRequest<Farm[]>(API_ROUTES.getFarms, accessToken, {
+        method: "GET",
+    })
+}
+
+export async function getFarmState(accessToken: string | undefined, farmId: number): Promise<APIResult<FarmState>> {
+    return await apiRequest<FarmState>(farmStateUrl(farmId), accessToken, {
+        method: "GET",
+    })
+}
+
+export async function getDevices(accessToken: string | undefined): Promise<APIResult<PowerboardDevice[]>> {
+    return await apiRequest<PowerboardDevice[]>(API_ROUTES.getDevices, accessToken, {
+        method: "GET",
+    })
+}
+
+export async function setDeviceState(
+    accessToken: string | undefined,
+    deviceId: number,
+    state: "ON" | "OFF",
+): Promise<APIResult<DeviceStateResult>> {
+    return await apiRequest<DeviceStateResult>(deviceStateUrl(deviceId), accessToken, {
+        method: "POST",
+        body: JSON.stringify({ state }),
+    })
+}
+
+export async function getMagentaState(accessToken: string | undefined): Promise<APIResult<MagentaState>> {
+    return await apiRequest<MagentaState>(API_ROUTES.magentaState, accessToken, {
+        method: "GET",
+    })
+}
+
+export async function setMagentaState(
+    accessToken: string | undefined,
+    state: "ON" | "OFF",
+): Promise<APIResult<MagentaState>> {
+    return await apiRequest<MagentaState>(API_ROUTES.magentaState, accessToken, {
+        method: "POST",
+        body: JSON.stringify({ state }),
+    })
+}
+
+export async function getAiDecisions(accessToken: string | undefined): Promise<APIResult<AIDecision[]>> {
+    return await apiRequest<AIDecision[]>(API_ROUTES.getAiDecisions, accessToken, {
+        method: "GET",
     })
 }

@@ -28,7 +28,30 @@ export const API_ROUTES = {
     createBatch: `${import.meta.env.VITE_BACKEND_BASEURL}/api/create-batch`,
     deleteGrowingArea: `${import.meta.env.VITE_BACKEND_BASEURL}/api/delete-growing-area
 `,
+    getFarms: `${import.meta.env.VITE_BACKEND_BASEURL}/api/farms/`,
+    getDevices: `${import.meta.env.VITE_BACKEND_BASEURL}/api/devices/`,
+    magentaState: `${import.meta.env.VITE_BACKEND_BASEURL}/api/lighting/magenta/state/`,
+    getAiDecisions: `${import.meta.env.VITE_BACKEND_BASEURL}/api/ai-decisions/`,
 }
+
+export function farmStateUrl(farmId: number) {
+    return `${import.meta.env.VITE_BACKEND_BASEURL}/api/farm-state/${farmId}/`
+}
+
+export function deviceStateUrl(deviceId: number) {
+    return `${import.meta.env.VITE_BACKEND_BASEURL}/api/devices/${deviceId}/state/`
+}
+
+export const POWERBOARD_DEVICE_IDS = {
+    phDoser: 1,
+    ecDoser: 2,
+    pump: 3,
+    fan: 4,
+    lightLevel1: 5,
+    lightLevel2: 6,
+}
+
+export const FARM_OVERVIEW_POLL_MS = 30_000
 
 export const PAGES = {
     noAuthPages: {

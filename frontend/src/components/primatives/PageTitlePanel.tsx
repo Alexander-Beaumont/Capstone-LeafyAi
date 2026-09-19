@@ -2,12 +2,15 @@ import Panel from "./Panel"
 import { FiRefreshCw } from "react-icons/fi";
 
 interface Props{
-    title: string,
+    title: string
     icon: React.ReactNode
     refresh?: boolean
+    onRefresh?: () => void
+    refreshLabel?: string
+    refreshing?: boolean
 }
 
-export default function PageTitlePanel({title, icon, refresh}: Props) {
+export default function PageTitlePanel({title, icon, refresh, onRefresh, refreshLabel, refreshing}: Props) {
     return (
         <Panel styles="w-full p-3 flex items-center justify-between">
             <div className="flex gap-3">
@@ -18,10 +21,28 @@ export default function PageTitlePanel({title, icon, refresh}: Props) {
                     {title}
                 </p>
             </div>
-            {!refresh ? "" : 
-                <FiRefreshCw className="text-md font-bold text-subtext2 mr-1 hover:cursor-pointer active:rotate-360
-                transition-all duration-500"/>
-            }
+            {refresh || refreshLabel ?
+                <div className="flex items-center gap-3 mr-1">
+                    {refreshLabel ?
+                        <p className="text-subtext3 text-xs">
+                            {refreshLabel}
+                        </p>
+                    : null}
+                    {refresh ?
+                        <button
+                            type="button"
+                            aria-label="Refresh"
+                            disabled={refreshing}
+                            onClick={onRefresh}
+                            className={`text-md font-bold text-subtext2 bg-transparent border-0 p-0 ${refreshing ? "opacity-60 cursor-not-allowed" : "hover:cursor-pointer"}`}
+                        >
+                            <FiRefreshCw
+                                className={`${refreshing ? "animate-spin" : "active:rotate-360"} transition-all duration-500`}
+                            />
+                        </button>
+                    : null}
+                </div>
+            : null}
         </Panel>
     )
 }
