@@ -1,12 +1,12 @@
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 
-from sensor_ingest.services.mapper import SENSOR_DEFINITIONS
+from sensor_ingest.services.mapper import ALL_SENSOR_DEFINITIONS
 from telemetry.models import FarmDevice, Sensor
 
 
 class Command(BaseCommand):
-    help = "Create/update the six ThingSpeak physical sensor definitions."
+    help = "Create/update the Leafy AI physical sensor definitions."
 
     def add_arguments(self, parser):
         parser.add_argument("--device-slug", default=None)
@@ -35,7 +35,7 @@ class Command(BaseCommand):
 
         created_count = 0
         updated_count = 0
-        for definition in SENSOR_DEFINITIONS:
+        for definition in ALL_SENSOR_DEFINITIONS:
             defaults = {
                 "sensor_type": definition.sensor_type,
                 "unit": definition.unit,
@@ -43,16 +43,29 @@ class Command(BaseCommand):
                 "expected_interval_seconds": expected,
                 "stale_after_seconds": stale,
             }
-            sensor, created = Sensor.objects.get_or_create(
-                device=device,
-                slug=definition.slug,
-                defaults=defaults,
-            )
+            sensor = Sensor.objects.filter(
+                device=device, slug=definition.slug
+            ).first()
+            created = False
+            if sensor is None:
+                sensor = Sensor.objects.filter(
+                    device=device, sensor_type=definition.sensor_type
+                ).order_by("id").first()
+            if sensor is None:
+                sensor = Sensor.objects.create(
+                    device=device,
+                    slug=definition.slug,
+                    **defaults,
+                )
+                created = True
             if created:
                 created_count += 1
                 continue
 
             changed = False
+            if sensor.slug != definition.slug:
+                sensor.slug = definition.slug
+                changed = True
             if sensor.sensor_type != definition.sensor_type:
                 sensor.sensor_type = definition.sensor_type
                 changed = True

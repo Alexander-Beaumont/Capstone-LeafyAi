@@ -6,35 +6,88 @@ from django.core.management.base import BaseCommand, CommandError
 
 from sensor_ingest.exceptions import SensorIngestError
 from sensor_ingest.services.collector import SensorCollector
+from sensor_ingest.services.lab_collector import LabSensorCollector
 
 
 logger = logging.getLogger(__name__)
 
 
 class Command(BaseCommand):
-    help = "Continuously collect Leafy AI telemetry from ThingSpeak."
+    help = "Continuously collect Leafy AI telemetry from the configured provider."
 
     def add_arguments(self, parser):
         parser.add_argument(
             "--once",
             action="store_true",
-            help="Run one collection cycle and exit; startup backfill still runs unless --no-backfill.",
+            help="Run one collection cycle and exit.",
         )
         parser.add_argument(
             "--no-backfill",
             action="store_true",
-            help="Skip startup history reconciliation.",
+            help="Skip ThingSpeak startup history reconciliation.",
         )
         parser.add_argument(
             "--backfill",
             type=int,
             default=None,
-            help="Number of recent ThingSpeak entries to reconcile at startup.",
+            help="ThingSpeak only: number of recent entries to reconcile at startup.",
         )
         parser.add_argument("--poll-seconds", type=int, default=None)
         parser.add_argument("--reconcile-seconds", type=int, default=None)
 
     def handle(self, *args, **options):
+        provider = str(settings.SENSOR_INGEST_PROVIDER or "").strip().lower()
+        if provider == "lab_http":
+            return self._handle_lab(options)
+        if provider == "thingspeak":
+            return self._handle_thingspeak(options)
+        raise CommandError(
+            "SENSOR_INGEST_PROVIDER must be 'lab_http' or 'thingspeak'."
+        )
+
+    def _handle_lab(self, options):
+        poll_seconds = options["poll_seconds"] or int(
+            settings.SENSOR_INGEST_POLL_SECONDS
+        )
+        if poll_seconds <= 0:
+            raise CommandError("--poll-seconds must be greater than zero.")
+
+        collector = LabSensorCollector()
+        try:
+            collector.validate_configuration()
+        except SensorIngestError as exc:
+            raise CommandError(str(exc)) from exc
+
+        if options["once"]:
+            count = collector.collect_latest()
+            self.stdout.write(
+                self.style.SUCCESS(
+                    f"Lab sensor cycle complete: stored={count} valid reading(s)."
+                )
+            )
+            return
+
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"Leafy AI Lab sensor collector started; poll={poll_seconds}s."
+            )
+        )
+        try:
+            while True:
+                try:
+                    count = collector.collect_latest()
+                    if count:
+                        logger.info("Stored %s valid Lab sensor reading(s).", count)
+                except SensorIngestError as exc:
+                    logger.warning("Lab sensor collection failed: %s", exc)
+                except Exception:
+                    logger.exception("Unexpected Lab sensor collector error.")
+                time.sleep(poll_seconds)
+        except KeyboardInterrupt:
+            self.stdout.write("Sensor collector stopped.")
+
+    def _handle_thingspeak(self, options):
+        """Preserve the team's existing ThingSpeak/backfill implementation."""
         poll_seconds = options["poll_seconds"] or int(
             settings.SENSOR_INGEST_POLL_SECONDS
         )
@@ -65,9 +118,6 @@ class Command(BaseCommand):
                     self.style.SUCCESS(f"Startup reconciliation: {summary}")
                 )
             except SensorIngestError as exc:
-                # Historical backfill failure should not permanently prevent the
-                # daemon from starting; latest polling can recover and the next
-                # periodic reconciliation will retry history.
                 self.stderr.write(
                     self.style.WARNING(f"Startup reconciliation failed: {exc}")
                 )
@@ -87,7 +137,7 @@ class Command(BaseCommand):
 
         self.stdout.write(
             self.style.SUCCESS(
-                f"Leafy AI sensor collector started; poll={poll_seconds}s, "
+                f"Leafy AI ThingSpeak collector started; poll={poll_seconds}s, "
                 f"reconcile={reconcile_seconds}s."
             )
         )
