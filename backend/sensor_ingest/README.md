@@ -1,5 +1,36 @@
 # Leafy AI sensor_ingest
 
+`sensor_ingest` remains the backend integration boundary for physical telemetry.
+The team ThingSpeak implementation is preserved, and the Lab build adds a
+`lab_http` provider for the two direct ESP32 endpoints.
+
+Provider selection:
+
+- `SENSOR_INGEST_PROVIDER=lab_http` -> direct Lab endpoints.
+- `SENSOR_INGEST_PROVIDER=thingspeak` -> existing ThingSpeak/backfill flow.
+- If `SENSOR_INGEST_PROVIDER` is omitted, direct Lab mode is selected whenever
+  either `LEAFY_WATER_QUALITY_URL` or `LEAFY_AMBIENT_SENSOR_URL` is configured.
+
+## Lab HTTP data contract
+
+Seven readings are stored independently so one failed field/source never
+discards the other valid measurements:
+
+| Reading | Internal sensor slug | Unit |
+|---|---|---|
+| pH | `water_ph` | pH |
+| EC | `electrical_conductivity` | uS/cm |
+| Water temperature | `water_temperature` | °C |
+| Air temperature | `ambient_temperature` | °C |
+| Humidity | `relative_humidity` | % |
+| Dew point | `dew_point` | °C |
+| Water level | `reservoir_water_level` | cm |
+
+The existing ThingSpeak mapping, audit/reconciliation, health tracking, and
+backfill implementation remain available below.
+
+---
+
 `sensor_ingest` is the integration boundary between the project owner's external ThingSpeak telemetry channel and Leafy AI's internal Django database.
 
 It deliberately **does not** decide whether the farm is healthy or whether hardware should run. It only retrieves, validates, normalises, deduplicates, stores and monitors externally sourced observations. Operational interpretation belongs to `farm_state` and the safety/AI layers.
