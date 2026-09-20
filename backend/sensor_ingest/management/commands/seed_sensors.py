@@ -6,7 +6,7 @@ from telemetry.models import FarmDevice, Sensor
 
 
 class Command(BaseCommand):
-    help = "Create/update the six ThingSpeak physical sensor definitions."
+    help = "Create/update the Leafy AI physical sensor definitions."
 
     def add_arguments(self, parser):
         parser.add_argument("--device-slug", default=None)

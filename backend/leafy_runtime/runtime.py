@@ -20,8 +20,7 @@ def _sensor_worker():
     """
     Run the existing sensor_ingest management command.
 
-    collect_sensors already handles its own polling, reconciliation,
-    retries, duplicate protection, and failure backoff.
+    collect_sensors handles polling, local HTTP retries, and failure backoff.
     """
 
     # Give Django a moment to finish starting.
@@ -58,9 +57,8 @@ def _camera_worker():
     """
     Periodically ask camera_capture whether any configured Camera is due.
 
-    capture_due_once() already handles scheduling, archived Cameras,
-    active hours, capture intervals, lighting, RTSP capture, and
-    CameraImage persistence.
+    capture_due_once() handles scheduling, archived Cameras, active hours,
+    capture intervals, RTSP capture, quality checks, and CameraImage persistence.
     """
 
     interval = max(

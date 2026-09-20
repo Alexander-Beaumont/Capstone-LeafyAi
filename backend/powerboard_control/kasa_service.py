@@ -11,7 +11,6 @@ from .config import (
     KASA_RETRY_DELAY_SECONDS,
     KASA_RETRIES,
     KASA_USERNAME,
-    MAGENTA_LIGHT_DEVICE_IDS,
     MODE,
     POWERBOARDS,
 )
@@ -133,87 +132,6 @@ class PowerboardController:
                 f"Device {device_id} requested {requested} but hardware confirmed {'ON' if confirmed else 'OFF'}"
             )
         return self._status(device_id, confirmed)
-
-    async def _restore_magenta_on(self, board_key: str, board=None) -> None:
-        """Best-effort safety restore used only after an OFF failure."""
-        try:
-            if board is None:
-                board = await self._connect_board(board_key)
-            for device_id in MAGENTA_LIGHT_DEVICE_IDS:
-                if DEVICES[device_id]["board"] != board_key:
-                    continue
-                try:
-                    await self._plug_for(board, device_id).turn_on()
-                except Exception:
-                    pass
-            try:
-                await self._refresh_board(board_key, board)
-            except Exception:
-                pass
-        except Exception:
-            pass
-
-    async def get_magenta_state(self) -> dict[str, Any]:
-        """Return ON only when both configured magenta-light outlets are ON."""
-        board_keys = {DEVICES[device_id]["board"] for device_id in MAGENTA_LIGHT_DEVICE_IDS}
-        if len(board_keys) != 1:
-            raise RuntimeError("MAGENTA_LIGHT_DEVICE_IDS must currently map to one physical powerboard")
-        board_key = next(iter(board_keys))
-
-        async with self._lock:
-            board = await self._connect_board(board_key)
-            statuses = [
-                self._status(device_id, bool(self._plug_for(board, device_id).is_on))
-                for device_id in MAGENTA_LIGHT_DEVICE_IDS
-            ]
-
-        states = {row["state"] for row in statuses}
-        state = "ON" if states == {"ON"} else "OFF" if states == {"OFF"} else "MIXED"
-        return {"success": True, "state": state, "devices": statuses}
-
-    async def set_magenta_state(self, state: str) -> dict[str, Any]:
-        """Treat both grow-light outlets as one capture-lighting unit.
-
-        Both LeafyAI grow-light outlets are on the same KP303 in the locked hardware
-        mapping. We therefore discover/update that strip once, actuate both children,
-        then refresh once and confirm both. If OFF partially fails, both outlets are
-        restored ON before the API returns an error.
-        """
-        requested = state.upper().strip()
-        if requested not in {"ON", "OFF"}:
-            raise ValueError("state must be ON or OFF")
-
-        board_keys = {DEVICES[device_id]["board"] for device_id in MAGENTA_LIGHT_DEVICE_IDS}
-        if len(board_keys) != 1:
-            raise RuntimeError("MAGENTA_LIGHT_DEVICE_IDS must currently map to one physical powerboard")
-        board_key = next(iter(board_keys))
-
-        async with self._lock:
-            board = await self._connect_board(board_key)
-            try:
-                for device_id in MAGENTA_LIGHT_DEVICE_IDS:
-                    plug = self._plug_for(board, device_id)
-                    if requested == "ON":
-                        await plug.turn_on()
-                    else:
-                        await plug.turn_off()
-
-                board = await self._refresh_board(board_key, board)
-                results: list[dict[str, Any]] = []
-                for device_id in MAGENTA_LIGHT_DEVICE_IDS:
-                    confirmed = bool(self._plug_for(board, device_id).is_on)
-                    if confirmed != (requested == "ON"):
-                        raise RuntimeError(
-                            f"Device {device_id} requested {requested} but hardware confirmed "
-                            f"{'ON' if confirmed else 'OFF'}"
-                        )
-                    results.append(self._status(device_id, confirmed))
-            except Exception:
-                if requested == "OFF":
-                    await self._restore_magenta_on(board_key, board)
-                raise
-
-        return {"success": True, "state": requested, "devices": results}
 
     def _status(self, device_id: int, is_on: bool) -> dict[str, Any]:
         info = DEVICES[device_id]

@@ -1,12 +1,11 @@
-"""Thread-safe synchronous bridge to the async python-kasa controller.
+"""Thread-safe synchronous bridge to the async python-kasa controller."""
 
-Django views and Camera capture share one controller/event loop, so no internal
-HTTP service or extra Docker container is required.
-"""
 from __future__ import annotations
-import asyncio, threading
-from concurrent.futures import Future
+
+import asyncio
+import threading
 from typing import Any, Coroutine
+
 from .kasa_service import PowerboardController
 
 
@@ -15,8 +14,13 @@ class PowerboardBridge:
         self._loop = asyncio.new_event_loop()
         self._controller: PowerboardController | None = None
         self._ready = threading.Event()
-        self._thread = threading.Thread(target=self._run, name="leafy-powerboard-loop", daemon=True)
-        self._thread.start(); self._ready.wait(timeout=5)
+        self._thread = threading.Thread(
+            target=self._run,
+            name="leafy-powerboard-loop",
+            daemon=True,
+        )
+        self._thread.start()
+        self._ready.wait(timeout=5)
 
     def _run(self) -> None:
         asyncio.set_event_loop(self._loop)
@@ -34,14 +38,16 @@ class PowerboardBridge:
             raise RuntimeError("Powerboard runtime is not ready")
         return self._controller
 
-    def get_all_device_statuses(self): return self._call(self.controller.get_all_device_statuses())
-    def set_device_state(self, device_id: int, state: str): return self._call(self.controller.set_device_state(device_id, state))
-    def get_magenta_state(self): return self._call(self.controller.get_magenta_state())
-    def set_magenta_state(self, state: str): return self._call(self.controller.set_magenta_state(state))
+    def get_all_device_statuses(self):
+        return self._call(self.controller.get_all_device_statuses())
+
+    def set_device_state(self, device_id: int, state: str):
+        return self._call(self.controller.set_device_state(device_id, state))
 
 
 _BRIDGE: PowerboardBridge | None = None
 _LOCK = threading.Lock()
+
 
 def get_powerboard_bridge() -> PowerboardBridge:
     global _BRIDGE

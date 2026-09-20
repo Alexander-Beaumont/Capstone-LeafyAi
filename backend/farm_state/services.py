@@ -49,8 +49,8 @@ def sensor_trend(sensor, now):
 
     Suspect observations are retained in history but excluded from trend
     summaries so a physically implausible value cannot dominate an automated
-    trend calculation.  Unverified ThingSpeak values remain usable because the
-    current owner feed does not expose source validity flags.
+    trend calculation. Unverified values remain usable for sources that do not
+    provide a definitive hardware validity signal.
     """
 
     window_minutes = int(settings.FARM_STATE_SENSOR_TREND_WINDOW_MINUTES)
