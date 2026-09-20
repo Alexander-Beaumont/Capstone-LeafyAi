@@ -34,23 +34,12 @@ class NormalizedSnapshot:
 
 SENSOR_DEFINITIONS = (
     SensorDefinition("field1", "water_ph", "ph", "pH"),
-    SensorDefinition("field2", "electrical_conductivity", "ec", "uS/cm"),
+    SensorDefinition("field2", "electrical_conductivity", "ec", "µS/cm"),
     SensorDefinition("field3", "water_temperature", "water_temperature", "°C"),
     SensorDefinition("field4", "ambient_temperature", "ambient_temperature", "°C"),
     SensorDefinition("field5", "relative_humidity", "humidity", "%"),
     SensorDefinition("field6", "reservoir_water_level", "water_level", "cm"),
 )
-
-# Direct Lab HTTP adds dew point while preserving the team's existing six
-# ThingSpeak sensor definitions and field mapping.
-DEW_POINT_SENSOR_DEFINITION = SensorDefinition(
-    "lab_dew_point",
-    "dew_point",
-    "dew_point",
-    "°C",
-)
-LAB_SENSOR_DEFINITIONS = SENSOR_DEFINITIONS + (DEW_POINT_SENSOR_DEFINITION,)
-ALL_SENSOR_DEFINITIONS = LAB_SENSOR_DEFINITIONS
 
 SENSOR_DEFINITIONS_BY_FIELD = {
     definition.field_name: definition for definition in SENSOR_DEFINITIONS
@@ -59,9 +48,6 @@ SENSOR_DEFINITIONS_BY_SLUG = {
     definition.slug: definition for definition in SENSOR_DEFINITIONS
 }
 REQUIRED_SENSOR_SLUGS = tuple(definition.slug for definition in SENSOR_DEFINITIONS)
-LAB_REQUIRED_SENSOR_SLUGS = tuple(
-    definition.slug for definition in LAB_SENSOR_DEFINITIONS
-)
 MAX_STORABLE_ABS_VALUE = Decimal("100000000")  # DECIMAL(12,4) upper magnitude
 
 
