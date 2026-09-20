@@ -9,7 +9,14 @@ class FakeBackend:
     def get_latest_image(self, camera_id):
         return None
 
-    def upload_official_image(self, camera_id, jpeg_bytes, *, captured_at):
+    def upload_official_image(
+        self,
+        camera_id,
+        jpeg_bytes,
+        *,
+        captured_at,
+        quality,
+    ):        
         assert jpeg_bytes == b"jpeg"
         return {"image_id": 99, "camera_id": camera_id}
 

@@ -50,7 +50,6 @@ from zoneinfo import ZoneInfo
 from .camera_client import capture_fresh_frame, encode_jpeg
 from .quality import assess_image_quality
 from .lighting_client import LightingController
-from backend.camera_capture import quality
 
 
 @dataclass(frozen=True)
@@ -248,7 +247,16 @@ class CameraCollector:
             height,
             quality,
         )
-    def _capture_official_jpeg(self, camera: dict[str, Any]) -> tuple[bytes, datetime, int, int]:
+    def _capture_official_jpeg(
+            self,
+            camera: dict[str, Any],
+            ) -> tuple[
+                bytes,
+                datetime,
+                int,
+                int,
+                dict[str, Any],
+            ]:
         """Ensure magenta lighting is ON for capture, then restore exact prior state."""
         previous_state: str | None = None
         capture_completed = False
@@ -270,31 +278,63 @@ class CameraCollector:
     def _upload_capture(
         self,
         camera: dict[str, Any],
-        capture: tuple[bytes, datetime, int, int],
+        capture: tuple[
+            bytes,
+            datetime,
+            int,
+            int,
+            dict[str, Any],
+        ],
     ) -> bool:
         """Persist one already-encoded capture after lighting has been restored."""
-        camera_id = camera.get("id", camera.get("camera_id"))
-        jpeg_bytes, captured_at, width, height = capture    
+        camera_id = camera.get(
+            "id",
+            camera.get("camera_id"),
+        )
+
+        (
+            jpeg_bytes,
+            captured_at,
+            width,
+            height,
+            quality,
+        ) = capture
+
         response = self.backend.upload_official_image(
             camera_id,
             jpeg_bytes,
             captured_at=captured_at,
             quality=quality,
         )
-        response_camera_id = response.get("camera_id")
-        if response_camera_id is not None and str(response_camera_id) != str(camera_id):
+
+        response_camera_id = response.get(
+            "camera_id"
+        )
+
+        if (
+            response_camera_id is not None
+            and str(response_camera_id)
+            != str(camera_id)
+        ):
             raise ValueError(
-                f"official-image response camera mismatch: sent Camera {camera_id}, "
+                f"official-image response camera mismatch: "
+                f"sent Camera {camera_id}, "
                 f"received camera_id={response_camera_id}"
             )
-        image_id = response.get("image_id", response.get("id", "?"))
+
+        image_id = response.get(
+            "image_id",
+            response.get("id", "?"),
+        )
+
         print(
             f"Camera {camera_id}: stored "
             f"{width}x{height} JPEG "
             f"-> CameraImage {image_id}; "
             f"quality={quality['quality_status']}; "
             f"vlm_ready={quality['vlm_ready']}."
-        )       
+        )
+
         return True
 
     def process_camera(self, camera: dict[str, Any], *, force: bool = False) -> bool:
@@ -324,7 +364,18 @@ class CameraCollector:
         due: list[tuple[dict[str, Any], CaptureDecision]],
     ) -> int:
         """Capture all due Cameras while magenta lighting is ON, then restore prior state."""
-        captures: list[tuple[dict[str, Any], tuple[bytes, datetime, int, int]]] = []
+        captures: list[
+            tuple[
+                dict[str, Any],
+                tuple[
+                    bytes,
+                    datetime,
+                    int,
+                    int,
+                    dict[str, Any],
+                ],
+            ]
+        ] = []        
         previous_state: str | None = None
         try:
             if self.lighting is not None:
