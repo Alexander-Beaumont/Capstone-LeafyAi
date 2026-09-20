@@ -1,12 +1,8 @@
 """AI provider/model configuration.
 
-Provider and model selection is driven by environment variables so the
-application can switch between cloud (OpenRouter) and local (Ollama) models
-without changing code. A repo-root .env file is loaded automatically before
-these values are read.
-
-If neither the shell nor .env sets AI_PROVIDER, the default provider is
-"mock", which requires no API key and no network.
+Provider/model/key selection for recommendation runs is stored per farm in the
+database. This module retains deployment-controlled provider base URLs and
+legacy defaults used by direct provider-factory callers.
 """
 
 import os
@@ -71,8 +67,8 @@ OLLAMA_BASE_URL = os.environ.get(
 )
 OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "llama3.2")
 
-# Vision-language model. It deliberately shares the OpenRouter connection
-# settings with the text model while allowing an independently selected model.
+# Legacy/default vision-language settings used only when no per-farm
+# configuration object is supplied to the provider factory.
 VLM_PROVIDER = os.environ.get("VLM_PROVIDER", "openrouter").lower()
 VLM_MODEL = os.environ.get("VLM_MODEL", "qwen/qwen3-vl-8b-instruct")
 VLM_REQUEST_TIMEOUT_SECONDS = int(

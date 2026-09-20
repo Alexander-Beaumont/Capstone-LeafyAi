@@ -120,12 +120,9 @@ class Camera(models.Model):
     rtsp_path = models.CharField(max_length=255, blank=True, null=True)
     webcam_index = models.IntegerField(blank=True, null=True)
     enabled = models.BooleanField(default=True)
-    cv_enabled = models.BooleanField(default=True)
     capture_interval_minutes = models.PositiveIntegerField(default=30)
     active_start_time = models.TimeField(blank=True, null=True)
     active_end_time = models.TimeField(blank=True, null=True)
-    roi_points = models.JSONField(blank=True, null=True)
-    growth_baseline_reset_at = models.DateTimeField(null=True, blank=True)
 
 
 class CameraImage(models.Model):

@@ -71,7 +71,7 @@ INSTALLED_APPS = [
     "cv",
     "telemetry",
     "sensor_ingest",
-    "ai_agent",
+    "ai_agent.apps.AiAgentConfig",
     "farm_state",
     "growth",
     "accounts",

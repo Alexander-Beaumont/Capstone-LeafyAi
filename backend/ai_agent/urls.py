@@ -12,9 +12,13 @@ router.register(r'safety-checks', views.SafetyCheckViewSet)
 
 
 urlpatterns = [
-    path(
-        "ai-agent/recommend/",
-        views.recommend,
-        name="ai-recommend",
-    ),
+    path("ai-agent/recommend/", views.recommend, name="ai-recommend"),
+    path("ai-agent/farms/<int:farm_id>/settings/", views.farm_settings, name="ai-farm-settings"),
+    path("ai-agent/farms/<int:farm_id>/providers/test/", views.test_provider, name="ai-provider-test"),
+    path("ai-agent/farms/<int:farm_id>/actuators/", views.actuator_collection, name="ai-actuators"),
+    path("ai-agent/farms/<int:farm_id>/actuators/<int:actuator_id>/", views.actuator_detail, name="ai-actuator-detail"),
+    path("ai-agent/farms/<int:farm_id>/actuators/<int:actuator_id>/test/", views.test_actuator, name="ai-actuator-test"),
+    path("ai-agent/farms/<int:farm_id>/recommendations/generate/", views.generate_for_farm, name="ai-generate"),
+    path("ai-agent/farms/<int:farm_id>/recommendations/latest/", views.latest_recommendations, name="ai-latest"),
+    path("ai-agent/farms/<int:farm_id>/recommendations/recent/", views.recent_recommendations, name="ai-recent"),
 ]

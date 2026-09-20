@@ -1,35 +1,13 @@
-"""Parse the model's raw response into AIDecision fields."""
+"""Strict parsing for a multi-recommendation model response."""
 
 import json
 import re
 
 
 class Recommendation:
-    """A parsed recommendation.
-
-    Attributes:
-        decision_type: str
-        recommendation: str
-        explanation: str
-        confidence: float (0-1) or None
-        used_fallback: bool — True if the model output was not valid JSON
-                       and the raw text was kept as the recommendation.
-    """
-
-    def __init__(
-        self,
-        decision_type,
-        recommendation,
-        explanation,
-        confidence,
-        used_fallback,
-        execution_type="notification",
-        target_device="none",
-        device_state="none",
-        category="alert",
-    ):
+    def __init__(self, device_id, decision_type, target_device, device_state, category, recommendation, explanation, confidence, used_fallback=False):
+        self.device_id = device_id
         self.decision_type = decision_type or "alert"
-        self.execution_type = execution_type or "notification"
         self.target_device = target_device or "none"
         self.device_state = device_state or "none"
         self.category = category or "alert"
@@ -38,8 +16,13 @@ class Recommendation:
         self.confidence = confidence
         self.used_fallback = used_fallback
 
+    @property
+    def execution_type(self):
+        return "automated" if self.target_device in {"fans", "light"} and self.device_state in {"on", "off"} else "notification"
+
     def as_dict(self):
         return {
+            "device_id": self.device_id,
             "decision_type": self.decision_type,
             "execution_type": self.execution_type,
             "target_device": self.target_device,
@@ -52,61 +35,52 @@ class Recommendation:
 
 
 def _strip_code_fence(raw):
-    """Remove an optional markdown ```json ... ``` fence around JSON."""
-    text = raw.strip()
+    text = (raw or "").strip()
     match = re.match(r"^```(?:json)?\s*(.*?)\s*```$", text, re.DOTALL)
     return match.group(1) if match else text
 
 
-def _clamp_confidence(value):
-    """Return a float in [0, 1] (or None if the value is not usable)."""
+def _confidence(value):
     try:
-        number = float(value)
+        return max(0.0, min(1.0, float(value)))
     except (TypeError, ValueError):
         return None
-    return max(0.0, min(1.0, number))
+
+
+def parse_recommendations(raw, default_device_id=None):
+    text = _strip_code_fence(raw)
+    try:
+        payload = json.loads(text)
+    except (json.JSONDecodeError, TypeError):
+        raise ValueError("Model output was not valid JSON.")
+    if not isinstance(payload, dict) or not isinstance(payload.get("recommendations"), list):
+        raise ValueError("Model output must contain a recommendations list.")
+    if not payload["recommendations"]:
+        raise ValueError("Model output contained no recommendations.")
+
+    recommendations = []
+    for index, item in enumerate(payload["recommendations"]):
+        if not isinstance(item, dict) or not str(item.get("recommendation") or "").strip():
+            raise ValueError(f"Recommendation {index} is invalid.")
+        recommendations.append(
+            Recommendation(
+                device_id=item.get("device_id") or default_device_id,
+                decision_type=str(item.get("decision_type") or "alert"),
+                target_device=str(item.get("target_device") or "none"),
+                device_state=str(item.get("device_state") or "none"),
+                category=str(item.get("category") or "alert"),
+                recommendation=str(item["recommendation"]),
+                explanation=str(item.get("explanation") or ""),
+                confidence=_confidence(item.get("confidence")),
+            )
+        )
+    observations = payload.get("image_observations") or []
+    if not isinstance(observations, list):
+        observations = []
+    return observations, recommendations
 
 
 def parse_recommendation(raw):
-    """Convert a raw model response into a Recommendation.
-
-    Best effort: if the model returns valid JSON (optionally fenced), map it
-    to the AIDecision fields. Otherwise fall back to treating the whole text
-    as the recommendation.
-    """
-    if raw is None:
-        return Recommendation("alert", "", "", None, used_fallback=True)
-
-    text = _strip_code_fence(raw)
-
-    try:
-        data = json.loads(text)
-    except json.JSONDecodeError:
-        return Recommendation(
-            decision_type="alert",
-            recommendation=text,
-            explanation="Model output was not valid JSON; stored as text.",
-            confidence=None,
-            used_fallback=True,
-        )
-
-    if not isinstance(data, dict):
-        return Recommendation(
-            decision_type="alert",
-            recommendation=text,
-            explanation="Model output was not a JSON object; stored as text.",
-            confidence=None,
-            used_fallback=True,
-        )
-
-    return Recommendation(
-        decision_type=str(data.get("decision_type") or "alert"),
-        execution_type=str(data.get("execution_type") or "notification"),
-        target_device=str(data.get("target_device") or "none"),
-        device_state=str(data.get("device_state") or "none"),
-        category=str(data.get("category") or "alert"),
-        recommendation=str(data.get("recommendation", "")),
-        explanation=str(data.get("explanation", "")),
-        confidence=_clamp_confidence(data.get("confidence")),
-        used_fallback=False,
-    )
+    """Compatibility helper returning the first item."""
+    _, items = parse_recommendations(raw)
+    return items[0]

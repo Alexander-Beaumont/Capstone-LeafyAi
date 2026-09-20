@@ -14,7 +14,7 @@ RELEVANT_SENSORS = {
     "water": ("water_level", "water_temperature"),
 }
 VALID_CATEGORIES = {"climate", "lighting", "dosing", "water", "harvest", "alert"}
-VALID_TARGETS = {"fans", "light", "none"}
+VALID_TARGETS = {"fans", "light", "irrigation_pump", "nutrient_doser", "ph_doser", "none"}
 VALID_STATES = {"on", "off", "none"}
 
 
@@ -116,8 +116,9 @@ def evaluate_safety(decision, farm_state, config=None):
         failures.append("AI confidence is missing.")
     elif confidence < CONFIDENCE_THRESHOLD:
         failures.append(f"AI confidence {confidence} is below {CONFIDENCE_THRESHOLD}.")
-    if decision.execution_type != "notification":
-        failures.append("This release only permits notification recommendations.")
+    expected_execution = "automated" if decision.target_device in {"fans", "light"} else "notification"
+    if decision.execution_type != expected_execution:
+        failures.append(f"Target {decision.target_device} must use execution type {expected_execution}.")
     if decision.category not in VALID_CATEGORIES:
         failures.append(f"Unknown recommendation category: {decision.category}.")
     if decision.target_device not in VALID_TARGETS:
@@ -126,14 +127,14 @@ def evaluate_safety(decision, farm_state, config=None):
         failures.append(f"Unknown target state: {decision.device_state}.")
     if decision.target_device == "none" and decision.device_state != "none":
         failures.append("A recommendation without a target device must use state 'none'.")
-    if decision.target_device != "none" and decision.device_state not in {"on", "off"}:
-        failures.append("Fan/light recommendations must specify an on/off state.")
+    if decision.target_device in {"fans", "light"} and decision.device_state not in {"on", "off"}:
+        failures.append("Automated fan/light recommendations must specify an on/off state.")
     if decision.target_device == "fans" and decision.category != "climate":
         failures.append("Fan target metadata is only valid for climate recommendations.")
     if decision.target_device == "light" and decision.category != "lighting":
         failures.append("Light target metadata is only valid for lighting recommendations.")
-    if decision.category in {"dosing", "water", "harvest"} and (decision.target_device != "none" or decision.device_state != "none"):
-        failures.append("High-risk notifications cannot contain executable target metadata.")
+    if decision.target_device in {"irrigation_pump", "nutrient_doser", "ph_doser"} and decision.execution_type != "notification":
+        failures.append("Pump and doser recommendations must remain notification-only.")
 
     device_state = _device_state(farm_state, decision.device_id)
     if device_state is None:

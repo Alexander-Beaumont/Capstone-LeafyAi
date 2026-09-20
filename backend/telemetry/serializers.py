@@ -74,13 +74,10 @@ class CameraSerializer(serializers.ModelSerializer):
             "rtsp_port",
             "rtsp_path",
             "webcam_index",
-            "roi_points",
             "enabled",
-            "cv_enabled",
             "capture_interval_minutes",
             "active_start_time",
             "active_end_time",
-            "growth_baseline_reset_at",
         ]
 
 
