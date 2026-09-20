@@ -44,7 +44,7 @@ def test_lighting_restored_after_success(monkeypatch):
         sleep_fn=sleeps.append,
     )
 
-    assert collector.process_camera({"id": 1, "enabled": True, "cv_enabled": True})
+    assert collector.process_camera({"id": 1, "enabled": True})
     assert lighting.calls == ["OFF", "ON"]
     assert sleeps == [2.0, 1.0]
 

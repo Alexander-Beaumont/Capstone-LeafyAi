@@ -2,20 +2,20 @@
 
 ## Ownership
 
-This is a standalone acquisition service. It does not import Django models and it does not run LeafyCV.
+This is a standalone acquisition service. It does not import Django models or run image analysis.
 
 ```text
-Lighting/Switch <-> Camera service -> Django Backend -> CameraImage -> LeafyCV
+Lighting/Switch <-> Camera service -> Django Backend -> raw CameraImage -> VLM
 ```
 
 The Camera service reads Camera source/schedule configuration from the Backend and uploads official JPEGs. The lighting teammate owns the actual relay/GPIO/ESP32 implementation.
 
-## Backend APIs - unchanged
+## Backend APIs
 
 ```text
 GET  /api/cameras/
 GET  /api/cameras/{camera_id}/
-GET  /api/cv/cameras/{camera_id}/latest-image/
+GET  /api/cameras/{camera_id}/latest-image/
 POST /api/cameras/{camera_id}/official-image/
 ```
 
@@ -26,7 +26,7 @@ POST /api/cameras/{camera_id}/official-image/
 For each Camera:
 
 ```text
-enabled && cv_enabled && inside active window
+enabled && inside active window
     AND
 (no latest official image
  OR now - latest_image.captured_at >= capture_interval_minutes)
@@ -104,7 +104,7 @@ For MVP, run **one active Camera scheduler process**. Two scheduler processes ca
 - One Camera capture fails -> continue the other due Cameras, then restore ON.
 - ON not confirmed -> treat the lighting sequence as failed; do not silently upload the batch as successful.
 - Upload failure -> no new CameraImage exists; the Camera remains overdue and can retry next poll.
-- LeafyCV quality FAIL is separate from Camera operational failure.
+- AI/VLM recommendation failure is separate from Camera operational failure.
 
 ## Run
 
@@ -123,6 +123,4 @@ python -m camera.main --once --camera-id 1 --force
 
 `--force` is allowed only with `--once`.
 
-## Growth-baseline boundary
-
-Plant replacement/rearrangement and `growth_baseline_reset_at` do **not** change Camera scheduling. The Camera service still decides capture timing only from the latest official `CameraImage`, interval, enabled flags, and active window. Baseline reset is stored by Backend and consumed by LeafyCV when calculating `growth_change`.
+Plant replacement/rearrangement does **not** change Camera scheduling. The Camera service decides capture timing only from the latest official `CameraImage`, interval, enabled flag, and active window.

@@ -1,6 +1,6 @@
 """Environment-backed configuration for the standalone Camera service.
 
-Backend camera configuration (RTSP source, schedule, enabled state, ROI, etc.)
+Backend camera configuration (RTSP source, schedule, enabled state, etc.)
 stays in Django.  Environment variables in this module are only for service
 runtime concerns such as credentials, HTTP timeouts, JPEG quality, and the
 optional lighting controller connection.

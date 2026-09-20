@@ -15,7 +15,6 @@ class FakeBackend:
             {
                 "id": 1,
                 "enabled": True,
-                "cv_enabled": True,
                 "capture_interval_minutes": 30,
                 "active_start_time": None,
                 "active_end_time": None,
@@ -23,7 +22,6 @@ class FakeBackend:
             {
                 "id": 2,
                 "enabled": True,
-                "cv_enabled": True,
                 "capture_interval_minutes": 60,
                 "active_start_time": None,
                 "active_end_time": None,

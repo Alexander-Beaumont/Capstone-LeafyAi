@@ -127,7 +127,7 @@ def capture_decision(
     """Decide whether one Camera is due using the final latest-image rule.
 
     The decision order is intentionally simple:
-    1. Camera and CV capture must both be enabled.
+    1. Camera capture must be enabled.
     2. Current time must be inside the Camera's active window.
     3. If no official image exists, capture now.
     4. Otherwise compare elapsed time with capture_interval_minutes.
@@ -137,9 +137,6 @@ def capture_decision(
     """
     if not bool(camera.get("enabled", True)):
         return CaptureDecision(False, "camera disabled")
-    if not bool(camera.get("cv_enabled", True)):
-        return CaptureDecision(False, "CV capture disabled")
-
     start = _parse_time(camera.get("active_start_time"))
     end = _parse_time(camera.get("active_end_time"))
     if not _inside_window(now_local, start, end):

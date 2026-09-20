@@ -1,4 +1,10 @@
-from rest_framework import viewsets
+from django.shortcuts import get_object_or_404
+from django.utils import timezone
+from django.utils.dateparse import parse_datetime
+from rest_framework import status, viewsets
+from rest_framework.decorators import api_view, parser_classes
+from rest_framework.parsers import FormParser, MultiPartParser
+from rest_framework.response import Response
 
 from telemetry.models import (
     ActuatorStateObservation,
@@ -115,3 +121,35 @@ class DoserViewSet(viewsets.ModelViewSet):
 class SafeRangeViewSet(viewsets.ModelViewSet):
     queryset = SafeRange.objects.all()
     serializer_class = SafeRangeSerializer
+
+
+@api_view(["POST"])
+@parser_classes([MultiPartParser, FormParser])
+def official_image(request, camera_id):
+    """Persist one raw official camera image without running CV analysis."""
+    camera = get_object_or_404(Camera, id=camera_id)
+    image_file = request.FILES.get("image")
+    if not image_file:
+        return Response({"detail": "image is required"}, status=status.HTTP_400_BAD_REQUEST)
+    captured_value = request.data.get("captured_at")
+    captured_at = parse_datetime(str(captured_value)) if captured_value else timezone.now()
+    if captured_at is None:
+        return Response(
+            {"detail": "captured_at must be a valid ISO 8601 datetime"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    image = CameraImage.objects.create(camera=camera, captured_at=captured_at, path=image_file)
+    payload = CameraImageSerializer(image, context={"request": request}).data
+    payload.update({"image_id": image.id, "camera_id": camera.id, "image_url": payload.get("path")})
+    return Response(payload, status=status.HTTP_201_CREATED)
+
+
+@api_view(["GET"])
+def latest_image(request, camera_id):
+    camera = get_object_or_404(Camera, id=camera_id)
+    image = CameraImage.objects.filter(camera=camera).order_by("-captured_at", "-id").first()
+    if image is None:
+        return Response({"detail": "No image found for this camera."}, status=status.HTTP_404_NOT_FOUND)
+    payload = CameraImageSerializer(image, context={"request": request}).data
+    payload.update({"image_id": image.id, "camera_id": camera.id, "image_url": payload.get("path")})
+    return Response(payload)

@@ -1,3 +1,4 @@
+from django.urls import path
 from rest_framework.routers import DefaultRouter
 
 from telemetry import views
@@ -23,3 +24,8 @@ router.register(r"setpoint-observations", views.SetpointObservationViewSet)
 router.register(r"nutrient-tanks", views.NutrientTankViewSet)
 router.register(r"dosers", views.DoserViewSet)
 router.register(r"safe-ranges", views.SafeRangeViewSet)
+
+urlpatterns = [
+    path("cameras/<int:camera_id>/official-image/", views.official_image, name="official-image"),
+    path("cameras/<int:camera_id>/latest-image/", views.latest_image, name="latest-camera-image"),
+]

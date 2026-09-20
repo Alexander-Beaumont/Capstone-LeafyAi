@@ -4,12 +4,12 @@ from decimal import Decimal
 from django.conf import settings
 from django.utils import timezone
 
-from cv.models import ImageAnalysis
 from farm_state.thresholds import FRESH_THRESHOLD_SECONDS
 from telemetry.models import (
     ActuatorStateObservation,
     BatchPlacement,
     Camera,
+    CameraImage,
     FarmDevice,
     FarmLevel,
     GrowingArea,
@@ -106,11 +106,10 @@ def sensor_trend(sensor, now):
     }
 
 
-def latest_analysis(camera):
+def latest_image(camera):
     return (
-        ImageAnalysis.objects.filter(image__camera=camera)
-        .select_related("image")
-        .order_by("-image__captured_at", "-id")
+        CameraImage.objects.filter(camera=camera)
+        .order_by("-captured_at", "-id")
         .first()
     )
 
@@ -130,50 +129,25 @@ def tank_info(device):
 
 
 def _camera_state(camera, now):
-    analysis = latest_analysis(camera)
-    if analysis is None:
+    image = latest_image(camera)
+    if image is None:
         return {
             "camera_id": camera.id,
             "name": camera.name,
             "status": "missing",
-            "analysis": None,
+            "image_id": None,
+            "as_of": None,
+            "age_seconds": None,
         }
 
-    as_of = analysis.image.captured_at
+    as_of = image.captured_at
     return {
         "camera_id": camera.id,
         "name": camera.name,
-        "measurement_valid": analysis.measurement_valid,
-        "total_canopy_coverage": (
-            float(analysis.total_canopy_coverage)
-            if analysis.total_canopy_coverage is not None
-            else None
-        ),
-        "growth_change": (
-            float(analysis.growth_change)
-            if analysis.growth_change is not None
-            else None
-        ),
-        "crowding_percentage": (
-            float(analysis.crowding_percentage)
-            if analysis.crowding_percentage is not None
-            else None
-        ),
-        "green_percentage": (
-            float(analysis.green_percentage)
-            if analysis.green_percentage is not None
-            else None
-        ),
-        "yellow_percentage": (
-            float(analysis.yellow_percentage)
-            if analysis.yellow_percentage is not None
-            else None
-        ),
         "as_of": as_of.isoformat(),
         "age_seconds": max(0, round((now - as_of).total_seconds())),
         "status": _status_for(as_of, now),
-        "analysis_id": analysis.id,
-        "image_id": analysis.image_id,
+        "image_id": image.id,
     }
 
 

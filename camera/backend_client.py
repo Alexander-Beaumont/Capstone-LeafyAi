@@ -121,7 +121,7 @@ class BackendClient:
 
     def get_latest_image(self, camera_id: Any) -> dict[str, Any] | None:
         """Read the newest official CameraImage for scheduling decisions."""
-        response = self.request("GET", f"/api/cv/cameras/{camera_id}/latest-image/")
+        response = self.request("GET", f"/api/cameras/{camera_id}/latest-image/")
         if response.status_code == 404:
             return None
         response.raise_for_status()
