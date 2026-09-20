@@ -334,16 +334,25 @@ class CameraSerializer(serializers.ModelSerializer):
 
         return attrs
 
-class CameraImageSerializer(serializers.ModelSerializer):
+class CameraImageSerializer(
+    serializers.ModelSerializer
+):
     class Meta:
         model = CameraImage
-        fields = ["id", "camera", "captured_at", "path"]
-        read_only_fields = [
+
+        fields = [
             "id",
             "camera",
             "captured_at",
             "path",
+            "vlm_ready",
+            "quality_status",
+            "quality_flags",
+            "quality_message",
+            "quality_metrics",
         ]
+
+        read_only_fields = fields
 
 
 class SensorSerializer(serializers.ModelSerializer):

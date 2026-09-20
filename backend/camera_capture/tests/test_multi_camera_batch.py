@@ -33,9 +33,22 @@ class FakeBackend:
     def get_latest_image(self, camera_id):
         return None
 
-    def upload_official_image(self, camera_id, jpeg_bytes, *, captured_at):
-        self.uploaded.append(camera_id)
-        return {"image_id": 100 + camera_id, "camera_id": camera_id}
+    def upload_official_image(
+        self,
+        camera_id,
+        jpeg_bytes,
+        *,
+        captured_at,
+        quality,
+    ):
+        self.uploaded.append(
+            camera_id
+        )
+
+        return {
+            "image_id": 100 + camera_id,
+            "camera_id": camera_id,
+        }
 
 
 class FakeLighting:

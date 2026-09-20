@@ -48,7 +48,9 @@ from typing import Any, Callable
 from zoneinfo import ZoneInfo
 
 from .camera_client import capture_fresh_frame, encode_jpeg
+from .quality import assess_image_quality
 from .lighting_client import LightingController
+from backend.camera_capture import quality
 
 
 @dataclass(frozen=True)
@@ -212,7 +214,13 @@ class CameraCollector:
     def _capture_and_encode(
         self,
         camera: dict[str, Any],
-    ) -> tuple[bytes, datetime, int, int]:
+    ) -> tuple[
+        bytes,
+        datetime,
+        int,
+        int,
+        dict[str, Any],
+    ]:
         """Capture one fresh frame and freeze the official JPEG bytes in memory."""
         frame = capture_fresh_frame(
             camera,
@@ -221,10 +229,25 @@ class CameraCollector:
             default_rtsp_password=self.default_rtsp_password,
         )
         captured_at = datetime.now(self.zone)
-        height, width = frame.shape[:2]
-        jpeg_bytes = encode_jpeg(frame, jpeg_quality=self.jpeg_quality)
-        return jpeg_bytes, captured_at, width, height
 
+        height, width = frame.shape[:2]
+
+        quality = assess_image_quality(
+            frame
+        )
+
+        jpeg_bytes = encode_jpeg(
+            frame,
+            jpeg_quality=self.jpeg_quality,
+        )
+
+        return (
+            jpeg_bytes,
+            captured_at,
+            width,
+            height,
+            quality,
+        )
     def _capture_official_jpeg(self, camera: dict[str, Any]) -> tuple[bytes, datetime, int, int]:
         """Ensure magenta lighting is ON for capture, then restore exact prior state."""
         previous_state: str | None = None
@@ -251,11 +274,12 @@ class CameraCollector:
     ) -> bool:
         """Persist one already-encoded capture after lighting has been restored."""
         camera_id = camera.get("id", camera.get("camera_id"))
-        jpeg_bytes, captured_at, width, height = capture
+        jpeg_bytes, captured_at, width, height = capture    
         response = self.backend.upload_official_image(
             camera_id,
             jpeg_bytes,
             captured_at=captured_at,
+            quality=quality,
         )
         response_camera_id = response.get("camera_id")
         if response_camera_id is not None and str(response_camera_id) != str(camera_id):
@@ -264,7 +288,13 @@ class CameraCollector:
                 f"received camera_id={response_camera_id}"
             )
         image_id = response.get("image_id", response.get("id", "?"))
-        print(f"Camera {camera_id}: stored {width}x{height} JPEG -> CameraImage {image_id}.")
+        print(
+            f"Camera {camera_id}: stored "
+            f"{width}x{height} JPEG "
+            f"-> CameraImage {image_id}; "
+            f"quality={quality['quality_status']}; "
+            f"vlm_ready={quality['vlm_ready']}."
+        )       
         return True
 
     def process_camera(self, camera: dict[str, Any], *, force: bool = False) -> bool:
