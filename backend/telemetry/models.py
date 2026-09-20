@@ -127,9 +127,37 @@ class Camera(models.Model):
     is_archived = models.BooleanField(default=False)
 
 class CameraImage(models.Model):
-    camera = models.ForeignKey(Camera, on_delete=models.PROTECT)
+    camera = models.ForeignKey(
+        Camera,
+        on_delete=models.PROTECT,
+    )
+
     captured_at = models.DateTimeField()
-    path = models.ImageField(upload_to="camera_images/")
+
+    path = models.ImageField(
+        upload_to="camera_images/"
+    )
+
+    vlm_ready = models.BooleanField(
+        default=False
+    )
+
+    quality_status = models.CharField(
+        max_length=16,
+        default="UNKNOWN",
+    )
+
+    quality_flags = models.JSONField(
+        default=list
+    )
+
+    quality_message = models.TextField(
+        default=""
+    )
+
+    quality_metrics = models.JSONField(
+        default=dict
+    )
 
 
 class Sensor(models.Model):
