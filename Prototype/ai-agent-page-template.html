@@ -1,0 +1,371 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LeafyAI — AI Agent page concept</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0f0f0f;
+      --panel: #151515;
+      --panel-2: #1a1a1a;
+      --panel-3: #202020;
+      --border: #303030;
+      --text: #f2f2f2;
+      --muted: #aaa;
+      --muted-2: #737373;
+      --green: #10b981;
+      --green-soft: #052f25;
+      --lime: #84cc16;
+      --amber: #f59e0b;
+      --amber-soft: #332207;
+      --red: #ef4444;
+      --red-soft: #371111;
+      --blue: #60a5fa;
+      --radius: 13px;
+      --shadow: 0 20px 55px rgba(0, 0, 0, .22);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); min-height: 100vh; }
+    button, input, select { font: inherit; }
+    button { color: inherit; }
+    svg { display: block; }
+
+    .shell { min-height: 100vh; }
+    .sidebar {
+      position: fixed; inset: 0 auto 0 0; width: 210px; padding: 20px 10px 14px;
+      border-right: 1px solid var(--border); background: #121212; display: flex;
+      flex-direction: column; z-index: 10;
+    }
+    .brand { font-size: 21px; font-weight: 760; padding: 0 12px 32px; letter-spacing: -.4px; }
+    .brand span { color: var(--green); }
+    .nav { display: flex; flex-direction: column; gap: 7px; }
+    .nav.bottom { margin-top: auto; }
+    .nav-item {
+      display: flex; gap: 11px; align-items: center; border: 0; width: 100%; padding: 11px 12px;
+      background: transparent; color: var(--muted); border-radius: 8px; text-align: left; cursor: pointer;
+    }
+    .nav-item:hover { background: var(--panel-3); color: var(--text); }
+    .nav-item.active { background: var(--green); color: #06251c; font-weight: 700; }
+    .nav-icon { width: 20px; text-align: center; }
+
+    main { margin-left: 210px; padding: 28px; }
+    .page { width: min(1180px, 100%); margin: 0 auto; }
+    .panel { border: 1px solid var(--border); background: var(--panel); border-radius: var(--radius); box-shadow: var(--shadow); }
+    .page-head { padding: 17px 18px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+    .title-wrap { display: flex; align-items: center; gap: 13px; }
+    .title-icon { width: 39px; height: 39px; display: grid; place-items: center; background: var(--panel-2); border: 1px solid var(--border); border-radius: 9px; color: var(--green); }
+    h1 { font-size: clamp(24px, 3vw, 31px); margin: 0; letter-spacing: -.6px; }
+    .head-actions { display: flex; align-items: center; gap: 10px; }
+    .status { display: inline-flex; gap: 8px; align-items: center; color: var(--muted); font-size: 13px; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 4px rgba(16,185,129,.11); }
+    .btn { border: 1px solid var(--border); border-radius: 8px; padding: 9px 13px; background: var(--panel-2); cursor: pointer; font-weight: 680; }
+    .btn:hover { border-color: #4a4a4a; transform: translateY(-1px); }
+    .btn.primary { background: var(--green); border-color: var(--green); color: #05251b; }
+    .btn.small { padding: 7px 10px; font-size: 12px; }
+    .btn:disabled { opacity: .55; cursor: progress; transform: none; }
+
+    .tabs { display: flex; gap: 6px; padding: 18px 0 14px; border-bottom: 1px solid var(--border); margin-bottom: 18px; }
+    .tab { border: 0; color: var(--muted); background: transparent; padding: 8px 13px; border-radius: 8px; cursor: pointer; }
+    .tab.active { background: var(--panel-3); color: var(--text); }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 13px; margin-bottom: 16px; }
+    .metric { padding: 15px; min-height: 91px; }
+    .metric-label { color: var(--muted-2); font-size: 12px; margin-bottom: 10px; }
+    .metric-value { font-size: 17px; font-weight: 720; display: flex; align-items: center; gap: 7px; }
+    .metric-note { font-size: 11px; color: var(--muted); margin-top: 6px; }
+    .pill { border: 1px solid var(--border); background: var(--panel-3); color: var(--muted); border-radius: 999px; padding: 4px 8px; font-size: 11px; font-weight: 700; white-space: nowrap; }
+    .pill.green { background: var(--green-soft); border-color: #145842; color: #5ee0ae; }
+    .pill.amber { background: var(--amber-soft); border-color: #62440f; color: #fbc45e; }
+    .pill.red { background: var(--red-soft); border-color: #712424; color: #ff9292; }
+    .pill.blue { background: #10243d; border-color: #26486d; color: #93c5fd; }
+
+    .section { margin-top: 17px; }
+    .section-title { display: flex; align-items: flex-end; justify-content: space-between; margin: 0 2px 10px; }
+    .section-title h2 { margin: 0; font-size: 17px; letter-spacing: -.2px; }
+    .section-title p { margin: 0; color: var(--muted-2); font-size: 12px; }
+    .run-head { padding: 17px 18px; display: flex; justify-content: space-between; gap: 16px; border-bottom: 1px solid var(--border); }
+    .eyebrow { color: var(--green); font-size: 11px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; }
+    .run-head h3 { margin: 5px 0 3px; font-size: 19px; }
+    .subtle { color: var(--muted); font-size: 12px; }
+    .run-meta { text-align: right; }
+    .run-body { display: grid; grid-template-columns: minmax(260px, .82fr) minmax(0, 1.4fr); }
+    .vision { padding: 18px; border-right: 1px solid var(--border); }
+    .camera-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+    .camera {
+      min-height: 125px; border: 1px solid #34513b; border-radius: 10px; padding: 11px;
+      display: flex; flex-direction: column; justify-content: space-between; overflow: hidden; position: relative;
+      background:
+        radial-gradient(circle at 26% 36%, rgba(132,204,22,.5) 0 8%, transparent 9%),
+        radial-gradient(circle at 62% 55%, rgba(16,185,129,.5) 0 12%, transparent 13%),
+        radial-gradient(circle at 78% 23%, rgba(132,204,22,.35) 0 7%, transparent 8%),
+        linear-gradient(145deg, #142219, #09110d);
+    }
+    .camera::after { content: ""; position: absolute; inset: auto -15% -55% 30%; height: 120px; background: rgba(16,185,129,.13); filter: blur(22px); border-radius: 50%; }
+    .camera-label { position: relative; z-index: 1; font-size: 11px; background: rgba(0,0,0,.58); border: 1px solid rgba(255,255,255,.14); border-radius: 6px; width: max-content; padding: 4px 7px; }
+    .camera-time { position: relative; z-index: 1; font-size: 10px; color: #d2d2d2; }
+    .observation { border-left: 3px solid var(--green); padding: 10px 12px; background: var(--panel-2); margin-top: 11px; border-radius: 0 8px 8px 0; color: #d0d0d0; font-size: 12px; line-height: 1.55; }
+    .recommendations { padding: 18px; display: flex; flex-direction: column; gap: 10px; }
+    .rec { background: var(--panel-2); border: 1px solid var(--border); border-radius: 10px; padding: 13px; }
+    .rec-top { display: flex; justify-content: space-between; align-items: start; gap: 12px; }
+    .rec h4 { margin: 2px 0 5px; font-size: 14px; }
+    .rec p { margin: 0; color: var(--muted); line-height: 1.45; font-size: 12px; }
+    .rec-foot { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 11px; padding-top: 10px; border-top: 1px solid #292929; }
+    .action { font-size: 11px; color: #6ee7b7; display: flex; align-items: center; gap: 6px; }
+    .action.manual { color: #fbc45e; }
+    .confidence { color: var(--muted-2); font-size: 11px; }
+
+    .history { display: flex; flex-direction: column; overflow: hidden; }
+    .history-row { border: 0; border-bottom: 1px solid var(--border); padding: 14px 16px; display: grid; grid-template-columns: 105px 1fr auto auto; gap: 15px; align-items: center; background: transparent; text-align: left; cursor: pointer; }
+    .history-row:last-child { border-bottom: 0; }
+    .history-row:hover { background: var(--panel-2); }
+    .history-title { font-size: 13px; font-weight: 680; }
+    .history-sub { font-size: 11px; color: var(--muted-2); margin-top: 3px; }
+    .history-detail { display: none; padding: 13px 16px 16px 136px; color: var(--muted); font-size: 12px; line-height: 1.55; background: #121212; border-bottom: 1px solid var(--border); }
+    .history-detail.open { display: block; }
+
+    .config-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .config-card { padding: 18px; }
+    .config-card.full { grid-column: 1 / -1; }
+    .config-head { display: flex; justify-content: space-between; gap: 14px; margin-bottom: 16px; }
+    .config-head h3 { margin: 0 0 4px; font-size: 16px; }
+    .config-head p { margin: 0; color: var(--muted-2); font-size: 11px; }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .field { display: flex; flex-direction: column; gap: 6px; }
+    .field.full { grid-column: 1 / -1; }
+    label { color: var(--muted); font-size: 11px; }
+    input, select { width: 100%; color: var(--text); background: #101010; border: 1px solid var(--border); border-radius: 8px; padding: 10px; outline: none; }
+    input:focus, select:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(16,185,129,.08); }
+    .key-wrap { display: flex; gap: 7px; }
+    .switch-row { display: flex; align-items: center; justify-content: space-between; padding: 11px 0; border-bottom: 1px solid var(--border); }
+    .switch-row:last-child { border: 0; }
+    .switch { width: 38px; height: 22px; border-radius: 999px; border: 0; background: #3a3a3a; position: relative; cursor: pointer; }
+    .switch::after { content: ""; width: 17px; height: 17px; position: absolute; top: 2.5px; left: 3px; border-radius: 50%; background: white; transition: .2s; }
+    .switch.on { background: var(--green); }
+    .switch.on::after { transform: translateX(15px); }
+    .mapping { display: grid; grid-template-columns: 1.1fr .8fr 1fr .5fr auto; gap: 10px; padding: 11px 0; border-bottom: 1px solid var(--border); align-items: center; font-size: 12px; }
+    .mapping:last-child { border: 0; }
+    .mapping .muted { color: var(--muted); }
+    .form-actions { display: flex; justify-content: flex-end; gap: 9px; margin-top: 16px; }
+    .note { margin-top: 13px; background: #13231c; border: 1px solid #254d3d; color: #9fd9c1; border-radius: 8px; padding: 10px 12px; font-size: 11px; line-height: 1.5; }
+
+    .toast { position: fixed; right: 22px; bottom: 22px; background: #ecfdf5; color: #064e3b; border-radius: 9px; padding: 11px 14px; font-size: 12px; font-weight: 700; transform: translateY(85px); opacity: 0; transition: .25s; z-index: 30; }
+    .toast.show { transform: translateY(0); opacity: 1; }
+    .mobile-bar { display: none; }
+
+    @media (max-width: 900px) {
+      .sidebar { display: none; }
+      .mobile-bar { display: flex; position: sticky; top: 0; z-index: 20; background: #121212; border-bottom: 1px solid var(--border); height: 52px; align-items: center; justify-content: space-between; padding: 0 15px; }
+      main { margin-left: 0; padding: 16px; }
+      .metrics { grid-template-columns: 1fr 1fr; }
+      .run-body { grid-template-columns: 1fr; }
+      .vision { border-right: 0; border-bottom: 1px solid var(--border); }
+      .config-grid { grid-template-columns: 1fr; }
+      .config-card.full { grid-column: auto; }
+      .mapping { grid-template-columns: 1fr 1fr; }
+      .mapping > :last-child { justify-self: end; }
+    }
+    @media (max-width: 600px) {
+      .page-head { align-items: flex-start; }
+      .head-actions .status { display: none; }
+      .metrics { grid-template-columns: 1fr; }
+      .camera-grid, .form-grid { grid-template-columns: 1fr; }
+      .field.full { grid-column: auto; }
+      .run-head { flex-direction: column; }
+      .run-meta { text-align: left; }
+      .history-row { grid-template-columns: 72px 1fr auto; }
+      .history-row .model { display: none; }
+      .history-detail { padding-left: 16px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar">
+      <div class="brand">Leafy<span>AI</span></div>
+      <nav class="nav">
+        <button class="nav-item"><span class="nav-icon">⌂</span> Farm Overview</button>
+        <button class="nav-item"><span class="nav-icon">♧</span> Plant Vision</button>
+        <button class="nav-item active"><span class="nav-icon">◇</span> AI Agent</button>
+        <button class="nav-item"><span class="nav-icon">↗</span> Growth &amp; Harvest</button>
+        <button class="nav-item"><span class="nav-icon">◷</span> History</button>
+      </nav>
+      <nav class="nav bottom">
+        <button class="nav-item"><span class="nav-icon">⚙</span> Settings</button>
+        <button class="nav-item"><span class="nav-icon">↪</span> Log Out</button>
+      </nav>
+    </aside>
+
+    <div class="mobile-bar"><div class="brand" style="padding:0">Leafy<span>AI</span></div><span>☰</span></div>
+
+    <main>
+      <div class="page">
+        <header class="panel page-head">
+          <div class="title-wrap">
+            <div class="title-icon">◇</div>
+            <div><h1>AI Agent</h1><div class="subtle">Farm-wide recommendations and automated actions</div></div>
+          </div>
+          <div class="head-actions">
+            <span class="status"><span class="dot"></span> Schedule active</span>
+            <button class="btn primary" id="generateBtn">↻ Generate now</button>
+          </div>
+        </header>
+
+        <div class="tabs" role="tablist">
+          <button class="tab active" data-tab="overview">Overview</button>
+          <button class="tab" data-tab="configuration">Configuration</button>
+        </div>
+
+        <section class="tab-panel active" id="overview">
+          <div class="metrics">
+            <article class="panel metric"><div class="metric-label">Agent status</div><div class="metric-value"><span class="dot"></span> Ready</div><div class="metric-note">No provider errors</div></article>
+            <article class="panel metric"><div class="metric-label">Next scheduled run</div><div class="metric-value">10:30 AM</div><div class="metric-note">Every 30 min · 08:00–20:00</div></article>
+            <article class="panel metric"><div class="metric-label">Last input mode</div><div class="metric-value">Vision + Sensors <span class="pill blue">VLM</span></div><div class="metric-note">2 raw camera images</div></article>
+            <article class="panel metric"><div class="metric-label">Actions today</div><div class="metric-value">6 executed</div><div class="metric-note">5 successful · 1 no-op</div></article>
+          </div>
+
+          <div class="section-title"><div><h2>Latest recommendation run</h2><p>Generated from current farm evidence</p></div><span class="pill green">Completed</span></div>
+          <section class="panel">
+            <div class="run-head">
+              <div><div class="eyebrow">Run #42 · Manual</div><h3>Farm conditions require two actions</h3><div class="subtle">Today, 10:02 AM · Completed in 4.8 seconds</div></div>
+              <div class="run-meta"><span class="pill blue">Vision + sensors</span><div class="subtle" style="margin-top:7px">Gemini 2.5 Flash</div></div>
+            </div>
+            <div class="run-body">
+              <div class="vision">
+                <div class="section-title"><h2 style="font-size:14px">Visual evidence</h2><span class="subtle">2 cameras</span></div>
+                <div class="camera-grid">
+                  <div class="camera"><span class="camera-label">Top level</span><span class="camera-time">Captured 9:58 AM</span></div>
+                  <div class="camera"><span class="camera-label">Bottom level</span><span class="camera-time">Captured 9:58 AM</span></div>
+                </div>
+                <div class="observation"><strong>Visible condition</strong><br>Leaves appear broadly green and healthy. The top level shows mild crowding, while no obvious wilting or severe discoloration is visible.</div>
+              </div>
+              <div class="recommendations">
+                <article class="rec">
+                  <div class="rec-top"><div><span class="eyebrow">Climate</span><h4>Turn the farm fan on</h4></div><span class="pill green">Automatically executed</span></div>
+                  <p>Ambient temperature is 31.4°C, above the preferred maximum of 30°C. Humidity remains within range.</p>
+                  <div class="rec-foot"><span class="action">✓ Farm fan confirmed ON</span><span class="confidence">92% confidence</span></div>
+                </article>
+                <article class="rec">
+                  <div class="rec-top"><div><span class="eyebrow">Water</span><h4>Inspect the reservoir and refill if needed</h4></div><span class="pill amber">User action recommended</span></div>
+                  <p>Water level is trending downward and is approaching its lower operating threshold. Verify the reading before refilling.</p>
+                  <div class="rec-foot"><span class="action manual">○ No automatic device action</span><span class="confidence">84% confidence</span></div>
+                </article>
+                <article class="rec">
+                  <div class="rec-top"><div><span class="eyebrow">Lighting</span><h4>Keep grow lights on</h4></div><span class="pill green">Successful no-op</span></div>
+                  <p>The crop is inside its configured lighting window and the visible canopy is evenly illuminated.</p>
+                  <div class="rec-foot"><span class="action">✓ Both light sockets were already ON</span><span class="confidence">88% confidence</span></div>
+                </article>
+              </div>
+            </div>
+          </section>
+
+          <section class="section">
+            <div class="section-title"><div><h2>Recent runs</h2><p>The latest three recommendation runs</p></div><button class="btn small">View full history</button></div>
+            <div class="panel history">
+              <button class="history-row" data-history="h1"><span class="subtle">10:02 AM</span><span><span class="history-title">2 recommendations · 2 actions</span><span class="history-sub">Temperature high; reservoir trending low</span></span><span class="model pill blue">VLM</span><span class="pill green">Completed</span></button>
+              <div class="history-detail" id="h1">Fan switched on successfully. Both grow-light sockets were already on. Reservoir inspection remains a user action.</div>
+              <button class="history-row" data-history="h2"><span class="subtle">9:30 AM</span><span><span class="history-title">1 recommendation · No action</span><span class="history-sub">Farm conditions within configured ranges</span></span><span class="model pill blue">VLM</span><span class="pill green">Completed</span></button>
+              <div class="history-detail" id="h2">No device change was required. Visual evidence showed a consistently green canopy.</div>
+              <button class="history-row" data-history="h3"><span class="subtle">9:00 AM</span><span><span class="history-title">Sensor-only fallback</span><span class="history-sub">Top camera image could not be read</span></span><span class="model pill">LLM</span><span class="pill amber">Fallback</span></button>
+              <div class="history-detail" id="h3">The agent continued using sensor evidence only. No automated action was recommended.</div>
+            </div>
+          </section>
+        </section>
+
+        <section class="tab-panel" id="configuration">
+          <div class="config-grid">
+            <article class="panel config-card">
+              <div class="config-head"><div><h3>Language model</h3><p>Sensor-only fallback provider</p></div><span class="pill green">Configured</span></div>
+              <div class="form-grid">
+                <div class="field"><label>Provider</label><select><option>OpenRouter</option><option>Ollama</option><option>Mock</option></select></div>
+                <div class="field"><label>Model</label><input value="openai/gpt-4.1-mini"></div>
+                <div class="field full"><label>API key</label><div class="key-wrap"><input type="password" value="••••••••••1234"><button class="btn small">Replace</button><button class="btn small">Test</button></div></div>
+              </div>
+            </article>
+
+            <article class="panel config-card">
+              <div class="config-head"><div><h3>Vision-language model</h3><p>Primary image + sensor provider</p></div><span class="pill green">Configured</span></div>
+              <div class="form-grid">
+                <div class="field"><label>Provider</label><select><option>OpenRouter</option><option>Ollama</option><option>Mock</option></select></div>
+                <div class="field"><label>Model</label><input value="google/gemini-2.5-flash"></div>
+                <div class="field full"><label>API key</label><div class="key-wrap"><input type="password" value="••••••••••5678"><button class="btn small">Replace</button><button class="btn small">Test</button></div></div>
+              </div>
+            </article>
+
+            <article class="panel config-card">
+              <div class="config-head"><div><h3>Recommendation schedule</h3><p>Runs only within the active local window</p></div><button class="switch on" aria-label="Toggle schedule"></button></div>
+              <div class="form-grid">
+                <div class="field full"><label>Timezone</label><select><option>Australia/Melbourne</option><option>UTC</option></select></div>
+                <div class="field"><label>Start time</label><input type="time" value="08:00"></div>
+                <div class="field"><label>End time</label><input type="time" value="20:00"></div>
+                <div class="field"><label>Frequency</label><select><option>Every 30 minutes</option><option>Every 60 minutes</option></select></div>
+                <div class="field"><label>Maximum images</label><input type="number" min="1" max="8" value="4"></div>
+              </div>
+              <div class="note">The next run is expected at 10:30 AM. Missed historical intervals are not backfilled.</div>
+            </article>
+
+            <article class="panel config-card">
+              <div class="config-head"><div><h3>Automation policy</h3><p>Server-controlled safety boundaries</p></div></div>
+              <div class="switch-row"><span><strong style="font-size:13px">Fan automation</strong><br><span class="subtle">Safety-approved on/off actions</span></span><span class="pill green">Automatic</span></div>
+              <div class="switch-row"><span><strong style="font-size:13px">Light automation</strong><br><span class="subtle">Safety-approved on/off actions</span></span><span class="pill green">Automatic</span></div>
+              <div class="switch-row"><span><strong style="font-size:13px">Pump and dosing</strong><br><span class="subtle">Shown to the user only</span></span><span class="pill amber">Advisory</span></div>
+              <div class="note">These policies are enforced by the backend and should be shown as read-only in the frontend.</div>
+            </article>
+
+            <article class="panel config-card full">
+              <div class="config-head"><div><h3>Kasa actuator mappings</h3><p>Advanced hardware configuration</p></div><button class="btn small">+ Add mapping</button></div>
+              <div class="mapping"><strong>Farm fan</strong><span class="pill">Fans</span><span class="muted">192.168.1.102</span><span class="muted">Socket 0</span><button class="btn small">Test</button></div>
+              <div class="mapping"><strong>Light level 1</strong><span class="pill">Light</span><span class="muted">192.168.1.101</span><span class="muted">Socket 1</span><button class="btn small">Test</button></div>
+              <div class="mapping"><strong>Light level 2</strong><span class="pill">Light</span><span class="muted">192.168.1.101</span><span class="muted">Socket 2</span><button class="btn small">Test</button></div>
+            </article>
+          </div>
+          <div class="form-actions"><button class="btn">Discard changes</button><button class="btn primary" id="saveBtn">Save configuration</button></div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <div class="toast" id="toast">Configuration saved</div>
+  <script>
+    document.querySelectorAll('.tab').forEach(button => {
+      button.addEventListener('click', () => {
+        document.querySelectorAll('.tab, .tab-panel').forEach(item => item.classList.remove('active'));
+        button.classList.add('active');
+        document.getElementById(button.dataset.tab).classList.add('active');
+      });
+    });
+
+    document.querySelectorAll('[data-history]').forEach(button => {
+      button.addEventListener('click', () => document.getElementById(button.dataset.history).classList.toggle('open'));
+    });
+
+    document.querySelectorAll('.switch').forEach(button => {
+      button.addEventListener('click', () => button.classList.toggle('on'));
+    });
+
+    function showToast(message) {
+      const toast = document.getElementById('toast');
+      toast.textContent = message;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 2200);
+    }
+
+    document.getElementById('saveBtn').addEventListener('click', () => showToast('Configuration saved'));
+    document.getElementById('generateBtn').addEventListener('click', event => {
+      const button = event.currentTarget;
+      button.disabled = true;
+      button.textContent = 'Generating…';
+      setTimeout(() => {
+        button.disabled = false;
+        button.textContent = '↻ Generate now';
+        showToast('New recommendation run completed');
+      }, 1300);
+    });
+  </script>
+</body>
+</html>
