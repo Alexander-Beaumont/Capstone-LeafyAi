@@ -1,83 +1,34 @@
-"""Prompt building for the farm recommendation agent."""
-
+"""Prompts for sensor-only and raw-image farm recommendations."""
 import json
 
 from ai_agent.config_loader import load_farm_config
 
 
-def generate_system_prompt(config_path=None) -> str:
+def generate_system_prompt(config_path=None, *, vision=False):
     config = load_farm_config(config_path)
+    crop, ranges = config["crop"], config["safety_ranges"]
+    visual = (
+        "Inspect each labelled raw camera image directly and return one concise factual image_observations entry per visible camera. Do not invent details or use CV-derived measurements."
+        if vision else
+        "No reliable images are available. Return an empty image_observations list and reason only from farm data."
+    )
+    return f"""You are an expert hydroponic {crop} vertical-farm adviser.
+Use current readings and trends; never treat missing, stale, or suspect data as reliable. {visual}
 
-    crop = config["crop"]
-    ranges = config["safety_ranges"]
-    auto_devices = ", ".join(f"'{dev}'" for dev in config["execution_rules"]["automated_devices"])
+Target ranges: EC {ranges['ec']['min']}-{ranges['ec']['max']} {ranges['ec']['unit']}; pH {ranges['ph']['min']}-{ranges['ph']['max']}; water temperature {ranges['water_temperature']['min']}-{ranges['water_temperature']['max']} C; ambient temperature {ranges['ambient_temperature']['min']}-{ranges['ambient_temperature']['max']} C; humidity {ranges['humidity']['min']}-{ranges['humidity']['max']}%; water level {ranges['water_level']['min']}-{ranges['water_level']['max']} {ranges['water_level']['unit']}.
 
-    prompt = f"""You are an expert vertical-farming AI controller for a hydroponic {crop} vertical farm.
-Analyze the provided JSON farm state and generate an actionable recommendation object.
+Return one raw JSON object with no markdown:
+{{"image_observations":[{{"camera_id":1,"observation":"visible evidence"}}],"recommendations":[{{"device_id":1,"decision_type":"short_name","target_device":"fans|light|irrigation_pump|nutrient_doser|ph_doser|none","device_state":"on|off|none","category":"climate|lighting|dosing|water|harvest|alert","recommendation":"concise action","explanation":"evidence-based reason","confidence":0.0}}]}}
 
-Target Safety Ranges for {crop}:
-- EC: {ranges['ec']['min']} - {ranges['ec']['max']} {ranges['ec']['unit']} ({ranges['ec']['action_note']})
-- pH: {ranges['ph']['min']} - {ranges['ph']['max']}
-- Water Temp: {ranges['water_temperature']['min']} - {ranges['water_temperature']['max']} {ranges['water_temperature']['unit']}
-- Ambient Temp: {ranges['ambient_temperature']['min']} - {ranges['ambient_temperature']['max']} {ranges['ambient_temperature']['unit']}
-- Humidity: {ranges['humidity']['min']} - {ranges['humidity']['max']}{ranges['humidity']['unit']}
-- Dew Point: >{ranges['dew_point']['min_offset_below_ambient']} C below Ambient Temp
-- Water Level: {ranges['water_level']['min']} - {ranges['water_level']['max']} {ranges['water_level']['unit']}
-- Irrigation Pump: {ranges['irrigation_pump']['min_on_mins']} - {ranges['irrigation_pump']['max_on_mins']} {ranges['irrigation_pump']['unit']}
+Return every material recommendation. Fan and light on/off recommendations may be executed after server safety checks. Every other target is advice only. Use only device_id values present in the farm JSON."""
 
-Execution Rules:
-1. This release is notification-only. Always return execution_type 'notification'.
-2. For a suggested future {auto_devices} change, retain the target device and on/off state so the user can understand the recommendation.
-3. Dosing, pH, harvesting, and water actions must use target_device and device_state 'none'.
-
-Respond with a single raw JSON object only (no markdown, no code blocks) using these exact keys:
-- execution_type: 'notification'
-- target_device: 'fans', 'light', or 'none'
-- device_state: 'on', 'off', or 'none'
-- category: 'climate', 'lighting', 'dosing', 'water', 'harvest', or 'alert'
-- recommendation: concise action string for the user/dashboard
-- explanation: 1-2 sentences explaining the sensor triggers
-- confidence: float between 0.0 and 1.0"""
-
-    return prompt
-
-DEFAULT_SYSTEM = generate_system_prompt()
 
 def build_messages(farm_state):
-    """Build (system, user) message strings for the provider.
+    return generate_system_prompt(vision=False), "Current farm state:\n" + json.dumps(farm_state, default=str)
 
-    Args:
-        farm_state: dict produced by farm_state.services.build_farm_state.
 
-    Returns:
-        tuple[str, str]: (system prompt, user prompt).
-    """
-    user = (
-        "Here is the current farm state as JSON:\n"
-        + json.dumps(farm_state, default=str)
-        + "\n\n"
-        "Review it and return your recommendation as JSON."
+def build_vision_messages(farm_state, image_metadata):
+    return (
+        generate_system_prompt(vision=True),
+        "Current farm state:\n" + json.dumps(farm_state, default=str) + "\n\nLabelled images follow in this metadata order:\n" + json.dumps(image_metadata, default=str),
     )
-    return DEFAULT_SYSTEM, user
-
-
-def build_vision_messages(farm_state, visual_context):
-    """Build image-aware messages while keeping CV measurements out of text."""
-    system = (
-        generate_system_prompt()
-        + "\n\nUse the supplied image as visual evidence alongside the sensor data. "
-        "Do not invent observations that are not visible in the image."
-    )
-    public_visual_context = {
-        key: value
-        for key, value in visual_context.items()
-        if key != "image_data_url"
-    }
-    user = (
-        "Here is the current non-visual farm context as JSON:\n"
-        + json.dumps(farm_state, default=str)
-        + "\n\nVisual evidence metadata:\n"
-        + json.dumps(public_visual_context, default=str)
-        + "\n\nReview the image and sensor evidence and return the required JSON only."
-    )
-    return system, user
