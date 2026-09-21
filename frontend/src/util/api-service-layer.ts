@@ -1,6 +1,16 @@
-import { API_ROUTES, deviceStateUrl, farmStateUrl } from "./constants";
+import {
+    API_ROUTES,
+    aiFarmSettingsUrl,
+    aiGenerateUrl,
+    aiLatestUrl,
+    aiProviderTestUrl,
+    aiRecentUrl,
+    deviceStateUrl,
+    farmStateUrl,
+} from "./constants";
 import type {
-    AIDecision,
+    AIConfiguration,
+    AIConfigurationPatch,
     APIResult,
     BABatch,
     BatchDefinition,
@@ -12,6 +22,9 @@ import type {
     MagentaState,
     MoveBatch,
     PowerboardDevice,
+    ProviderTestResult,
+    ProviderTestRole,
+    RecommendationRun,
 } from "./types";
 
 function errorMessage(body: unknown, fallback: string) {
@@ -20,18 +33,30 @@ function errorMessage(body: unknown, fallback: string) {
     const detail = record.detail ?? record.message ?? record.error
     if (typeof detail === "string" && detail.trim()) return detail
     if (Array.isArray(detail)) return detail.map(String).join(", ")
+    const fieldErrors: string[] = []
+    for (const [key, value] of Object.entries(record)) {
+        if (key === "run" || key === "success") continue
+        if (Array.isArray(value)) fieldErrors.push(`${key}: ${value.map(String).join(", ")}`)
+        else if (typeof value === "string" && value.trim() && key !== "detail" && key !== "message" && key !== "error") {
+            fieldErrors.push(`${key}: ${value}`)
+        }
+    }
+    if (fieldErrors.length) return fieldErrors.join(" ")
     return fallback
 }
 
-async function apiRequest<T>(url: string, accessToken?: string, options: RequestInit = {}): Promise<APIResult<T>> {
+type ApiRequestOptions = RequestInit & { emptyOnStatus?: number[] }
+
+async function apiRequest<T>(url: string, accessToken?: string, options: ApiRequestOptions = {}): Promise<APIResult<T>> {
+    const { emptyOnStatus, headers, ...rest } = options
     let data: T | undefined;
     try {
         const res = await fetch(url, {
-            ...options,
+            ...rest,
             headers: {
                 "Content-Type": "application/json",
                 Authorization: `Bearer ${accessToken}`,
-                ...options.headers,
+                ...headers,
             },
         });
         const raw = await res.text();
@@ -44,6 +69,10 @@ async function apiRequest<T>(url: string, accessToken?: string, options: Request
             }
         }
         data = parsed as T;
+
+        if (emptyOnStatus?.includes(res.status)) {
+            return { success: true, msg: "", data: undefined }
+        }
 
         if (!res.ok) {
             return {
@@ -164,8 +193,83 @@ export async function setMagentaState(
     })
 }
 
-export async function getAiDecisions(accessToken: string | undefined): Promise<APIResult<AIDecision[]>> {
-    return await apiRequest<AIDecision[]>(API_ROUTES.getAiDecisions, accessToken, {
+export async function getAiFarmSettings(
+    accessToken: string | undefined,
+    farmId: number,
+): Promise<APIResult<AIConfiguration>> {
+    return await apiRequest<AIConfiguration>(aiFarmSettingsUrl(farmId), accessToken, {
+        method: "GET",
+    })
+}
+
+export async function patchAiFarmSettings(
+    accessToken: string | undefined,
+    farmId: number,
+    patch: AIConfigurationPatch,
+): Promise<APIResult<AIConfiguration>> {
+    return await apiRequest<AIConfiguration>(aiFarmSettingsUrl(farmId), accessToken, {
+        method: "PATCH",
+        body: JSON.stringify(patch),
+    })
+}
+
+export async function testAiProvider(
+    accessToken: string | undefined,
+    farmId: number,
+    role: ProviderTestRole,
+): Promise<APIResult<ProviderTestResult>> {
+    return await apiRequest<ProviderTestResult>(aiProviderTestUrl(farmId), accessToken, {
+        method: "POST",
+        body: JSON.stringify({ role }),
+    })
+}
+
+export async function generateFarmRecommendations(
+    accessToken: string | undefined,
+    farmId: number,
+    deviceId?: number,
+): Promise<APIResult<RecommendationRun>> {
+    const body: { device_id?: number } = {}
+    if (deviceId != null) body.device_id = deviceId
+    const result = await apiRequest<RecommendationRun | { error?: string; run?: RecommendationRun }>(
+        aiGenerateUrl(farmId),
+        accessToken,
+        {
+            method: "POST",
+            body: JSON.stringify(body),
+        },
+    )
+    if (result.success) {
+        const payload = result.data
+        if (payload && "id" in payload && "recommendations" in payload) {
+            return { success: true, msg: "", data: payload as RecommendationRun }
+        }
+    }
+    const payload = result.data as { error?: string; run?: RecommendationRun } | undefined
+    return {
+        success: false,
+        msg: result.msg,
+        data: payload?.run,
+    }
+}
+
+export async function getLatestRecommendations(
+    accessToken: string | undefined,
+    farmId: number,
+): Promise<APIResult<RecommendationRun | null>> {
+    const result = await apiRequest<RecommendationRun>(aiLatestUrl(farmId), accessToken, {
+        method: "GET",
+        emptyOnStatus: [404],
+    })
+    if (!result.success) return { success: false, msg: result.msg, data: result.data }
+    return { success: true, msg: "", data: result.data ?? null }
+}
+
+export async function getRecentRecommendations(
+    accessToken: string | undefined,
+    farmId: number,
+): Promise<APIResult<RecommendationRun[]>> {
+    return await apiRequest<RecommendationRun[]>(aiRecentUrl(farmId), accessToken, {
         method: "GET",
     })
 }

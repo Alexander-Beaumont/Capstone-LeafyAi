@@ -1,3 +1,4 @@
+import type { ReactNode } from "react"
 import Panel from "./Panel"
 import { FiRefreshCw } from "react-icons/fi";
 
@@ -8,9 +9,10 @@ interface Props{
     onRefresh?: () => void
     refreshLabel?: string
     refreshing?: boolean
+    actions?: ReactNode
 }
 
-export default function PageTitlePanel({title, icon, refresh, onRefresh, refreshLabel, refreshing}: Props) {
+export default function PageTitlePanel({title, icon, refresh, onRefresh, refreshLabel, refreshing, actions}: Props) {
     return (
         <Panel styles="w-full p-3 flex items-center justify-between">
             <div className="flex gap-3">
@@ -21,7 +23,7 @@ export default function PageTitlePanel({title, icon, refresh, onRefresh, refresh
                     {title}
                 </p>
             </div>
-            {refresh || refreshLabel ?
+            {refresh || refreshLabel || actions ?
                 <div className="flex items-center gap-3 mr-1">
                     {refreshLabel ?
                         <p className="text-subtext3 text-xs">
@@ -41,6 +43,7 @@ export default function PageTitlePanel({title, icon, refresh, onRefresh, refresh
                             />
                         </button>
                     : null}
+                    {actions}
                 </div>
             : null}
         </Panel>

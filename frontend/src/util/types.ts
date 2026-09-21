@@ -198,6 +198,90 @@ export interface DeviceStateResult {
     detail?: string
 }
 
+export type AIProviderName = "openrouter" | "ollama" | "mock"
+export type RecommendationTrigger = "manual" | "scheduled" | "legacy"
+export type RecommendationStatus = "pending" | "running" | "completed" | "failed"
+export type RecommendationInputMode = "vlm" | "llm"
+export type RecommendationExecutionType = "notification" | "automated"
+export type RecommendationTargetDevice =
+    | "fans"
+    | "light"
+    | "irrigation_pump"
+    | "nutrient_doser"
+    | "ph_doser"
+    | "none"
+export type RecommendationDeviceState = "on" | "off" | "none"
+export type RecommendationCategory = "climate" | "lighting" | "dosing" | "water" | "harvest" | "alert"
+export type QualityStatus = "PASS" | "WARN" | "FAIL" | "UNKNOWN" | string
+export type FarmActionResult = "success" | "failed" | "partial"
+
+export interface AIConfiguration {
+    farm: number
+    llm_provider: AIProviderName
+    llm_model: string
+    llm_api_key_configured: boolean
+    llm_api_key_mask: string
+    vlm_provider: AIProviderName
+    vlm_model: string
+    vlm_api_key_configured: boolean
+    vlm_api_key_mask: string
+    schedule_enabled: boolean
+    timezone: string
+    interval_minutes: number
+    active_start_time: string
+    active_end_time: string
+    max_images: number
+    updated_at: string
+}
+
+export interface AIConfigurationPatch {
+    llm_provider?: AIProviderName
+    llm_model?: string
+    llm_api_key?: string
+    vlm_provider?: AIProviderName
+    vlm_model?: string
+    vlm_api_key?: string
+    clear_llm_api_key?: boolean
+    clear_vlm_api_key?: boolean
+    schedule_enabled?: boolean
+    timezone?: string
+    interval_minutes?: number
+    active_start_time?: string
+    active_end_time?: string
+    max_images?: number
+}
+
+export interface SourceImage {
+    id: number
+    camera_id: number
+    camera_name: string
+    captured_at: string
+    url: string | null
+    quality_status: QualityStatus
+    quality_flags: string[]
+    quality_message: string
+    vlm_ready: boolean
+}
+
+export interface VisualEvidence {
+    image_id: number
+    camera_id: number
+    camera_name: string
+    captured_at: string
+    quality_status: QualityStatus
+    quality_flags: string[]
+    quality_message: string
+    vlm_ready: boolean
+    selected: boolean
+    reason: string
+}
+
+export interface ImageObservation {
+    camera_id?: number
+    observation?: string
+    [key: string]: unknown
+}
+
 export interface AISafetyCheck {
     id: number
     decision: number
@@ -206,15 +290,68 @@ export interface AISafetyCheck {
     explanation: string | null
 }
 
+export interface FarmAction {
+    id: number
+    decision: number
+    target_device: string
+    powerboard_device_ids: number[]
+    requested_state: string
+    previous_state: string
+    confirmed_state: string
+    attempted_at: string | null
+    executed_at: string | null
+    result: FarmActionResult | null
+    explanation: string | null
+    hardware_response: Record<string, unknown>
+}
+
 export interface AIDecision {
     id: number
+    run?: number
     device: number
     decision_type: string
+    execution_type?: RecommendationExecutionType
+    target_device?: RecommendationTargetDevice
+    device_state?: RecommendationDeviceState
     category: string
     recommendation: string
     explanation: string
-    confidence_score: number | null
+    confidence_score: string | number | null
+    output_used_fallback?: boolean
     created_at: string
     notification_status: "ready" | "blocked"
     safety_check: AISafetyCheck | null
+    actions?: FarmAction[]
 }
+
+export interface RecommendationRun {
+    id: number
+    farm: number
+    trigger: RecommendationTrigger
+    status: RecommendationStatus
+    scheduled_for: string | null
+    input_mode: RecommendationInputMode
+    provider_name: string
+    model_name: string
+    source_images: SourceImage[]
+    visual_evidence: VisualEvidence[]
+    image_observations: ImageObservation[]
+    fallback_used: boolean
+    fallback_reason: string
+    error: string
+    created_at: string
+    started_at: string | null
+    completed_at: string | null
+    recommendations: AIDecision[]
+}
+
+export interface ProviderTestResult {
+    success: boolean
+    provider?: string
+    model?: string
+    response?: string
+    detail?: string
+    failures?: string[]
+}
+
+export type ProviderTestRole = "llm" | "vlm"

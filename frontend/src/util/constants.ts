@@ -31,7 +31,6 @@ export const API_ROUTES = {
     getFarms: `${import.meta.env.VITE_BACKEND_BASEURL}/api/farms/`,
     getDevices: `${import.meta.env.VITE_BACKEND_BASEURL}/api/devices/`,
     magentaState: `${import.meta.env.VITE_BACKEND_BASEURL}/api/lighting/magenta/state/`,
-    getAiDecisions: `${import.meta.env.VITE_BACKEND_BASEURL}/api/ai-decisions/`,
 }
 
 export function farmStateUrl(farmId: number) {
@@ -40,6 +39,33 @@ export function farmStateUrl(farmId: number) {
 
 export function deviceStateUrl(deviceId: number) {
     return `${import.meta.env.VITE_BACKEND_BASEURL}/api/devices/${deviceId}/state/`
+}
+
+export function aiFarmSettingsUrl(farmId: number) {
+    return `${import.meta.env.VITE_BACKEND_BASEURL}/api/ai-agent/farms/${farmId}/settings/`
+}
+
+export function aiProviderTestUrl(farmId: number) {
+    return `${import.meta.env.VITE_BACKEND_BASEURL}/api/ai-agent/farms/${farmId}/providers/test/`
+}
+
+export function aiGenerateUrl(farmId: number) {
+    return `${import.meta.env.VITE_BACKEND_BASEURL}/api/ai-agent/farms/${farmId}/recommendations/generate/`
+}
+
+export function aiLatestUrl(farmId: number) {
+    return `${import.meta.env.VITE_BACKEND_BASEURL}/api/ai-agent/farms/${farmId}/recommendations/latest/`
+}
+
+export function aiRecentUrl(farmId: number) {
+    return `${import.meta.env.VITE_BACKEND_BASEURL}/api/ai-agent/farms/${farmId}/recommendations/recent/`
+}
+
+export function mediaUrl(url: string | null | undefined) {
+    if (!url) return null
+    if (/^https?:\/\//i.test(url)) return url
+    const base = String(import.meta.env.VITE_BACKEND_BASEURL ?? "").replace(/\/$/, "")
+    return `${base}${url.startsWith("/") ? url : `/${url}`}`
 }
 
 export const POWERBOARD_DEVICE_IDS = {
@@ -52,6 +78,8 @@ export const POWERBOARD_DEVICE_IDS = {
 }
 
 export const FARM_OVERVIEW_POLL_MS = 30_000
+export const AI_AGENT_POLL_MS = 30_000
+export const AI_PROVIDERS = ["openrouter", "ollama", "mock"] as const
 
 export const PAGES = {
     noAuthPages: {
@@ -60,7 +88,6 @@ export const PAGES = {
     },
     authPages: {
         farmOverview: "/farm-overview",
-        plantVision: "/plant-vision",
         aiAgent: "/ai-agent",
         growthHarvesting: "/growth-harvesting",
         history: "/history",
@@ -75,36 +102,10 @@ export const PAGE_NAMES = {
     },
     authPages: {
         farmOverview: "Farm Overview",
-        plantVision: "Plant Vision",
         aiAgent: "AI Agent",
         growthHarvesting: "Growth & Harvesting",
         history: "History",
         settings: "Settings"
     }
 }
-
-export  const placeHolderDecisions = [{   
-    name: "Run Pump",
-    change: "AI agent has requested to run the pump at 2L/min for 45 seconds",
-    reason: "Water level has decreased to 20%, ideal range is above 50%",
-    decisionSeverity: "High",
-    approved: false,
-    approver: "James"
-},{
-    name: "Dim Lights",
-    change: "AI agent has requested to dim the lights from 60% to 55%",
-    reason: " To simulate natural cycles it is recommended to dim the ligths to 55%",
-    decisionSeverity: "Low",
-    approved: false,
-    approver: "Aiden"
-},{
-    name: "Run Doser",
-    change: "AI agent has requested to run the doser for 10 seconds",
-    reason: " pH level has been trending down",
-    decisionSeverity: "Medium",
-    approved: true,
-    approver: "Leam"
-}]
-
-
 

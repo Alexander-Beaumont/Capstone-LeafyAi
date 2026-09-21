@@ -11,7 +11,7 @@ interface Props{
     onDecline: () => void
 }
 
-export default function PendingDecisionCard({name, change, reason, onAccept, onDecline, date, decisionSeverity} : Props) {
+export default function PendingDecisionCard({name, change, reason, date, decisionSeverity}: Props) {
 
     return (
        <div className={`bg-panel2 border border-border  p-2 rounded-lg flex justify-between`}>
