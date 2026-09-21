@@ -5,7 +5,6 @@ import Dropdown, { type dataFormat } from './primatives/Dropdown'
 import { useContext, useState } from 'react'
 import { userContext } from '../providers/UserProvider'
 import { GiHamburgerMenu } from "react-icons/gi";
-import { PiPlant } from "react-icons/pi";
 import { VscRobot } from "react-icons/vsc";
 import { TbGrowth } from "react-icons/tb";
 import { RiFolderHistoryLine } from "react-icons/ri";
@@ -22,12 +21,11 @@ export default function Navbar() {
     const [selectedItem, setSelectedItem] = useState<dataFormat | null>(null)
     const items = [
         {id: 0, name: PAGE_NAMES.authPages.farmOverview, icon: <LuHouse />, data: PAGES.authPages.farmOverview},
-        {id: 1, name: PAGE_NAMES.authPages.plantVision, icon:  <PiPlant />, data: PAGES.authPages.plantVision},
-        {id: 2, name: PAGE_NAMES.authPages.aiAgent, icon: <VscRobot size={16}/>, data: PAGES.authPages.aiAgent},
-        {id: 3, name: PAGE_NAMES.authPages.growthHarvesting, icon: <TbGrowth size={16}/>, data: PAGES.authPages.growthHarvesting},
-        {id: 4, name: PAGE_NAMES.authPages.history, icon:  <RiFolderHistoryLine />, data: PAGES.authPages.history},
-        {id: 5, name: PAGE_NAMES.authPages.settings, icon:  <GoGear />, data: PAGES.authPages.settings},
-        {id: 6, name: "Log Out", icon:   <HiOutlineLogout />, data: PAGES.noAuthPages.authPage}
+        {id: 1, name: PAGE_NAMES.authPages.aiAgent, icon: <VscRobot size={16}/>, data: PAGES.authPages.aiAgent},
+        {id: 2, name: PAGE_NAMES.authPages.growthHarvesting, icon: <TbGrowth size={16}/>, data: PAGES.authPages.growthHarvesting},
+        {id: 3, name: PAGE_NAMES.authPages.history, icon:  <RiFolderHistoryLine />, data: PAGES.authPages.history},
+        {id: 4, name: PAGE_NAMES.authPages.settings, icon:  <GoGear />, data: PAGES.authPages.settings},
+        {id: 5, name: "Log Out", icon:   <HiOutlineLogout />, data: PAGES.noAuthPages.authPage}
     ]
 
     return (
@@ -76,14 +74,6 @@ export default function Navbar() {
                                         flex items-center gap-2`}>
                                     <LuHouse />
                                     {PAGE_NAMES.authPages.farmOverview}
-                                </button>
-                            </Link>
-                            <Link to={PAGES.authPages.plantVision} className=''>
-                                <button className={`${location.pathname == PAGES.authPages.plantVision ? "bg-highlight text-btn-text " : "text-subtext1 hover:bg-panel3 "} 
-                                        hover:cursor-pointer text-sm h-10 hover:italic transition-all duration-200 ease-in-out px-3 w-full text-left
-                                        flex items-center gap-2`}>
-                                    <PiPlant />
-                                    {PAGE_NAMES.authPages.plantVision}
                                 </button>
                             </Link>
                             <Link to={PAGES.authPages.aiAgent} className=''>
