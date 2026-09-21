@@ -5,6 +5,7 @@ HTTP service or extra Docker container is required.
 """
 from __future__ import annotations
 import asyncio, threading
+from contextlib import contextmanager
 from concurrent.futures import Future
 from typing import Any, Coroutine
 from .kasa_service import PowerboardController
@@ -15,6 +16,7 @@ class PowerboardBridge:
         self._loop = asyncio.new_event_loop()
         self._controller: PowerboardController | None = None
         self._ready = threading.Event()
+        self._operation_lock = threading.RLock()
         self._thread = threading.Thread(target=self._run, name="leafy-powerboard-loop", daemon=True)
         self._thread.start(); self._ready.wait(timeout=5)
 
@@ -34,10 +36,20 @@ class PowerboardBridge:
             raise RuntimeError("Powerboard runtime is not ready")
         return self._controller
 
-    def get_all_device_statuses(self): return self._call(self.controller.get_all_device_statuses())
-    def set_device_state(self, device_id: int, state: str): return self._call(self.controller.set_device_state(device_id, state))
-    def get_magenta_state(self): return self._call(self.controller.get_magenta_state())
-    def set_magenta_state(self, state: str): return self._call(self.controller.set_magenta_state(state))
+    @contextmanager
+    def exclusive_operation(self):
+        """Serialize multi-call hardware transactions across runtime services."""
+        with self._operation_lock:
+            yield self
+
+    def get_all_device_statuses(self):
+        with self._operation_lock: return self._call(self.controller.get_all_device_statuses())
+    def set_device_state(self, device_id: int, state: str):
+        with self._operation_lock: return self._call(self.controller.set_device_state(device_id, state))
+    def get_magenta_state(self):
+        with self._operation_lock: return self._call(self.controller.get_magenta_state())
+    def set_magenta_state(self, state: str):
+        with self._operation_lock: return self._call(self.controller.set_magenta_state(state))
 
 
 _BRIDGE: PowerboardBridge | None = None

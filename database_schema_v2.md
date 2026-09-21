@@ -107,7 +107,7 @@ Tracks where a batch is located over time. This is the key table for the movemen
 
 ---
 
-## 4. Camera & Vision
+## 4. Camera Images and VLM Quality
 
 ### CAMERA
 
@@ -119,18 +119,15 @@ Multiple cameras per level for visual monitoring.
 | `farm_level_id` | INTEGER AUTO-INCREMENT | FK → FARMLEVEL, NOT NULL | Which level the camera monitors |
 | `name` | VARCHAR(255) | NOT NULL | e.g. "Top Level - Left" |
 | `position` | VARCHAR(100) | | Physical position description |
-| `source_type` | VARCHAR(20) | NOT NULL, CHECK IN (RTSP, WEBCAM) | Camera input type |
+| `source_type` | VARCHAR(20) | NOT NULL, CHECK IN (RTSP) | Camera input type |
 | `ip_address` | VARCHAR(255) | | IP address for RTSP |
 | `rtsp_port` | INTEGER | | RTSP port, normally 554 |
-| `webcam_index` | INTEGER | | Local webcam index, e.g. 0, 1, 2 |
-| `roi_points` | JSON | | Monitoring Region of Interest |
 | `rtsp_path` | VARCHAR(255) | | RTSP stream path |
 | `enabled` | BOOLEAN | NOT NULL, DEFAULT TRUE | Whether camera is active |
-| `cv_enabled` | BOOLEAN | NOT NULL, DEFAULT TRUE | Whether CV processing is active |
+| `is_archived` | BOOLEAN | NOT NULL, DEFAULT FALSE | Soft-delete state |
 | `capture_interval_minutes` | INTEGER | NOT NULL, DEFAULT 30 | Capture interval |
 | `active_start_time` | TIME | | Start of capture window |
 | `active_end_time` | TIME | | End of capture window |
-| `growth_baseline_reset_at` | TIMESTAMP | | Reset point for growth comparisons |
 
 **Relationships:** FARMLEVEL — CAMERA: 1:M
 
@@ -144,32 +141,13 @@ Captured frames from cameras.
 | `camera_id` | INTEGER AUTO-INCREMENT | FK → CAMERA, NOT NULL | Source camera |
 | `captured_at` | TIMESTAMP | NOT NULL | When captured |
 | `path` | VARCHAR(500) | NOT NULL | Storage path |
+| `vlm_ready` | BOOLEAN | DEFAULT FALSE | Whether the technical gate permits VLM input |
+| `quality_status` | VARCHAR(16) | DEFAULT UNKNOWN | PASS, WARN, or FAIL |
+| `quality_flags` | JSON | DEFAULT [] | Deterministic technical diagnostics |
+| `quality_message` | TEXT | DEFAULT '' | Human-readable quality result |
+| `quality_metrics` | JSON | DEFAULT {} | Exposure, focus, resolution, and colour diagnostics |
 
 **Relationships:** CAMERA — CAMERAIMAGE: 1:M
-
-### IMAGEANALYSIS
-
-Results from running vision models on captured images.
-
-| Column | Type | Constraints | Description |
-|---|---|---|---|
-| `analysis_id` | INTEGER AUTO-INCREMENT | PK | Unique identifier |
-| `image_id` | INTEGER AUTO-INCREMENT | FK → CAMERAIMAGE, NOT NULL | Source image |
-| `created_at` | TIMESTAMP | NOT NULL, DEFAULT NOW() | |
-| `total_canopy_coverage` | DECIMAL(5,2) | | Percentage of image covered by foliage |
-| `growth_change` | DECIMAL(8,2) | | Change from the previous valid image |
-| `crowding_percentage` | DECIMAL(5,2) | | Aggregate crowding estimate |
-| `green_percentage` | DECIMAL(5,2) | | Green foliage percentage |
-| `yellow_percentage` | DECIMAL(5,2) | | Yellow foliage percentage |
-| `measurement_valid` | BOOLEAN | DEFAULT TRUE | Whether the analysis is reliable |
-| `processing_time_ms` | INTEGER | | Time taken to process |
-| `vlm_ready` | BOOLEAN | DEFAULT FALSE | Whether the image is suitable for VLM use |
-| `quality_status` | VARCHAR(16) | DEFAULT UNKNOWN | Quality result |
-| `quality_flags` | JSON | DEFAULT [] | Quality diagnostics |
-| `quality_message` | TEXT | DEFAULT '' | Quality explanation |
-
-**Relationships:** CAMERAIMAGE — IMAGEANALYSIS: 1:1
-
 
 ---
 
@@ -334,9 +312,11 @@ Reference ranges used by the safety layer to validate sensor readings and AI-gen
 
 ## 9. AI Decision Chain
 
-The active decision chain follows: **AI Decision → Safety Check → Notification**.
+The active chain is **Recommendation Run → AI Decision → Safety Check → Farm Action or Notification**. Reliable raw images are read directly by the VLM; failed images route the run to the sensor-only LLM.
 
-AI decisions and safety checks are recorded for auditability. Farm actions are reserved for a future Powerboard integration; the current AI agent does not execute hardware or create action rows.
+### AICONFIGURATION / AIRECOMMENDATIONRUN
+
+Each farm has provider/model, encrypted credential, schedule-window, interval, timezone, and image-limit settings. A run records its trigger/status, provider/model, VLM or LLM mode, source images, quality evidence, VLM observations, fallback reason, errors, and timestamps. Scheduled `(farm, scheduled_for)` slots are unique.
 
 ### AIDECISION
 
@@ -345,20 +325,12 @@ Every AI recommendation or decision is recorded with a human-readable explanatio
 | Column | Type | Constraints | Description |
 |---|---|---|---|
 | `decision_id` | INTEGER AUTO-INCREMENT | PK | Unique identifier |
+| `run_id` | INTEGER AUTO-INCREMENT | FK → AIRECOMMENDATIONRUN, NOT NULL | Parent recommendation run |
 | `device_id` | INTEGER AUTO-INCREMENT | FK → DEVICE, NOT NULL | Relevant device (if device-level) |
-| `input_mode` | VARCHAR(10) | NOT NULL, CHECK IN ('llm', 'vlm') | Whether sensor-only LLM or image-plus-sensor VLM generated the recommendation |
-| `model_name` | VARCHAR(255) | NOT NULL | Actual model used, including after fallback |
-| `source_image_id` | INTEGER | FK → CAMERAIMAGE, NULL | Latest considered image, when available |
-| `source_analysis_id` | INTEGER | FK → IMAGEANALYSIS, NULL | Quality analysis used for routing |
-| `used_visual_input` | BOOLEAN | NOT NULL | Whether the final recommendation actually used an image |
-| `visual_status` | VARCHAR(32) | NOT NULL | Image routing outcome |
-| `visual_reason` | TEXT | NOT NULL | Human-readable routing explanation |
-| `fallback_used` | BOOLEAN | NOT NULL | Whether a failed image/VLM route fell back to the LLM |
-| `fallback_reason` | TEXT | NOT NULL | Visible reason for model fallback |
 | `output_used_fallback` | BOOLEAN | NOT NULL | Whether malformed model output required text parsing fallback |
 | `decision_type` | VARCHAR(50) | NOT NULL | e.g. 'schedule_update', 'dosing_adjustment', 'lighting_adjustment', 'fan_adjustment', 'harvest_recommendation', 'spacing_adjustment', 'alert' |
-| `execution_type` | VARCHAR(20) | NOT NULL, CHECK IN ('notification') | All recommendations are notification-only in the current release |
-| `target_device` | VARCHAR(20) | NOT NULL, CHECK IN ('fans', 'light', 'none') | Suggested future hardware target, never executed by the current agent |
+| `execution_type` | VARCHAR(20) | NOT NULL, CHECK IN ('notification', 'automated') | Server-derived execution policy |
+| `target_device` | VARCHAR(20) | NOT NULL | Fan/light or advisory pump/doser target |
 | `device_state` | VARCHAR(20) | NOT NULL, CHECK IN ('on', 'off', 'none') | Requested state for the target hardware |
 | `category` | VARCHAR(20) | NOT NULL, CHECK IN ('climate', 'lighting', 'dosing', 'water', 'harvest', 'alert') | Safety category used to select relevant evidence and pass/fail handling |
 | `recommendation` | TEXT | NOT NULL | What the AI recommends in plain language |
@@ -382,14 +354,21 @@ Software-based safety validation result. The proposal states: *"Implement a soft
 
 ### FARMACTION
 
-Reserved record of an executed farm action. This table is retained for the future Powerboard execution layer and is not written by the current notification-only agent.
+Audited result of a safety-approved automatic fan or grouped-light command.
 
 | Column | Type | Constraints | Description |
 |---|---|---|---|
 | `action_id` | INTEGER AUTO-INCREMENT | PK | Unique identifier |
 | `decision_id` | INTEGER AUTO-INCREMENT | FK → AIDECISION, NOT NULL | Source decision |
+| `target_device` | VARCHAR(20) | NOT NULL | Logical fan/light target |
+| `powerboard_device_ids` | JSON | NOT NULL | Physical device IDs used |
+| `requested_state` | VARCHAR(10) | | Requested on/off state |
+| `previous_state` | VARCHAR(10) | | State before execution |
+| `confirmed_state` | VARCHAR(10) | | Hardware-confirmed state |
+| `attempted_at` | TIMESTAMP | | When execution started |
 | `executed_at` | TIMESTAMP | | When executed (null = pending) |
 | `result` | VARCHAR(20) | CHECK IN ('success', 'failed', 'partial') | |
 | `explanation` | TEXT | | Outcome description |
+| `hardware_response` | JSON | DEFAULT {} | Raw normalized powerboard response |
 
 **Relationships:** AIDECISION — FARMACTION: 1:M
