@@ -1,6 +1,7 @@
 import type { DecisionSeverity } from "../components/PendingDecisionCard"
 import type { AIDecision } from "./types"
 import { parseConfidence } from "./ai-agent"
+import { Util } from "./Util"
 
 export function decisionSeverity(score: string | number | null | undefined): DecisionSeverity {
     const value = parseConfidence(score)
@@ -10,5 +11,5 @@ export function decisionSeverity(score: string | number | null | undefined): Dec
 }
 
 export function decisionName(decision: AIDecision) {
-    return decision.decision_type || decision.category || "AI decision"
+    return Util.capitilize(decision.decision_type || decision.category || "AI decision")
 }

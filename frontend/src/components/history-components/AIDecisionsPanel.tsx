@@ -4,7 +4,7 @@ import IconTitle from "../primatives/IconTitle"
 import { VscRobot } from "react-icons/vsc"
 import { AiAgentContext } from "../../providers/AiAgentProvider"
 import RunDetails from "../ai-agent/RunDetails"
-import { inputModeLabel } from "../../util/ai-agent"
+import { Util } from "../../util/Util"
 
 export default function AIDecisionsPanel() {
     const ai = useContext(AiAgentContext)
@@ -32,10 +32,14 @@ export default function AIDecisionsPanel() {
                                     onClick={() => setOpenRunId(open ? null : run.id)}
                                     aria-expanded={open}
                                 >
-                                    <span className="text-sm text-subtext1 font-semibold">
-                                        Run {run.id} · {run.status} · {inputModeLabel(run.input_mode, run.fallback_used)}
+                                    <span className="text-sm text-title font-semibold">
+                                        Run {run.id}
                                     </span>
-                                    <span className="text-xs text-subtext3">{open ? "Hide" : "Details"}</span>
+                                    <span className="text-xs text-subtext3">
+                                        {Util.formatDateTime(new Date(run.completed_at ?? run.created_at))}
+                                        {" · "}
+                                        {open ? "Hide" : "Details"}
+                                    </span>
                                 </button>
                                 {open ? <RunDetails run={run} /> : <RunDetails run={run} compact />}
                             </div>

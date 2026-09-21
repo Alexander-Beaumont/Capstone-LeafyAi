@@ -28,7 +28,7 @@ export default function AwaitingDecisions() {
                         Last run: {inputModeLabel(lastRun.input_mode, lastRun.fallback_used)}
                         {" · "}
                         <Link to={PAGES.authPages.aiAgent} className="text-highlight hover:underline">
-                            Open AI Agent
+                            AI Agent
                         </Link>
                     </p>
                 : null}

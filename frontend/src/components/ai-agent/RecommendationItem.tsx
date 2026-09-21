@@ -17,7 +17,7 @@ export default function RecommendationItem({ decision }: Props) {
                 <p className="text-sm text-subtext1 font-semibold">{decisionName(decision)}</p>
                 <Badge label={decisionSeverity(decision.confidence_score)} />
                 {badges.map(badge => (
-                    <Badge key={`${decision.id}-${badge.label}`} label={badge.label} tone={badge.tone} />
+                    <Badge key={`${decision.id}-${badge}`} label={badge} />
                 ))}
             </div>
             <p className="text-xs text-subtext2">{decision.recommendation}</p>

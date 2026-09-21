@@ -10,6 +10,7 @@ import { FarmOverviewContext } from "../providers/FarmOverviewProvider"
 import { AiAgentContext } from "../providers/AiAgentProvider"
 import { PAGES, POWERBOARD_DEVICE_IDS } from "../util/constants"
 import { actionSummary, formatInTimeZone, inputModeLabel, nextScheduleTime } from "../util/ai-agent"
+import { Util } from "../util/Util"
 import RunDetails from "../components/ai-agent/RunDetails"
 import Badge from "../components/ai-agent/Badge"
 import StatusCard from "../components/ai-agent/StatusCard"
@@ -51,7 +52,7 @@ export default function AiAgent() {
                     <Link
                         to={PAGES.authPages.settings}
                         aria-label="Settings"
-                        className="text-subtext2 hover:text-highlight"
+                        className="text-subtext2 hover:cursor-pointer"
                     >
                         <GoGear size={18} />
                     </Link>
@@ -62,7 +63,7 @@ export default function AiAgent() {
                 <div className="flex flex-col gap-2">
                     <p className="text-title text-lg font-semibold">{farmLabel}</p>
                     <div className="flex flex-wrap gap-2">
-                        <Badge label={scheduleLabel} tone={ai.settings?.schedule_enabled ? "ok" : "default"} />
+                        <Badge label={scheduleLabel} tone={ai.settings?.schedule_enabled ? "highlight" : "default"} />
                         {ai.generating ? <Badge label="Generating" tone="warn" /> : null}
                     </div>
                 </div>
@@ -104,7 +105,14 @@ export default function AiAgent() {
             </div>
 
             <Panel styles="w-full p-3 px-4 flex flex-col gap-4">
-                <IconTitle title="Latest run" icon={<VscRobot size={16}/>} />
+                <div className="flex items-center justify-between gap-2">
+                    <IconTitle title="Latest run" icon={<VscRobot size={16}/>} />
+                    {ai.latestRun ?
+                        <p className="text-xs text-subtext3">
+                            {Util.formatDateTime(new Date(ai.latestRun.completed_at ?? ai.latestRun.created_at))}
+                        </p>
+                    : null}
+                </div>
                 {ai.loading && !ai.latestRun ?
                     <div className="h-32 bg-panel2 animate-pulse rounded-md" />
                 : !ai.latestRun ?
@@ -125,7 +133,7 @@ export default function AiAgent() {
                         {ai.recentRuns.map(run => {
                             const open = openRunId === run.id
                             return (
-                                <div key={run.id} className="border border-border rounded-lg bg-panel2 p-3 flex flex-col gap-3">
+                                <div key={run.id} className="border border-border rounded-lg bg-panel1 p-3 flex flex-col gap-3">
                                     <button
                                         type="button"
                                         className="flex flex-wrap items-center justify-between gap-2 text-left hover:cursor-pointer"
@@ -133,9 +141,13 @@ export default function AiAgent() {
                                         aria-expanded={open}
                                     >
                                         <span className="text-sm text-subtext1 font-semibold">
-                                            Run {run.id} · {run.status} · {inputModeLabel(run.input_mode, run.fallback_used)}
+                                            Run {run.id}
                                         </span>
-                                        <span className="text-xs text-subtext3">{open ? "Hide" : "Details"}</span>
+                                        <span className="text-xs text-subtext3">
+                                            {Util.formatDateTime(new Date(run.completed_at ?? run.created_at))}
+                                            {" · "}
+                                            {open ? "Hide" : "Details"}
+                                        </span>
                                     </button>
                                     {open ? <RunDetails run={run} /> : <RunDetails run={run} compact />}
                                 </div>

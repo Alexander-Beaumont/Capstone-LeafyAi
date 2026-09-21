@@ -191,20 +191,20 @@ export function isNoOpAction(action: FarmAction) {
 }
 
 export function recommendationBadges(decision: AIDecision) {
-    const badges: { label: string; tone: "default" | "ok" | "warn" | "bad" }[] = []
-    if (isAutomated(decision)) badges.push({ label: "Automatic", tone: "ok" })
-    else badges.push({ label: "Advisory", tone: "default" })
-    if (isSafetyBlocked(decision)) badges.push({ label: "Safety blocked", tone: "bad" })
+    const badges: string[] = []
+    if (isAutomated(decision)) badges.push("Automatic")
+    else badges.push("Advisory")
+    if (isSafetyBlocked(decision)) badges.push("Safety blocked")
     const actions = decision.actions ?? []
     if (actions.length === 0) {
-        if (isAdvisory(decision) || isSafetyBlocked(decision)) badges.push({ label: "No action", tone: "default" })
+        if (isAdvisory(decision) || isSafetyBlocked(decision)) badges.push("No action")
         return badges
     }
     for (const action of actions) {
-        if (isNoOpAction(action)) badges.push({ label: "No-op", tone: "default" })
-        else if (action.result === "success") badges.push({ label: "Executed", tone: "ok" })
-        else if (action.result === "failed") badges.push({ label: "Hardware failed", tone: "bad" })
-        else if (action.result === "partial") badges.push({ label: "Partial", tone: "warn" })
+        if (isNoOpAction(action)) badges.push("No-op")
+        else if (action.result === "success") badges.push("Executed")
+        else if (action.result === "failed") badges.push("Hardware failed")
+        else if (action.result === "partial") badges.push("Partial")
     }
     return badges
 }
