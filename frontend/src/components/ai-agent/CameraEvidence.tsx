@@ -1,5 +1,4 @@
 import { mediaUrl } from "../../util/constants"
-import { qualityTone } from "../../util/ai-agent"
 import { Util } from "../../util/Util"
 import type { ImageObservation, SourceImage, VisualEvidence } from "../../util/types"
 import Badge from "./Badge"
@@ -37,8 +36,8 @@ export default function CameraEvidence({ evidence, sourceImages, observations }:
                             <div className="p-3 flex flex-col gap-2">
                                 <div className="flex flex-wrap items-center gap-2">
                                     <p className="text-sm text-subtext1 font-semibold">{item.camera_name}</p>
-                                    <Badge label={item.quality_status} tone={qualityTone(item.quality_status)} />
-                                    <Badge label={item.selected ? "Selected" : "Rejected"} tone={item.selected ? "ok" : "default"} />
+                                    <Badge label={item.quality_status} />
+                                    <Badge label={item.selected ? "Selected" : "Rejected"} />
                                 </div>
                                 <p className="text-xs text-subtext3">
                                     {Util.formatDateTime(new Date(item.captured_at))}

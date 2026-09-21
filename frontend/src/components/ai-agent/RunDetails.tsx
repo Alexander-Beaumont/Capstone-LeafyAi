@@ -1,4 +1,3 @@
-import { Util } from "../../util/Util"
 import { inputModeLabel } from "../../util/ai-agent"
 import type { RecommendationRun } from "../../util/types"
 import Badge from "./Badge"
@@ -10,36 +9,26 @@ interface Props {
     compact?: boolean
 }
 
-function statusTone(status: RecommendationRun["status"]): "ok" | "warn" | "bad" | "default" {
-    if (status === "completed") return "ok"
-    if (status === "failed") return "bad"
-    if (status === "running" || status === "pending") return "warn"
-    return "default"
-}
-
 export default function RunDetails({ run, compact }: Props) {
     return (
-        <div className="flex flex-col gap-4">
+        <div className={`flex flex-col ${compact ? "gap-3" : "gap-4"}`}>
             <div className="flex flex-wrap items-center gap-2">
-                <Badge label={run.status} tone={statusTone(run.status)} />
-                <Badge label={inputModeLabel(run.input_mode, run.fallback_used)} tone={run.fallback_used || run.input_mode === "llm" ? "warn" : "ok"} />
+                <Badge label={run.status} />
+                <Badge label={inputModeLabel(run.input_mode, run.fallback_used)} />
                 <Badge label={run.trigger} />
-                <p className="text-xs text-subtext3">
-                    {Util.formatDateTime(new Date(run.completed_at ?? run.created_at))}
-                </p>
+                <Badge label={`${run.provider_name}-${run.model_name}`} />
+
             </div>
-            <p className="text-sm text-subtext2">
-                {run.provider_name} / {run.model_name}
-            </p>
+
             {run.fallback_used || run.fallback_reason ?
-                <div className="border border-medium rounded-md bg-panel2 p-3">
-                    <p className="text-sm text-medium font-semibold">Sensor-only fallback</p>
-                    <p className="text-xs text-subtext2 mt-1">{run.fallback_reason || "The run used the LLM without vision input."}</p>
+                <div className={`border border-border rounded-md bg-panel2 ${compact ? "p-2.5" : "p-3"}`}>
+                    <p className={`${compact ? "text-xs" : "text-sm"} text-subtext1 font-semibold`}>Sensor-only fallback</p>
+                    <p className="text-xs text-subtext3 mt-1">{run.fallback_reason || "The run used the LLM without vision input."}</p>
                 </div>
             : null}
             {run.status === "failed" || run.error ?
-                <div className="border border-high rounded-md bg-panel2 p-3">
-                    <p className="text-sm text-high font-semibold">Run failed</p>
+                <div className={`border border-high rounded-md bg-panel2 ${compact ? "p-2" : "p-3"}`}>
+                    <p className={`${compact ? "text-xs" : "text-sm"} text-high font-semibold`}>Run failed</p>
                     <p className="text-xs text-subtext2 mt-1">{run.error || "The model returned unusable output."}</p>
                 </div>
             : null}

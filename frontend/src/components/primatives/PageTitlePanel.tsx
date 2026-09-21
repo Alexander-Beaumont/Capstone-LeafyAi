@@ -39,7 +39,7 @@ export default function PageTitlePanel({title, icon, refresh, onRefresh, refresh
                             className={`text-md font-bold text-subtext2 bg-transparent border-0 p-0 ${refreshing ? "opacity-60 cursor-not-allowed" : "hover:cursor-pointer"}`}
                         >
                             <FiRefreshCw
-                                className={`${refreshing ? "animate-spin" : "active:rotate-360"} transition-all duration-500`}
+                                className={refreshing ? "animate-spin" : undefined}
                             />
                         </button>
                     : null}
