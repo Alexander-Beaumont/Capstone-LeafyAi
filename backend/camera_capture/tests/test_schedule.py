@@ -11,7 +11,6 @@ def _camera(interval=30, start="06:00:00", end="20:00:00", camera_id=1):
     return {
         "id": camera_id,
         "enabled": True,
-        "cv_enabled": True,
         "capture_interval_minutes": interval,
         "active_start_time": start,
         "active_end_time": end,

@@ -6,14 +6,12 @@ from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 from ai_agent.urls import router as ai_agent_router
-from cv.urls import router as computer_vision_router
 from telemetry.urls import router as telemetry_router
 
 
 router = DefaultRouter()
 router.registry.extend(telemetry_router.registry)
 router.registry.extend(ai_agent_router.registry)
-router.registry.extend(computer_vision_router.registry)
 
 urlpatterns = [
     path("api/", include(router.urls)),
@@ -21,7 +19,6 @@ urlpatterns = [
     path("api/auth/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
     path("admin/", admin.site.urls),
     path("api/auth/", include("accounts.urls")),
-    path("api/", include("cv.urls")),
     path("api/", include("farm_state.urls")),
     path("api/", include("sensor_ingest.urls")),
     path("api/", include("growth.urls")),
