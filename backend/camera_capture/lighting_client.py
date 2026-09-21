@@ -15,6 +15,9 @@ class LightingController(Protocol):
     def set_state(self, state: str) -> LightingResult: ...
 
 class LocalLightingController:
+    def exclusive_operation(self):
+        return get_powerboard_bridge().exclusive_operation()
+
     def get_state(self) -> LightingResult:
         payload = get_powerboard_bridge().get_magenta_state()
         state = str(payload.get("state", "")).upper()

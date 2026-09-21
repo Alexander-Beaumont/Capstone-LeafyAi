@@ -79,14 +79,11 @@ class CameraSerializer(serializers.ModelSerializer):
             "ip_address",
             "rtsp_port",
             "rtsp_path",
-            "roi_points",
             "enabled",
-            "cv_enabled",
             "is_archived",
             "capture_interval_minutes",
             "active_start_time",
             "active_end_time",
-            "growth_baseline_reset_at",
         ]
 
     def _effective(
@@ -107,90 +104,6 @@ class CameraSerializer(serializers.ModelSerializer):
 
         return default
 
-    def validate_roi_points(
-        self,
-        value,
-    ):
-        if value is None:
-            return None
-
-        if not isinstance(
-            value,
-            dict,
-        ):
-            raise serializers.ValidationError(
-                "ROI must be an object with "
-                "x, y, width and height."
-            )
-
-        required = (
-            "x",
-            "y",
-            "width",
-            "height",
-        )
-
-        missing = [
-            key
-            for key in required
-            if key not in value
-        ]
-
-        if missing:
-            raise serializers.ValidationError(
-                f"ROI is missing: "
-                f"{', '.join(missing)}"
-            )
-
-        try:
-            x, y, width, height = (
-                float(value[key])
-                for key in required
-            )
-
-        except (
-            TypeError,
-            ValueError,
-        ):
-            raise serializers.ValidationError(
-                "ROI x, y, width and height "
-                "must be numeric."
-            )
-
-        if not (
-            0 <= x < 1
-            and 0 <= y < 1
-        ):
-            raise serializers.ValidationError(
-                "ROI x and y must be normalized "
-                "values in [0, 1)."
-            )
-
-        if (
-            width <= 0
-            or height <= 0
-        ):
-            raise serializers.ValidationError(
-                "ROI width and height must "
-                "be greater than 0."
-            )
-
-        if (
-            x + width > 1
-            or y + height > 1
-        ):
-            raise serializers.ValidationError(
-                "ROI must stay inside "
-                "the image boundary."
-            )
-
-        return {
-            "x": x,
-            "y": y,
-            "width": width,
-            "height": height,
-        }
-
     def validate(
         self,
         attrs,
@@ -199,7 +112,6 @@ class CameraSerializer(serializers.ModelSerializer):
             "is_archived"
         ) is True:
             attrs["enabled"] = False
-            attrs["cv_enabled"] = False
 
         source_type = str(
             self._effective(
