@@ -186,9 +186,6 @@ LEAFY_CAMERA_1_CAPTURE_INTERVAL_MINUTES = int(
 LEAFY_CAMERA_1_ENABLED = os.getenv(
     "LEAFY_CAMERA_1_ENABLED", "true"
 ).strip().lower() in {"1", "true", "yes", "on"}
-LEAFY_CAMERA_1_CV_ENABLED = os.getenv(
-    "LEAFY_CAMERA_1_CV_ENABLED", "true"
-).strip().lower() in {"1", "true", "yes", "on"}
 
 # ---------------------------------------------------------------------------
 # Sensor ingestion / local physical devices

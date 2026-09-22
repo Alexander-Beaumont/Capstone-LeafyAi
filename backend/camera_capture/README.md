@@ -143,7 +143,6 @@ LEAFY_CAMERA_1_RTSP_PATH=/stream1
 
 LEAFY_CAMERA_1_CAPTURE_INTERVAL_MINUTES=30
 LEAFY_CAMERA_1_ENABLED=true
-LEAFY_CAMERA_1_CV_ENABLED=true
 
 LEAFY_CAMERA_TIMEZONE=Australia/Melbourne
 LEAFY_CAMERA_POLL_SECONDS=30
@@ -167,21 +166,7 @@ If credentials are required in deployment, provide them using the deployment env
 
 ---
 
-## Note about `LEAFY_CAMERA_1_CV_ENABLED`
-
-The current configuration still contains:
-
-```env
-LEAFY_CAMERA_1_CV_ENABLED=true
-```
-
-This name comes from the earlier CV-oriented architecture.
-
-If the project fully replaces traditional CV processing with VLM processing, this setting should eventually be renamed or removed as part of that refactor.
-
-Do not remove it from configuration while existing backend code or bootstrap logic still depends on it.
-
-The target architecture is:
+The camera has no CV enable/disable setting. Its fixed responsibility is:
 
 ```text
 CameraImage

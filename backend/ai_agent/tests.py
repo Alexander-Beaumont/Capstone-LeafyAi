@@ -1,5 +1,5 @@
 from datetime import time
-from unittest.mock import patch
+from unittest.mock import call, patch
 
 from django.contrib.auth.models import User
 from django.test import TestCase
@@ -113,7 +113,6 @@ class ActuatorTests(TestCase):
     @patch("ai_agent.actuators.get_powerboard_bridge")
     def test_fan_uses_current_powerboard_device_and_audits_confirmation(self, bridge_factory):
         bridge = bridge_factory.return_value
-        bridge.exclusive_operation.return_value.__enter__.return_value = bridge
         bridge.get_all_device_statuses.return_value = [{"device_id": 4, "state": "OFF"}]
         bridge.set_device_state.return_value = {"device_id": 4, "state": "ON"}
         execute_decision(self.decision)
@@ -128,14 +127,45 @@ class ActuatorTests(TestCase):
         self.decision.category = "lighting"
         self.decision.save(update_fields=["target_device", "category"])
         bridge = bridge_factory.return_value
-        bridge.exclusive_operation.return_value.__enter__.return_value = bridge
-        bridge.get_magenta_state.return_value = {"success": True, "state": "OFF", "devices": []}
-        bridge.set_magenta_state.return_value = {"success": True, "state": "ON", "devices": []}
+        bridge.get_all_device_statuses.return_value = [
+            {"device_id": 5, "state": "OFF"},
+            {"device_id": 6, "state": "OFF"},
+        ]
+        bridge.set_device_state.side_effect = [
+            {"device_id": 5, "state": "ON"},
+            {"device_id": 6, "state": "ON"},
+        ]
         execute_decision(self.decision)
-        bridge.set_magenta_state.assert_called_once_with("ON")
+        self.assertEqual(
+            bridge.set_device_state.call_args_list,
+            [call(5, "ON"), call(6, "ON")],
+        )
         action = FarmAction.objects.get()
         self.assertEqual(action.powerboard_device_ids, [5, 6])
         self.assertEqual(action.result, "success")
+
+    @patch("ai_agent.actuators.get_powerboard_bridge")
+    def test_light_records_partial_result_when_one_outlet_fails(self, bridge_factory):
+        self.decision.target_device = "light"
+        self.decision.category = "lighting"
+        self.decision.save(update_fields=["target_device", "category"])
+        bridge = bridge_factory.return_value
+        bridge.get_all_device_statuses.return_value = [
+            {"device_id": 5, "state": "OFF"},
+            {"device_id": 6, "state": "ON"},
+        ]
+        bridge.set_device_state.side_effect = [
+            {"device_id": 5, "state": "ON"},
+            RuntimeError("outlet unavailable"),
+        ]
+
+        execute_decision(self.decision)
+
+        action = FarmAction.objects.get()
+        self.assertEqual(action.previous_state, "mixed")
+        self.assertEqual(action.confirmed_state, "mixed")
+        self.assertEqual(action.result, "partial")
+        self.assertEqual(action.hardware_response["errors"][0]["device_id"], 6)
 
 
 class RecommendationApiTests(APITestCase):

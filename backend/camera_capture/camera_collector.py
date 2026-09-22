@@ -11,8 +11,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, time, timedelta
-from typing import Any, Callable
-from contextlib import nullcontext
+from typing import Any
 from zoneinfo import ZoneInfo
 
 from .camera_client import capture_fresh_frame, encode_jpeg
@@ -196,36 +195,6 @@ class CameraCollector:
             height,
             quality,
         )
-    def _capture_official_jpeg(
-            self,
-            camera: dict[str, Any],
-            ) -> tuple[
-                bytes,
-                datetime,
-                int,
-                int,
-                dict[str, Any],
-            ]:
-        """Ensure magenta lighting is ON for capture, then restore exact prior state."""
-        previous_state: str | None = None
-        capture_completed = False
-        lock = self.lighting.exclusive_operation() if self.lighting is not None and hasattr(self.lighting, "exclusive_operation") else nullcontext()
-        with lock:
-            try:
-                if self.lighting is not None:
-                    previous_state = self.lighting.get_state().state
-                    if previous_state != "ON":
-                        self.lighting.set_state("ON")
-                    self.sleep_fn(self.pre_capture_light_on_seconds)
-                capture = self._capture_and_encode(camera)
-                capture_completed = True
-                return capture
-            finally:
-                if self.lighting is not None and previous_state is not None:
-                    if capture_completed:
-                        self.sleep_fn(self.post_capture_restore_seconds)
-                    self.lighting.set_state(previous_state)
-
     def _upload_capture(
         self,
         camera: dict[str, Any],
@@ -301,29 +270,16 @@ class CameraCollector:
                     dict[str, Any],
                 ],
             ]
-        ] = []        
-        previous_state: str | None = None
-        lock = self.lighting.exclusive_operation() if self.lighting is not None and hasattr(self.lighting, "exclusive_operation") else nullcontext()
-        with lock:
+        ] = []
+
+        for camera, decision in due:
+            camera_id = camera.get("id", camera.get("camera_id", "?"))
+            due_at = decision.due_at.isoformat() if decision.due_at else "now"
+            print(f"Camera {camera_id}: due-batch capture (due_at={due_at}).")
             try:
-                if self.lighting is not None:
-                    previous_state = self.lighting.get_state().state
-                    if previous_state != "ON":
-                        self.lighting.set_state("ON")
-                    self.sleep_fn(self.pre_capture_light_on_seconds)
-                for camera, decision in due:
-                    camera_id = camera.get("id", camera.get("camera_id", "?"))
-                    due_at = decision.due_at.isoformat() if decision.due_at else "now"
-                    print(f"Camera {camera_id}: due-batch capture (due_at={due_at}).")
-                    try:
-                        captures.append((camera, self._capture_and_encode(camera)))
-                    except Exception as exc:
-                        print(f"Camera {camera_id}: capture ERROR: {exc}")
-                if self.lighting is not None and captures:
-                    self.sleep_fn(self.post_capture_restore_seconds)
-            finally:
-                if self.lighting is not None and previous_state is not None:
-                    self.lighting.set_state(previous_state)
+                captures.append((camera, self._capture_and_encode(camera)))
+            except Exception as exc:
+                print(f"Camera {camera_id}: capture ERROR: {exc}")
 
         success_count = 0
         for camera, capture in captures:

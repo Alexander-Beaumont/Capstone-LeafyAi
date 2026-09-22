@@ -1,12 +1,13 @@
 from decimal import Decimal
 
 from django.contrib.auth.models import User
+from django.core.management import call_command
 from django.test import TestCase
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from telemetry.models import Farm, FarmDevice, Sensor, SensorReading
+from telemetry.models import Camera, Farm, FarmDevice, Sensor, SensorReading
 
 
 class TelemetryModelTests(TestCase):
@@ -44,6 +45,14 @@ class TelemetryModelTests(TestCase):
         self.assertEqual(saved.value, Decimal("6.7500"))
         self.assertEqual(saved.measured_at, measured_at)
         self.assertIsNotNone(saved.received_at)
+
+
+class BootstrapLeafyTests(TestCase):
+    def test_bootstrap_creates_and_updates_the_configured_camera(self):
+        call_command("bootstrap_leafy")
+        call_command("bootstrap_leafy")
+
+        self.assertEqual(Camera.objects.count(), 1)
 
 
 class SensorAPIIntegrationTests(APITestCase):
