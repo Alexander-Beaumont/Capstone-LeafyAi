@@ -1,47 +1,14 @@
-"""Official-capture scheduling and Camera/Lighting orchestration.
+"""Official RTSP camera capture scheduling and persistence.
 
-FINAL MVP SCHEDULING RULE
-=========================
-
-Each Camera decides whether it is due by comparing the current time with that
-Camera's own latest official CameraImage timestamp:
-
-    now - latest_image.captured_at >= capture_interval_minutes
-
-The active_start_time / active_end_time fields are only an *eligibility window*.
-They do not create wall-clock slots and they do not backfill missed captures.
-
-Examples
---------
-- No previous official image + inside active window -> capture once now.
-- Latest image 10:00, interval 30 min, now 10:20 -> skip.
-- Latest image 10:00, interval 30 min, service restarts at 12:10 -> capture one
-  image at 12:10; do NOT backfill 10:30, 11:00, 11:30, 12:00.
-- After the 12:10 capture, the next due time is 12:40.
-
-MULTI-CAMERA BEHAVIOR
-=====================
-
-The collector evaluates all Cameras using one common ``now`` value. Every
-Camera that is due in that poll is captured in one shared magenta-lighting capture batch:
-
-    remember previous lighting -> ensure MAGENTA ON -> wait -> capture/encode all due Cameras
-    -> restore exact previous lighting state -> persist all successful JPEGs
-
-This is batch synchronization, not same-millisecond hardware shutter sync.
-
-A newly added Camera has no latest image, so it captures on the first eligible
-poll. It may therefore be out of sync with existing Cameras during that day.
-If multiple Cameras share the same inactive overnight window and all are
-already overdue when the window opens the next day, they will all be due in
-the first poll and will be captured together. This is a natural re-alignment,
-not a separate schedule-anchor feature, and it is not guaranteed for 24-hour
-operation, different active windows, or Cameras that are not yet overdue.
+Each Camera is due when its own latest official CameraImage is older than its
+`capture_interval_minutes`, subject to the Camera active-hours window. Missed
+intervals are never backfilled: an overdue Camera creates at most one image per
+collector poll. Multiple due Cameras are processed in the same poll without
+changing powerboard or grow-light state.
 """
 
 from __future__ import annotations
 
-import time as time_module
 from dataclasses import dataclass
 from datetime import datetime, time, timedelta
 from typing import Any, Callable
@@ -50,7 +17,6 @@ from zoneinfo import ZoneInfo
 
 from .camera_client import capture_fresh_frame, encode_jpeg
 from .quality import assess_image_quality
-from .lighting_client import LightingController
 
 
 @dataclass(frozen=True)
@@ -180,7 +146,7 @@ def capture_decision(
 
 
 class CameraCollector:
-    """Coordinate scheduling, lighting, RTSP capture, encode, and ORM persistence."""
+    """Coordinate scheduling, RTSP capture, quality checks, and persistence."""
 
     def __init__(
         self,
@@ -191,10 +157,6 @@ class CameraCollector:
         warmup_frames: int = 12,
         default_rtsp_username: str = "",
         default_rtsp_password: str = "",
-        lighting: LightingController | None = None,
-        pre_capture_light_on_seconds: float = 2.0,
-        post_capture_restore_seconds: float = 1.0,
-        sleep_fn: Callable[[float], None] = time_module.sleep,
     ) -> None:
         self.backend = backend
         self.timezone_name = timezone_name
@@ -203,22 +165,12 @@ class CameraCollector:
         self.warmup_frames = warmup_frames
         self.default_rtsp_username = default_rtsp_username
         self.default_rtsp_password = default_rtsp_password
-        self.lighting = lighting
-        self.pre_capture_light_on_seconds = max(0.0, float(pre_capture_light_on_seconds))
-        self.post_capture_restore_seconds = max(0.0, float(post_capture_restore_seconds))
-        self.sleep_fn = sleep_fn
 
     def _capture_and_encode(
         self,
         camera: dict[str, Any],
-    ) -> tuple[
-        bytes,
-        datetime,
-        int,
-        int,
-        dict[str, Any],
-    ]:
-        """Capture one fresh frame and freeze the official JPEG bytes in memory."""
+    ) -> tuple[bytes, datetime, int, int, dict[str, Any]]:
+        """Capture one fresh frame, assess it, and encode the official JPEG."""
         frame = capture_fresh_frame(
             camera,
             warmup_frames=self.warmup_frames,
@@ -226,7 +178,6 @@ class CameraCollector:
             default_rtsp_password=self.default_rtsp_password,
         )
         captured_at = datetime.now(self.zone)
-
         height, width = frame.shape[:2]
 
         quality = assess_image_quality(
@@ -278,27 +229,11 @@ class CameraCollector:
     def _upload_capture(
         self,
         camera: dict[str, Any],
-        capture: tuple[
-            bytes,
-            datetime,
-            int,
-            int,
-            dict[str, Any],
-        ],
+        capture: tuple[bytes, datetime, int, int, dict[str, Any]],
     ) -> bool:
-        """Persist one already-encoded capture after lighting has been restored."""
-        camera_id = camera.get(
-            "id",
-            camera.get("camera_id"),
-        )
-
-        (
-            jpeg_bytes,
-            captured_at,
-            width,
-            height,
-            quality,
-        ) = capture
+        """Persist one already-encoded official capture."""
+        camera_id = camera.get("id", camera.get("camera_id"))
+        jpeg_bytes, captured_at, width, height, quality = capture
 
         response = self.backend.upload_official_image(
             camera_id,
@@ -307,34 +242,23 @@ class CameraCollector:
             quality=quality,
         )
 
-        response_camera_id = response.get(
-            "camera_id"
-        )
-
+        response_camera_id = response.get("camera_id")
         if (
             response_camera_id is not None
-            and str(response_camera_id)
-            != str(camera_id)
+            and str(response_camera_id) != str(camera_id)
         ):
             raise ValueError(
-                f"official-image response camera mismatch: "
-                f"sent Camera {camera_id}, "
+                f"official-image response camera mismatch: sent Camera {camera_id}, "
                 f"received camera_id={response_camera_id}"
             )
 
-        image_id = response.get(
-            "image_id",
-            response.get("id", "?"),
-        )
-
+        image_id = response.get("image_id", response.get("id", "?"))
         print(
-            f"Camera {camera_id}: stored "
-            f"{width}x{height} JPEG "
+            f"Camera {camera_id}: stored {width}x{height} JPEG "
             f"-> CameraImage {image_id}; "
             f"quality={quality['quality_status']}; "
             f"vlm_ready={quality['vlm_ready']}."
         )
-
         return True
 
     def process_camera(self, camera: dict[str, Any], *, force: bool = False) -> bool:
@@ -342,6 +266,7 @@ class CameraCollector:
         if camera_id is None:
             print("Skipping camera without id.")
             return False
+
         latest = self.backend.get_latest_image(camera_id)
         now_local = datetime.now(self.zone)
         decision = capture_decision(
@@ -355,15 +280,16 @@ class CameraCollector:
             next_due = decision.due_at.isoformat() if decision.due_at else "n/a"
             print(f"Camera {camera_id}: skip ({decision.reason}; next_due={next_due}).")
             return False
+
         due_at = decision.due_at.isoformat() if decision.due_at else "manual"
         print(f"Camera {camera_id}: capture ({decision.reason}; due_at={due_at}).")
-        return self._upload_capture(camera, self._capture_official_jpeg(camera))
+        return self._upload_capture(camera, self._capture_and_encode(camera))
 
     def _process_due_batch(
         self,
         due: list[tuple[dict[str, Any], CaptureDecision]],
     ) -> int:
-        """Capture all due Cameras while magenta lighting is ON, then restore prior state."""
+        """Capture and persist every Camera that is due in this poll."""
         captures: list[
             tuple[
                 dict[str, Any],
@@ -411,7 +337,12 @@ class CameraCollector:
     def process_all(self, *, camera_id: int | None = None, force: bool = False) -> int:
         if camera_id is not None:
             try:
-                return int(self.process_camera(self.backend.get_camera(camera_id), force=force))
+                return int(
+                    self.process_camera(
+                        self.backend.get_camera(camera_id),
+                        force=force,
+                    )
+                )
             except Exception as exc:
                 print(f"Camera {camera_id}: ERROR: {exc}")
                 return 0
@@ -419,11 +350,13 @@ class CameraCollector:
         cameras = self.backend.get_cameras()
         now_local = datetime.now(self.zone)
         due: list[tuple[dict[str, Any], CaptureDecision]] = []
+
         for camera in cameras:
             camera_id_value = camera.get("id", camera.get("camera_id"))
             if camera_id_value is None:
                 print("Skipping camera without id.")
                 continue
+
             try:
                 latest = self.backend.get_latest_image(camera_id_value)
                 decision = capture_decision(
@@ -436,14 +369,21 @@ class CameraCollector:
             except Exception as exc:
                 print(f"Camera {camera_id_value}: schedule ERROR: {exc}")
                 continue
+
             if decision.due:
                 due.append((camera, decision))
             else:
                 next_due = decision.due_at.isoformat() if decision.due_at else "n/a"
-                print(f"Camera {camera_id_value}: skip ({decision.reason}; next_due={next_due}).")
+                print(
+                    f"Camera {camera_id_value}: skip "
+                    f"({decision.reason}; next_due={next_due})."
+                )
+
         if not due:
             return 0
+
         if len(due) > 1:
             ids = ", ".join(str(camera.get("id", "?")) for camera, _ in due)
-            print(f"Shared capture batch due for Cameras: {ids}")
+            print(f"Capture batch due for Cameras: {ids}")
+
         return self._process_due_batch(due)

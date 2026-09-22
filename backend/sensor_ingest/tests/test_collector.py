@@ -1,42 +1,71 @@
 from django.test import TestCase, override_settings
 
-from sensor_ingest.exceptions import IngestionConfigurationError
-from sensor_ingest.models import IngestionRecord, IngestionSourceState
 from sensor_ingest.services.collector import SensorCollector
 from sensor_ingest.services.mapper import SENSOR_DEFINITIONS
-from sensor_ingest.tests.fixtures import VALID_ENTRY, make_entry
 from telemetry.models import Farm, FarmDevice, Sensor, SensorReading
 
 
-class FakeClient:
-    def __init__(self, *, latest=None, recent=None):
-        self.latest = latest or VALID_ENTRY
-        self.recent = recent or []
-        self.latest_calls = 0
-        self.recent_calls = 0
+WATER_URL = "http://192.168.1.100/readings"
+AMBIENT_URL = "http://192.168.1.111:8080/readings"
 
-    def get_latest(self):
-        self.latest_calls += 1
-        return self.latest
+WATER = {
+    "ph": 6.375,
+    "ec": 2987.0,
+    "water_temperature_c": 23.757,
+    "ph_valid": True,
+    "ec_valid": True,
+    "water_temperature_valid": True,
+}
 
-    def get_recent(self, *, results):
-        self.recent_calls += 1
-        return self.recent[-results:]
+AMBIENT = {
+    "ambient_temperature_c": 23.48,
+    "humidity_percent": 47.4,
+    "dew_point_c": 11.65,
+    "water_level": 11.1,
+    "ambient_valid": True,
+    "water_level_valid": True,
+}
+
+
+class FakeResponse:
+    def __init__(self, payload):
+        self.payload = payload
+
+    def raise_for_status(self):
+        return None
+
+    def json(self):
+        return self.payload
+
+
+class FakeSession:
+    def __init__(self):
+        self.calls = []
+
+    def get(self, url, timeout):
+        self.calls.append((url, timeout))
+        if url == WATER_URL:
+            return FakeResponse(WATER)
+        if url == AMBIENT_URL:
+            return FakeResponse(AMBIENT)
+        raise AssertionError(f"Unexpected URL: {url}")
 
 
 @override_settings(
-    THINGSPEAK_CHANNEL_ID="3464601",
-    THINGSPEAK_READ_API_KEY="test-read-key",
-    SENSOR_INGEST_DEVICE_SLUG="leafy-pi",
-    SENSOR_INGEST_SOURCE_KEY="thingspeak-primary",
+    LEAFY_WATER_QUALITY_URL=WATER_URL,
+    LEAFY_AMBIENT_SENSOR_URL=AMBIENT_URL,
+    SENSOR_INGEST_DEVICE_SLUG="test-device",
+    SENSOR_INGEST_HTTP_TIMEOUT_SECONDS=5,
+    SENSOR_INGEST_HTTP_RETRY_TOTAL=0,
+    SENSOR_INGEST_HTTP_RETRY_BACKOFF=0,
 )
-class SensorCollectorTests(TestCase):
+class LocalSensorCollectorTests(TestCase):
     def setUp(self):
         farm = Farm.objects.create(name="Farm")
         self.device = FarmDevice.objects.create(
             farm=farm,
-            name="Leafy Pi",
-            slug="leafy-pi",
+            name="LeafyAI",
+            slug="test-device",
         )
         for definition in SENSOR_DEFINITIONS:
             Sensor.objects.create(
@@ -44,39 +73,24 @@ class SensorCollectorTests(TestCase):
                 slug=definition.slug,
                 sensor_type=definition.sensor_type,
                 unit=definition.unit,
+                enabled=True,
             )
 
-    def test_collect_latest_updates_source_health_and_is_idempotent(self):
-        fake = FakeClient(latest=VALID_ENTRY)
-        collector = SensorCollector(client=fake)
-        first = collector.collect_latest()
-        second = collector.collect_latest()
+    def test_collect_latest_stores_seven_local_readings(self):
+        session = FakeSession()
+        count = SensorCollector(session=session).collect_latest()
 
-        self.assertTrue(first.created)
-        self.assertFalse(second.created)
-        self.assertEqual(SensorReading.objects.count(), 6)
-        source = IngestionSourceState.objects.get(pk="thingspeak-primary")
-        self.assertEqual(source.last_source_entry_id, 12345)
-        self.assertEqual(source.consecutive_failures, 0)
-        self.assertIsNotNone(source.last_http_success_at)
-
-    def test_reconcile_backfills_missing_entries_without_duplication(self):
-        history = [
-            make_entry(1, "2026-09-06T10:00:00Z"),
-            make_entry(2, "2026-09-06T10:01:00Z"),
-            make_entry(3, "2026-09-06T10:02:00Z"),
-        ]
-        collector = SensorCollector(client=FakeClient(recent=history))
-        first = collector.reconcile(results=100)
-        second = collector.reconcile(results=100)
-        self.assertEqual(first["created"], 3)
-        self.assertEqual(second["created"], 0)
-        self.assertEqual(second["duplicates"], 3)
-        self.assertEqual(IngestionRecord.objects.count(), 3)
-        self.assertEqual(SensorReading.objects.count(), 18)
-
-    def test_configuration_fails_clearly_when_sensor_missing(self):
-        Sensor.objects.filter(slug="water_ph").delete()
-        collector = SensorCollector(client=FakeClient())
-        with self.assertRaises(IngestionConfigurationError):
-            collector.validate_configuration()
+        self.assertEqual(count, 7)
+        self.assertEqual(SensorReading.objects.count(), 7)
+        self.assertEqual(
+            set(SensorReading.objects.values_list("source", flat=True)),
+            {"local_http"},
+        )
+        self.assertEqual(
+            set(SensorReading.objects.values_list("source_channel_id", flat=True)),
+            {"water_quality", "ambient"},
+        )
+        self.assertEqual(
+            session.calls,
+            [(WATER_URL, 5), (AMBIENT_URL, 5)],
+        )

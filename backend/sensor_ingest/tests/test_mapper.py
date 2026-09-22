@@ -1,52 +1,54 @@
-from decimal import Decimal
-
 from django.test import SimpleTestCase
 
-from sensor_ingest.services.mapper import normalize_entry
-from sensor_ingest.services.parser import parse_entry
-from sensor_ingest.tests.fixtures import VALID_ENTRY
+from sensor_ingest.services.mapper import (
+    REQUIRED_SENSOR_SLUGS,
+    normalize_payloads,
+)
 from telemetry.models import ObservationQuality
 
 
-class ThingSpeakMapperTests(SimpleTestCase):
-    def test_all_eight_fields_are_semantically_separated(self):
-        snapshot = normalize_entry(parse_entry(VALID_ENTRY))
-        self.assertEqual(len(snapshot.sensor_values), 6)
-        self.assertEqual(snapshot.sensor_values["water_ph"].value, Decimal("6.12"))
-        self.assertEqual(snapshot.irrigation_pump_state, "on")
-        self.assertEqual(snapshot.target_ec.value, Decimal("1500"))
-        self.assertEqual(snapshot.missing_fields, ())
-        self.assertEqual(snapshot.invalid_fields, ())
+WATER = {
+    "ph": 6.375,
+    "ec": 2987.0,
+    "water_temperature_c": 23.757,
+    "ph_valid": True,
+    "ec_valid": True,
+    "water_temperature_valid": True,
+}
 
-    def test_missing_one_sensor_does_not_discard_other_values(self):
-        payload = dict(VALID_ENTRY, field1=None)
-        snapshot = normalize_entry(parse_entry(payload))
-        self.assertNotIn("water_ph", snapshot.sensor_values)
-        self.assertIn("electrical_conductivity", snapshot.sensor_values)
-        self.assertIn("field1", snapshot.missing_fields)
+AMBIENT = {
+    "ambient_temperature_c": 23.48,
+    "humidity_percent": 47.4,
+    "dew_point_c": 11.65,
+    "water_level": 11.1,
+    "ambient_valid": True,
+    "water_level_valid": True,
+}
 
-    def test_non_numeric_sensor_is_isolated_as_invalid(self):
-        payload = dict(VALID_ENTRY, field2="not-a-number")
-        snapshot = normalize_entry(parse_entry(payload))
-        self.assertNotIn("electrical_conductivity", snapshot.sensor_values)
-        self.assertIn("field2", snapshot.invalid_fields)
-        self.assertIn("water_ph", snapshot.sensor_values)
 
-    def test_physically_impossible_ph_is_stored_as_suspect(self):
-        payload = dict(VALID_ENTRY, field1="15.2")
-        snapshot = normalize_entry(parse_entry(payload))
-        ph = snapshot.sensor_values["water_ph"]
-        self.assertEqual(ph.value, Decimal("15.2"))
-        self.assertEqual(ph.quality_status, ObservationQuality.SUSPECT)
-        self.assertIn("0-14", ph.quality_notes)
+class LocalSensorMapperTests(SimpleTestCase):
+    def test_normalizes_all_seven_physical_sensors(self):
+        batch = normalize_payloads(WATER, AMBIENT)
+        self.assertEqual(set(batch.sensor_values), set(REQUIRED_SENSOR_SLUGS))
+        self.assertEqual(batch.missing_sensors, ())
+        self.assertEqual(batch.invalid_sensors, ())
+        self.assertTrue(
+            all(
+                value.quality_status == ObservationQuality.VALID
+                for value in batch.sensor_values.values()
+            )
+        )
 
-    def test_pump_state_accepts_numeric_one_point_zero(self):
-        payload = dict(VALID_ENTRY, field7="1.0")
-        snapshot = normalize_entry(parse_entry(payload))
-        self.assertEqual(snapshot.irrigation_pump_state, "on")
+    def test_hardware_invalid_flag_skips_reading(self):
+        water = {**WATER, "ph_valid": False}
+        batch = normalize_payloads(water, AMBIENT)
+        self.assertNotIn("water_ph", batch.sensor_values)
+        self.assertIn("water_ph", batch.invalid_sensors)
 
-    def test_pump_state_must_be_zero_or_one(self):
-        payload = dict(VALID_ENTRY, field7="7")
-        snapshot = normalize_entry(parse_entry(payload))
-        self.assertIsNone(snapshot.irrigation_pump_state)
-        self.assertIn("field7", snapshot.invalid_fields)
+    def test_physical_domain_violation_is_retained_as_suspect(self):
+        water = {**WATER, "ph": 15}
+        batch = normalize_payloads(water, AMBIENT)
+        self.assertEqual(
+            batch.sensor_values["water_ph"].quality_status,
+            ObservationQuality.SUSPECT,
+        )

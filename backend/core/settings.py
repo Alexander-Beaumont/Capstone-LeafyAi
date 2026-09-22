@@ -12,13 +12,13 @@ REPO_ROOT = BASE_DIR.parent
 
 
 def _load_repo_env(path=None):
-    """Load the repository-root .env without overriding process variables.
+    """Load repository-root .env.example without overriding process variables.
 
-    This keeps local development consistent with the existing AI/VLM config
-    while allowing systemd/Docker/production to inject real environment values.
+    Process/system environment variables still take precedence, so deployment
+    can inject secrets without modifying the tracked example file.
     """
 
-    env_path = Path(path) if path else REPO_ROOT / ".env"
+    env_path = Path(path) if path else REPO_ROOT / ".env.example"
     if not env_path.exists():
         return
 
@@ -159,58 +159,84 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 LANGUAGE_CODE = "en-us"
-TIME_ZONE = "UTC"
+TIME_ZONE = "Australia/Melbourne"
 USE_I18N = True
 USE_TZ = True
 
 STATIC_URL = "static/"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
+
 # ---------------------------------------------------------------------------
-# Sensor ingestion / ThingSpeak
+# LeafyAI lab bootstrap configuration
 # ---------------------------------------------------------------------------
-# Secrets intentionally default to empty so the web backend can still start
-# when external telemetry is not configured.  The collector validates them
-# before it runs.
-THINGSPEAK_CHANNEL_ID = os.getenv("THINGSPEAK_CHANNEL_ID", "")
-THINGSPEAK_READ_API_KEY = os.getenv("THINGSPEAK_READ_API_KEY", "")
-SENSOR_INGEST_DEVICE_SLUG = os.getenv("SENSOR_INGEST_DEVICE_SLUG", "")
-SENSOR_INGEST_SOURCE_KEY = os.getenv(
-    "SENSOR_INGEST_SOURCE_KEY", "thingspeak-primary"
+LEAFY_FARM_NAME = os.getenv("LEAFY_FARM_NAME", "LeafyAI").strip()
+LEAFY_FARM_LOCATION = os.getenv("LEAFY_FARM_LOCATION", "").strip()
+LEAFY_DEVICE_NAME = os.getenv("LEAFY_DEVICE_NAME", "LeafyAI Device").strip()
+LEAFY_DEVICE_TYPE = os.getenv("LEAFY_DEVICE_TYPE", "hydroponic_controller").strip()
+
+LEAFY_CAMERA_1_NAME = os.getenv("LEAFY_CAMERA_1_NAME", "Camera Level 1").strip()
+LEAFY_CAMERA_1_LEVEL = int(os.getenv("LEAFY_CAMERA_1_LEVEL", "1"))
+LEAFY_CAMERA_1_IP = os.getenv("LEAFY_CAMERA_1_IP", "").strip()
+LEAFY_CAMERA_1_RTSP_PORT = int(os.getenv("LEAFY_CAMERA_1_RTSP_PORT", "554"))
+LEAFY_CAMERA_1_RTSP_PATH = os.getenv("LEAFY_CAMERA_1_RTSP_PATH", "/stream1").strip()
+LEAFY_CAMERA_1_CAPTURE_INTERVAL_MINUTES = int(
+    os.getenv("LEAFY_CAMERA_1_CAPTURE_INTERVAL_MINUTES", "30")
+)
+LEAFY_CAMERA_1_ENABLED = os.getenv(
+    "LEAFY_CAMERA_1_ENABLED", "true"
+).strip().lower() in {"1", "true", "yes", "on"}
+LEAFY_CAMERA_1_CV_ENABLED = os.getenv(
+    "LEAFY_CAMERA_1_CV_ENABLED", "true"
+).strip().lower() in {"1", "true", "yes", "on"}
+
+# ---------------------------------------------------------------------------
+# Sensor ingestion / local physical devices
+# ---------------------------------------------------------------------------
+
+LEAFY_WATER_QUALITY_URL = os.getenv(
+    "LEAFY_WATER_QUALITY_URL",
+    "",
+).strip()
+
+LEAFY_AMBIENT_SENSOR_URL = os.getenv(
+    "LEAFY_AMBIENT_SENSOR_URL",
+    "",
+).strip()
+
+SENSOR_INGEST_DEVICE_SLUG = os.getenv(
+    "SENSOR_INGEST_DEVICE_SLUG",
+    "",
+).strip()
+
+SENSOR_INGEST_POLL_SECONDS = int(
+    os.getenv("SENSOR_INGEST_POLL_SECONDS", "30")
 )
 
-SENSOR_INGEST_POLL_SECONDS = int(os.getenv("SENSOR_INGEST_POLL_SECONDS", "30"))
-SENSOR_INGEST_RECONCILE_SECONDS = int(
-    os.getenv("SENSOR_INGEST_RECONCILE_SECONDS", "300")
-)
-SENSOR_INGEST_BACKFILL_RESULTS = int(
-    os.getenv("SENSOR_INGEST_BACKFILL_RESULTS", "100")
-)
 SENSOR_INGEST_EXPECTED_INTERVAL_SECONDS = int(
     os.getenv("SENSOR_INGEST_EXPECTED_INTERVAL_SECONDS", "30")
 )
+
 SENSOR_INGEST_SENSOR_STALE_SECONDS = int(
     os.getenv("SENSOR_INGEST_SENSOR_STALE_SECONDS", "120")
 )
-SENSOR_INGEST_FEED_STALE_SECONDS = int(
-    os.getenv("SENSOR_INGEST_FEED_STALE_SECONDS", "120")
+
+SENSOR_INGEST_HTTP_TIMEOUT_SECONDS = float(
+    os.getenv("SENSOR_INGEST_HTTP_TIMEOUT_SECONDS", "5")
 )
 
-SENSOR_INGEST_CONNECT_TIMEOUT_SECONDS = float(
-    os.getenv("SENSOR_INGEST_CONNECT_TIMEOUT_SECONDS", "3.05")
-)
-SENSOR_INGEST_READ_TIMEOUT_SECONDS = float(
-    os.getenv("SENSOR_INGEST_READ_TIMEOUT_SECONDS", "10")
-)
 SENSOR_INGEST_HTTP_RETRY_TOTAL = int(
     os.getenv("SENSOR_INGEST_HTTP_RETRY_TOTAL", "4")
 )
+
 SENSOR_INGEST_HTTP_RETRY_BACKOFF = float(
     os.getenv("SENSOR_INGEST_HTTP_RETRY_BACKOFF", "0.5")
 )
+
 SENSOR_INGEST_FAILURE_BACKOFF_BASE_SECONDS = int(
     os.getenv("SENSOR_INGEST_FAILURE_BACKOFF_BASE_SECONDS", "5")
 )
+
 SENSOR_INGEST_FAILURE_BACKOFF_MAX_SECONDS = int(
     os.getenv("SENSOR_INGEST_FAILURE_BACKOFF_MAX_SECONDS", "300")
 )

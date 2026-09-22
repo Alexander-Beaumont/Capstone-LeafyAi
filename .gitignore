@@ -6,17 +6,21 @@ __pycache__/
 *.pyo
 .pytest_cache/
 
+# Test / coverage
+.coverage
+htmlcov/
+
 # Environment / secrets
 .env
 
 # Django runtime
 backend/db.sqlite3
 backend/media/
-backend/camera_images/
 
 # Frontend
 frontend/node_modules/
 frontend/dist/
+frontend/.vite/
 
 # OS / IDE
 .DS_Store

@@ -6,10 +6,9 @@ from django.utils.text import slugify
 class ObservationQuality(models.TextChoices):
     """Quality assigned to externally sourced observations.
 
-    ``UNVERIFIED`` is deliberately the default for ThingSpeak because the
-    owner-provided feed currently exposes values but not the ESP32 validity
-    flags.  Operational safety is evaluated elsewhere; this field only
-    describes confidence in the observation itself.
+    ``UNVERIFIED`` remains available for sources that do not provide a
+    trustworthy validity signal. Operational safety is evaluated elsewhere;
+    this field only describes confidence in the observation itself.
     """
 
     VALID = "valid", "Valid"
@@ -249,9 +248,9 @@ class SensorReading(models.Model):
 class ActuatorStateObservation(models.Model):
     """Externally observed actuator state, not a command.
 
-    ThingSpeak field 7 currently reports irrigation-pump state.  Keeping this
-    distinct from control commands lets Leafy AI compare requested state with
-    observed state later without pretending that a relay state is a sensor.
+    Keeping observed actuator state distinct from control commands lets Leafy AI
+    compare requested state with observed state without pretending a relay state
+    is a sensor measurement.
     """
 
     class State(models.TextChoices):

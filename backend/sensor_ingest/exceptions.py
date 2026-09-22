@@ -8,17 +8,9 @@ class SourceTransportError(SensorIngestError):
     code = "source_transport_error"
 
 
-class SourceAuthenticationError(SensorIngestError):
-    code = "source_authentication_error"
-
-
 class SourcePayloadError(SensorIngestError):
     code = "source_payload_error"
 
 
 class IngestionConfigurationError(SensorIngestError):
     code = "ingestion_configuration_error"
-
-
-class IngestionConflictError(SensorIngestError):
-    code = "ingestion_conflict"

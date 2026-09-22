@@ -1,15 +1,16 @@
-"""LeafyAI physical Kasa powerboard / capture-lighting configuration."""
+"""LeafyAI physical TP-Link/Kasa powerboard configuration."""
+
 from __future__ import annotations
 
 import os
 
 MODE = "kasa"
-WATCHDOG_SECONDS = float(os.getenv("LEAFY_LIGHTING_WATCHDOG_SECONDS", "30"))
 KASA_DISCOVERY_TIMEOUT = int(os.getenv("LEAFY_KASA_DISCOVERY_TIMEOUT", "5"))
 KASA_RETRIES = max(1, int(os.getenv("LEAFY_KASA_RETRIES", "3")))
-KASA_RETRY_DELAY_SECONDS = max(0.1, float(os.getenv("LEAFY_KASA_RETRY_DELAY_SECONDS", "0.75")))
-# Optional. Newer TP-Link/Kasa devices may require the TP-Link account credentials
-# used to provision the device. Leave blank for legacy/local-only devices.
+KASA_RETRY_DELAY_SECONDS = max(
+    0.1,
+    float(os.getenv("LEAFY_KASA_RETRY_DELAY_SECONDS", "0.75")),
+)
 KASA_USERNAME = os.getenv("LEAFY_KASA_USERNAME") or os.getenv("KASA_USERNAME") or ""
 KASA_PASSWORD = os.getenv("LEAFY_KASA_PASSWORD") or os.getenv("KASA_PASSWORD") or ""
 
@@ -26,5 +27,3 @@ DEVICES = {
     5: {"name": "Light Level 1", "board": "board_2", "child_index": 1},
     6: {"name": "Light Level 2", "board": "board_2", "child_index": 2},
 }
-
-MAGENTA_LIGHT_DEVICE_IDS = [5, 6]

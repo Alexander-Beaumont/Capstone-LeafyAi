@@ -31,7 +31,7 @@ class FarmStateSensorTests(TestCase):
             sensor=self.sensor,
             value=Decimal("1500"),
             measured_at=now - timedelta(minutes=10),
-            source="thingspeak",
+            source="local_http",
             source_channel_id="channel",
             source_entry_id=1,
         )
@@ -39,7 +39,7 @@ class FarmStateSensorTests(TestCase):
             sensor=self.sensor,
             value=Decimal("1400"),
             measured_at=now - timedelta(seconds=30),
-            source="thingspeak",
+            source="local_http",
             source_channel_id="channel",
             source_entry_id=2,
         )

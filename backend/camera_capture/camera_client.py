@@ -130,12 +130,7 @@ def capture_fresh_frame(
 
 
 def encode_jpeg(frame: np.ndarray, *, jpeg_quality: int = 92) -> bytes:
-    """Encode an acquired frame before lighting is restored.
-
-    Encoding before the lighting ON command makes the capture boundary explicit:
-    the official frame is already safely represented as JPEG bytes before the
-    grow light changes again.
-    """
+    """Encode an acquired camera frame as JPEG bytes."""
     if frame is None or frame.size == 0:
         raise CameraCaptureError("Cannot encode an empty camera frame.")
 

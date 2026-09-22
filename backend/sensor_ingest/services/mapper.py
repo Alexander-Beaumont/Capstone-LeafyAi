@@ -1,16 +1,18 @@
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
-from typing import Dict, Optional, Tuple
+from typing import Dict, Tuple
 
 from telemetry.models import ObservationQuality
 
 
 @dataclass(frozen=True)
 class SensorDefinition:
-    field_name: str
     slug: str
     sensor_type: str
     unit: str
+    source: str
+    payload_key: str
+    valid_key: str
 
 
 @dataclass(frozen=True)
@@ -21,143 +23,210 @@ class NormalizedValue:
 
 
 @dataclass(frozen=True)
-class NormalizedSnapshot:
-    entry_id: int
-    measured_at: object
-    payload_sha256: str
+class NormalizedBatch:
     sensor_values: Dict[str, NormalizedValue]
-    irrigation_pump_state: Optional[str]
-    target_ec: Optional[NormalizedValue]
-    missing_fields: Tuple[str, ...]
-    invalid_fields: Tuple[str, ...]
+    missing_sensors: Tuple[str, ...]
+    invalid_sensors: Tuple[str, ...]
 
+
+# ---------------------------------------------------------------------------
+# Physical LeafyAI sensors
+#
+# water_quality:
+#   http://192.168.1.100/readings
+#
+# ambient:
+#   http://192.168.1.111:8080/readings
+# ---------------------------------------------------------------------------
 
 SENSOR_DEFINITIONS = (
-    SensorDefinition("field1", "water_ph", "ph", "pH"),
-    SensorDefinition("field2", "electrical_conductivity", "ec", "µS/cm"),
-    SensorDefinition("field3", "water_temperature", "water_temperature", "°C"),
-    SensorDefinition("field4", "ambient_temperature", "ambient_temperature", "°C"),
-    SensorDefinition("field5", "relative_humidity", "humidity", "%"),
-    SensorDefinition("field6", "reservoir_water_level", "water_level", "cm"),
+    SensorDefinition(
+        slug="water_ph",
+        sensor_type="ph",
+        unit="pH",
+        source="water_quality",
+        payload_key="ph",
+        valid_key="ph_valid",
+    ),
+    SensorDefinition(
+        slug="electrical_conductivity",
+        sensor_type="ec",
+        unit="uS/cm",
+        source="water_quality",
+        payload_key="ec",
+        valid_key="ec_valid",
+    ),
+    SensorDefinition(
+        slug="water_temperature",
+        sensor_type="water_temperature",
+        unit="°C",
+        source="water_quality",
+        payload_key="water_temperature_c",
+        valid_key="water_temperature_valid",
+    ),
+    SensorDefinition(
+        slug="ambient_temperature",
+        sensor_type="ambient_temperature",
+        unit="°C",
+        source="ambient",
+        payload_key="ambient_temperature_c",
+        valid_key="ambient_valid",
+    ),
+    SensorDefinition(
+        slug="relative_humidity",
+        sensor_type="humidity",
+        unit="%",
+        source="ambient",
+        payload_key="humidity_percent",
+        valid_key="ambient_valid",
+    ),
+    SensorDefinition(
+        slug="dew_point",
+        sensor_type="dew_point",
+        unit="°C",
+        source="ambient",
+        payload_key="dew_point_c",
+        valid_key="ambient_valid",
+    ),
+    SensorDefinition(
+        slug="reservoir_water_level",
+        sensor_type="water_level",
+        unit="cm",
+        source="ambient",
+        payload_key="water_level",
+        valid_key="water_level_valid",
+    ),
 )
 
-SENSOR_DEFINITIONS_BY_FIELD = {
-    definition.field_name: definition for definition in SENSOR_DEFINITIONS
-}
+
 SENSOR_DEFINITIONS_BY_SLUG = {
-    definition.slug: definition for definition in SENSOR_DEFINITIONS
+    definition.slug: definition
+    for definition in SENSOR_DEFINITIONS
 }
-REQUIRED_SENSOR_SLUGS = tuple(definition.slug for definition in SENSOR_DEFINITIONS)
-MAX_STORABLE_ABS_VALUE = Decimal("100000000")  # DECIMAL(12,4) upper magnitude
+
+
+REQUIRED_SENSOR_SLUGS = tuple(
+    definition.slug
+    for definition in SENSOR_DEFINITIONS
+)
+
+
+MAX_STORABLE_ABS_VALUE = Decimal("100000000")
 
 
 def _decimal(raw):
     if raw is None:
         return None
+
     text = str(raw).strip()
+
     if not text:
         return None
+
     try:
         value = Decimal(text)
-    except (InvalidOperation, TypeError, ValueError):
-        raise ValueError("not_numeric")
+    except (InvalidOperation, TypeError, ValueError) as exc:
+        raise ValueError("not_numeric") from exc
+
     if not value.is_finite():
         raise ValueError("not_finite")
+
     if abs(value) >= MAX_STORABLE_ABS_VALUE:
         raise ValueError("out_of_storage_range")
+
     return value
 
 
 def _quality_for_sensor(slug, value):
-    """Flag only physically impossible/basic-domain values here.
+    """
+    Only flag physically impossible/basic-domain values here.
 
-    Crop-safe operating ranges belong to the safety layer and must never cause
-    real historical observations to be discarded by ingestion.
+    Crop operating ranges belong to the safety/control layer, not ingestion.
     """
 
-    if slug == "water_ph" and not (Decimal("0") <= value <= Decimal("14")):
-        return ObservationQuality.SUSPECT, "pH is outside the physical 0-14 scale."
-    if slug == "relative_humidity" and not (
-        Decimal("0") <= value <= Decimal("100")
+    if slug == "water_ph":
+        if not (Decimal("0") <= value <= Decimal("14")):
+            return (
+                ObservationQuality.SUSPECT,
+                "pH is outside the physical 0-14 scale.",
+            )
+
+    if slug == "relative_humidity":
+        if not (Decimal("0") <= value <= Decimal("100")):
+            return (
+                ObservationQuality.SUSPECT,
+                "Relative humidity is outside 0-100%.",
+            )
+
+    if slug in (
+        "electrical_conductivity",
+        "reservoir_water_level",
     ):
-        return ObservationQuality.SUSPECT, "Relative humidity is outside 0-100%."
-    if slug in ("electrical_conductivity", "reservoir_water_level") and value < 0:
-        return ObservationQuality.SUSPECT, "Value cannot normally be negative."
-    return ObservationQuality.UNVERIFIED, ""
+        if value < 0:
+            return (
+                ObservationQuality.SUSPECT,
+                "Value cannot normally be negative.",
+            )
+
+    return ObservationQuality.VALID, ""
 
 
-def normalize_entry(entry):
+def normalize_payloads(
+    water_quality_payload,
+    ambient_payload,
+):
+    """
+    Convert the two physical sensor payloads into LeafyAI sensor values.
+
+    water_quality_payload:
+        GET http://192.168.1.100/readings
+
+    ambient_payload:
+        GET http://192.168.1.111:8080/readings
+    """
+
+    payloads = {
+        "water_quality": water_quality_payload,
+        "ambient": ambient_payload,
+    }
+
     sensor_values = {}
-    missing_fields = []
-    invalid_fields = []
+    missing_sensors = []
+    invalid_sensors = []
 
     for definition in SENSOR_DEFINITIONS:
-        raw = entry.fields.get(definition.field_name)
-        if raw is None or not str(raw).strip():
-            missing_fields.append(definition.field_name)
+        payload = payloads[definition.source]
+
+        # Hardware explicitly reports whether the measurement is valid.
+        if payload.get(definition.valid_key) is not True:
+            invalid_sensors.append(definition.slug)
             continue
+
+        raw = payload.get(definition.payload_key)
+
+        if raw is None or not str(raw).strip():
+            missing_sensors.append(definition.slug)
+            continue
+
         try:
             value = _decimal(raw)
         except ValueError:
-            invalid_fields.append(definition.field_name)
+            invalid_sensors.append(definition.slug)
             continue
 
         quality_status, quality_notes = _quality_for_sensor(
-            definition.slug, value
+            definition.slug,
+            value,
         )
+
         sensor_values[definition.slug] = NormalizedValue(
             value=value,
             quality_status=quality_status,
             quality_notes=quality_notes,
         )
 
-    # field7: observed irrigation-pump relay status, not a sensor.
-    irrigation_pump_state = None
-    raw_pump = entry.fields.get("field7")
-    if raw_pump is None or not str(raw_pump).strip():
-        missing_fields.append("field7")
-    else:
-        try:
-            pump_value = _decimal(raw_pump)
-        except ValueError:
-            invalid_fields.append("field7")
-        else:
-            if pump_value == Decimal("0"):
-                irrigation_pump_state = "off"
-            elif pump_value == Decimal("1"):
-                irrigation_pump_state = "on"
-            else:
-                invalid_fields.append("field7")
-
-    # field8: externally reported target EC, not a measured sensor value.
-    target_ec = None
-    raw_target_ec = entry.fields.get("field8")
-    if raw_target_ec is None or not str(raw_target_ec).strip():
-        missing_fields.append("field8")
-    else:
-        try:
-            value = _decimal(raw_target_ec)
-        except ValueError:
-            invalid_fields.append("field8")
-        else:
-            quality_status = ObservationQuality.UNVERIFIED
-            quality_notes = ""
-            if value < 0:
-                quality_status = ObservationQuality.SUSPECT
-                quality_notes = "Target EC cannot normally be negative."
-            target_ec = NormalizedValue(
-                value=value,
-                quality_status=quality_status,
-                quality_notes=quality_notes,
-            )
-
-    return NormalizedSnapshot(
-        entry_id=entry.entry_id,
-        measured_at=entry.measured_at,
-        payload_sha256=entry.payload_sha256,
+    return NormalizedBatch(
         sensor_values=sensor_values,
-        irrigation_pump_state=irrigation_pump_state,
-        target_ec=target_ec,
-        missing_fields=tuple(sorted(set(missing_fields))),
-        invalid_fields=tuple(sorted(set(invalid_fields))),
+        missing_sensors=tuple(sorted(set(missing_sensors))),
+        invalid_sensors=tuple(sorted(set(invalid_sensors))),
     )

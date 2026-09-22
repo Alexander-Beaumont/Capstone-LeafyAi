@@ -35,7 +35,7 @@ class TelemetryModelTests(TestCase):
             sensor=self.test_sensor,
             value=Decimal("6.7500"),
             measured_at=measured_at,
-            source="thingspeak",
+            source="local_http",
             source_channel_id="channel",
             source_entry_id=10,
         )
