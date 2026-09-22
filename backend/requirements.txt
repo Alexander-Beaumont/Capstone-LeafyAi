@@ -13,3 +13,4 @@ python-kasa
 numpy>=1.26,<3
 opencv-python-headless>=4.8,<5
 pytest>=8,<9
+cryptography>=43,<47

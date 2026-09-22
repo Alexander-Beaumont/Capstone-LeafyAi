@@ -68,7 +68,7 @@ INSTALLED_APPS = [
     "corsheaders",
     "rest_framework",
     # Leafy AI apps
-    "cv",
+    "cv",  # Migration-only shell retained to remove the legacy analysis table.
     "telemetry",
     "sensor_ingest",
     "ai_agent",

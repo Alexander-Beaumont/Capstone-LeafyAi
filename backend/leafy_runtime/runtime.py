@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import threading
 import time
 
@@ -10,6 +11,7 @@ from django.db import close_old_connections
 
 from camera_capture.config import SETTINGS as CAMERA_SETTINGS
 from camera_capture.services import capture_due_once
+from ai_agent.scheduler import run_due_schedules
 
 
 _started = False
@@ -99,6 +101,22 @@ def _camera_worker():
         time.sleep(interval)
 
 
+def _ai_worker():
+    """Poll per-farm recommendation schedules without terminating the runtime."""
+    interval = max(5.0, float(os.getenv("LEAFY_AI_POLL_SECONDS", "30")))
+    time.sleep(2)
+    print(f"Leafy AI recommendation worker started (check interval: {interval}s).")
+    while True:
+        close_old_connections()
+        try:
+            run_due_schedules()
+        except Exception as exc:
+            print(f"Leafy AI recommendation worker error: {exc}")
+        finally:
+            close_old_connections()
+        time.sleep(interval)
+
+
 def start_background_runtime():
     """
     Start Leafy AI background services once in the current Django process.
@@ -124,10 +142,18 @@ def start_background_runtime():
             daemon=True,
         )
 
+        ai_thread = threading.Thread(
+            target=_ai_worker,
+            name="leafyai-ai-worker",
+            daemon=True,
+        )
+
         sensor_thread.start()
         camera_thread.start()
+        if os.getenv("LEAFY_AI_SCHEDULER_ENABLED", "true").strip().lower() in {"1", "true", "yes", "on"}:
+            ai_thread.start()
 
         print(
             "Leafy AI background runtime started "
-            "(sensor ingestion + camera capture)."
+            "(sensor ingestion + camera capture + AI scheduling)."
         )

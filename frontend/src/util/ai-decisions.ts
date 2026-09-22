@@ -1,12 +1,15 @@
 import type { DecisionSeverity } from "../components/PendingDecisionCard"
 import type { AIDecision } from "./types"
+import { parseConfidence } from "./ai-agent"
+import { Util } from "./Util"
 
-export function decisionSeverity(score: number | null): DecisionSeverity {
-    if (score == null || score < 0.4) return "Low"
-    if (score < 0.7) return "Medium"
+export function decisionSeverity(score: string | number | null | undefined): DecisionSeverity {
+    const value = parseConfidence(score)
+    if (value == null || value < 0.4) return "Low"
+    if (value < 0.7) return "Medium"
     return "High"
 }
 
 export function decisionName(decision: AIDecision) {
-    return decision.decision_type || decision.category || "AI decision"
+    return Util.capitilize(decision.decision_type || decision.category || "AI decision")
 }

@@ -1,23 +1,25 @@
 import { createContext, type ReactNode, useContext, useEffect, useMemo, useState } from "react"
 import useLocalStorage from "../components/hooks/useLocalStorage"
-import { getAiDecisions, getDevices, getFarms, getFarmState } from "../util/api-service-layer"
+import { getDevices, getFarms, getFarmState } from "../util/api-service-layer"
 import { FARM_OVERVIEW_POLL_MS } from "../util/constants"
-import type { AIDecision, FarmState, PowerboardDevice } from "../util/types"
+import type { Farm, FarmState, PowerboardDevice } from "../util/types"
 import { userContext } from "./UserProvider"
 
 interface FarmOverviewType {
+    farmId: number | null
+    farmName: string | null
     farmState: FarmState | null
     devices: PowerboardDevice[]
-    decisions: AIDecision[]
     loading: boolean
     nextRefreshAt: number | null
     setUpdate: (num: number) => void
 }
 
 const initialValues: FarmOverviewType = {
+    farmId: null,
+    farmName: null,
     farmState: null,
     devices: [],
-    decisions: [],
     loading: false,
     nextRefreshAt: null,
     setUpdate: () => null,
@@ -35,6 +37,12 @@ export default function FarmOverviewProvider({ children }: Props) {
     const [nextRefreshAt, setNextRefreshAt] = useState<number | null>(null)
     const user = useContext(userContext)
 
+    const [farmJSON, setFarmJSON] = useLocalStorage("selectedFarm", "null")
+    const farm = useMemo(
+        () => JSON.parse(farmJSON ?? "null") as Farm | null,
+        [farmJSON],
+    )
+
     const [farmStateJSON, setFarmStateJSON] = useLocalStorage("farmState", "null")
     const farmState = useMemo(
         () => JSON.parse(farmStateJSON ?? "null") as FarmState | null,
@@ -45,12 +53,6 @@ export default function FarmOverviewProvider({ children }: Props) {
     const devices = useMemo(
         () => JSON.parse(devicesJSON ?? "[]") as PowerboardDevice[],
         [devicesJSON],
-    )
-
-    const [decisionsJSON, setDecisionsJSON] = useLocalStorage("aiDecisions", "[]")
-    const decisions = useMemo(
-        () => JSON.parse(decisionsJSON ?? "[]") as AIDecision[],
-        [decisionsJSON],
     )
 
     useEffect(() => {
@@ -67,13 +69,14 @@ export default function FarmOverviewProvider({ children }: Props) {
                     if (notify) alert(farms.msg)
                     return
                 }
-                const farm = farms.data?.[0]
-                if (!farm) {
+                const selected = farms.data?.[0]
+                if (!selected) {
                     if (notify) alert("No farm found")
                     return
                 }
+                setFarmJSON(JSON.stringify(selected))
 
-                const state = await getFarmState(user.accessToken, farm.id)
+                const state = await getFarmState(user.accessToken, selected.id)
                 if (!state.success) {
                     if (notify) alert(state.msg)
                 } else {
@@ -85,13 +88,6 @@ export default function FarmOverviewProvider({ children }: Props) {
                     if (notify) alert(board.msg)
                 } else {
                     setDevicesJSON(JSON.stringify(board.data ?? []))
-                }
-
-                const ai = await getAiDecisions(user.accessToken)
-                if (!ai.success) {
-                    if (notify) alert(ai.msg)
-                } else {
-                    setDecisionsJSON(JSON.stringify(ai.data ?? []))
                 }
             } finally {
                 if (cancelled) return
@@ -111,9 +107,10 @@ export default function FarmOverviewProvider({ children }: Props) {
     return (
         <FarmOverviewContext.Provider
             value={{
+                farmId: farm?.id ?? null,
+                farmName: farm?.name ?? null,
                 farmState,
                 devices,
-                decisions,
                 loading,
                 nextRefreshAt,
                 setUpdate,

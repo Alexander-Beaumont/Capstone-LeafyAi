@@ -1,9 +1,9 @@
 """AI provider/model configuration.
 
-Provider and model selection is driven by environment variables so the
-application can switch between cloud (OpenRouter) and local (Ollama) models
-without changing code. A repo-root .env file is loaded automatically before
-these values are read.
+Per-farm database settings are authoritative for normal recommendation runs.
+Environment values remain deployment defaults for compatibility and direct
+provider-factory callers. A repo-root .env is loaded without overriding the
+process environment.
 
 If neither the shell nor .env sets AI_PROVIDER, the default provider is
 "mock", which requires no API key and no network.
