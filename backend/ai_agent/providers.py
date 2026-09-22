@@ -6,7 +6,21 @@ from ai_agent.credentials import decrypt_api_key
 
 
 class ProviderError(RuntimeError):
-    pass
+    def __init__(self, message, *, retryable=True):
+        super().__init__(message)
+        self.retryable = retryable
+
+
+def _response_error(payload, fallback):
+    if isinstance(payload, dict):
+        error = payload.get("error")
+        if isinstance(error, dict) and error.get("message"):
+            return str(error["message"])
+        if isinstance(error, str) and error:
+            return error
+        if payload.get("message"):
+            return str(payload["message"])
+    return fallback
 
 
 class OpenAICompatibleProvider:
@@ -24,10 +38,47 @@ class OpenAICompatibleProvider:
                 json={"model": self.model_name, "messages": messages, "temperature": temperature},
                 timeout=timeout,
             )
-            response.raise_for_status()
-            return response.json()["choices"][0]["message"]["content"]
-        except (requests.RequestException, KeyError, TypeError, ValueError) as exc:
-            raise ProviderError(f"{self.provider_name} model request failed: {exc}") from exc
+        except requests.RequestException as exc:
+            raise ProviderError(
+                f"{self.provider_name} model request failed: {exc}",
+                retryable=True,
+            ) from exc
+
+        try:
+            payload = response.json()
+        except ValueError as exc:
+            retryable = (
+                200 <= response.status_code < 300
+                or response.status_code in {408, 409, 425, 429}
+                or response.status_code >= 500
+            )
+            raise ProviderError(
+                f"{self.provider_name} model request failed: response was not valid JSON",
+                retryable=retryable,
+            ) from exc
+
+        if not 200 <= response.status_code < 300:
+            detail = _response_error(payload, f"HTTP {response.status_code}")
+            retryable = response.status_code in {408, 409, 425, 429} or response.status_code >= 500
+            raise ProviderError(
+                f"{self.provider_name} model request failed: {detail}",
+                retryable=retryable,
+            )
+
+        try:
+            content = payload["choices"][0]["message"]["content"]
+        except (IndexError, KeyError, TypeError) as exc:
+            detail = _response_error(payload, "response did not contain choices")
+            raise ProviderError(
+                f"{self.provider_name} model request failed: {detail}",
+                retryable=True,
+            ) from exc
+        if not isinstance(content, str) or not content.strip():
+            raise ProviderError(
+                f"{self.provider_name} model request failed: response contained no message content",
+                retryable=True,
+            )
+        return content
 
     def complete(self, system, user, **kwargs):
         return self._post([{"role": "system", "content": system}, {"role": "user", "content": user}], **kwargs)

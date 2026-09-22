@@ -1,5 +1,5 @@
 from datetime import time
-from unittest.mock import patch
+from unittest.mock import MagicMock, call, patch
 
 from django.contrib.auth.models import User
 from django.test import TestCase
@@ -8,6 +8,7 @@ from rest_framework.test import APITestCase
 
 from ai_agent.actuators import execute_decision
 from ai_agent.models import AIConfiguration, AIDecision, AIRecommendationRun, FarmAction
+from ai_agent.providers import OpenAICompatibleProvider, ProviderError
 from ai_agent.scheduler import run_due_schedules, schedule_slot
 from ai_agent.services import RecommendationGenerationError, generate_recommendation
 from telemetry.models import Camera, CameraImage, Farm, FarmDevice, FarmLevel, Sensor, SensorReading
@@ -25,7 +26,22 @@ class Provider:
 
 
 class FailingProvider(Provider):
-    def complete(self, *args, **kwargs): raise RuntimeError("vision unavailable")
+    def complete(self, *args, **kwargs):
+        self.calls.append(kwargs)
+        raise RuntimeError("vision unavailable")
+
+
+class SequenceProvider(Provider):
+    def __init__(self, values):
+        super().__init__()
+        self.values = list(values)
+
+    def complete(self, system, user, **kwargs):
+        self.calls.append(kwargs)
+        value = self.values.pop(0)
+        if isinstance(value, Exception):
+            raise value
+        return value
 
 
 class RecommendationTests(TestCase):
@@ -66,10 +82,56 @@ class RecommendationTests(TestCase):
         self.assertEqual(result["input_mode"], "llm")
         self.assertIn("vision unavailable", result["fallback_reason"])
 
-    def test_invalid_llm_output_persists_failed_run(self):
+    @patch("ai_agent.services.time.sleep")
+    def test_invalid_llm_output_persists_failed_run_after_retries(self, sleep):
+        provider = Provider("not-json")
         with self.assertRaises(RecommendationGenerationError):
-            generate_recommendation(self.farm, provider=Provider("not-json"))
+            generate_recommendation(self.farm, provider=provider)
+        self.assertEqual(len(provider.calls), 4)
+        self.assertEqual(sleep.call_args_list, [call(1), call(2), call(4)])
         self.assertEqual(AIRecommendationRun.objects.get().status, "failed")
+
+    @patch("ai_agent.services.time.sleep")
+    def test_llm_retries_provider_and_schema_failures_until_success(self, sleep):
+        provider = SequenceProvider([
+            ProviderError("missing choices"),
+            "not-json",
+            '{"recommendations":[]}',
+            output(),
+        ])
+
+        result = generate_recommendation(self.farm, provider=provider)
+
+        self.assertEqual(result["status"], "completed")
+        self.assertEqual(len(provider.calls), 4)
+        self.assertEqual(sleep.call_args_list, [call(1), call(2), call(4)])
+        self.assertEqual(AIDecision.objects.count(), 1)
+
+    @patch("ai_agent.services.time.sleep")
+    def test_llm_does_not_retry_non_retryable_provider_failure(self, sleep):
+        provider = SequenceProvider([
+            ProviderError("invalid API key", retryable=False),
+        ])
+
+        with self.assertRaises(RecommendationGenerationError):
+            generate_recommendation(self.farm, provider=provider)
+
+        self.assertEqual(len(provider.calls), 1)
+        sleep.assert_not_called()
+
+    @patch("ai_agent.services.time.sleep")
+    @patch("ai_agent.services._image_data_url", return_value="data:image/jpeg;base64,dGVzdA==")
+    def test_vlm_is_single_attempt_then_llm_retries(self, _image, sleep):
+        self.image(self.camera1, True, "PASS")
+        vlm = FailingProvider()
+        llm = SequenceProvider([ProviderError("temporary"), output()])
+
+        result = generate_recommendation(self.farm, provider=llm, vlm_provider=vlm)
+
+        self.assertEqual(result["input_mode"], "llm")
+        self.assertEqual(len(vlm.calls), 1)
+        self.assertEqual(len(llm.calls), 2)
+        sleep.assert_called_once_with(1)
 
     @patch("ai_agent.services.execute_decision")
     def test_safe_fan_recommendation_is_automatic(self, execute):
@@ -86,6 +148,37 @@ class RecommendationTests(TestCase):
         self.assertEqual(AIDecision.objects.get().execution_type, "notification")
         execute.assert_not_called()
 
+
+class ProviderTests(TestCase):
+    def setUp(self):
+        self.provider = OpenAICompatibleProvider(
+            "https://example.invalid/v1",
+            "test-key",
+            "test-model",
+            "openrouter",
+        )
+
+    @patch("ai_agent.providers.requests.post")
+    def test_missing_choices_reports_upstream_message_as_retryable(self, post):
+        response = MagicMock(status_code=200)
+        response.json.return_value = {"error": {"message": "upstream unavailable"}}
+        post.return_value = response
+
+        with self.assertRaisesRegex(ProviderError, "upstream unavailable") as caught:
+            self.provider.complete("system", "user")
+
+        self.assertTrue(caught.exception.retryable)
+
+    @patch("ai_agent.providers.requests.post")
+    def test_authentication_failure_is_not_retryable(self, post):
+        response = MagicMock(status_code=401)
+        response.json.return_value = {"error": {"message": "invalid API key"}}
+        post.return_value = response
+
+        with self.assertRaisesRegex(ProviderError, "invalid API key") as caught:
+            self.provider.complete("system", "user")
+
+        self.assertFalse(caught.exception.retryable)
 
 class SchedulerTests(TestCase):
     def setUp(self):
@@ -113,7 +206,6 @@ class ActuatorTests(TestCase):
     @patch("ai_agent.actuators.get_powerboard_bridge")
     def test_fan_uses_current_powerboard_device_and_audits_confirmation(self, bridge_factory):
         bridge = bridge_factory.return_value
-        bridge.exclusive_operation.return_value.__enter__.return_value = bridge
         bridge.get_all_device_statuses.return_value = [{"device_id": 4, "state": "OFF"}]
         bridge.set_device_state.return_value = {"device_id": 4, "state": "ON"}
         execute_decision(self.decision)
@@ -128,14 +220,45 @@ class ActuatorTests(TestCase):
         self.decision.category = "lighting"
         self.decision.save(update_fields=["target_device", "category"])
         bridge = bridge_factory.return_value
-        bridge.exclusive_operation.return_value.__enter__.return_value = bridge
-        bridge.get_magenta_state.return_value = {"success": True, "state": "OFF", "devices": []}
-        bridge.set_magenta_state.return_value = {"success": True, "state": "ON", "devices": []}
+        bridge.get_all_device_statuses.return_value = [
+            {"device_id": 5, "state": "OFF"},
+            {"device_id": 6, "state": "OFF"},
+        ]
+        bridge.set_device_state.side_effect = [
+            {"device_id": 5, "state": "ON"},
+            {"device_id": 6, "state": "ON"},
+        ]
         execute_decision(self.decision)
-        bridge.set_magenta_state.assert_called_once_with("ON")
+        self.assertEqual(
+            bridge.set_device_state.call_args_list,
+            [call(5, "ON"), call(6, "ON")],
+        )
         action = FarmAction.objects.get()
         self.assertEqual(action.powerboard_device_ids, [5, 6])
         self.assertEqual(action.result, "success")
+
+    @patch("ai_agent.actuators.get_powerboard_bridge")
+    def test_light_records_partial_result_when_one_outlet_fails(self, bridge_factory):
+        self.decision.target_device = "light"
+        self.decision.category = "lighting"
+        self.decision.save(update_fields=["target_device", "category"])
+        bridge = bridge_factory.return_value
+        bridge.get_all_device_statuses.return_value = [
+            {"device_id": 5, "state": "OFF"},
+            {"device_id": 6, "state": "ON"},
+        ]
+        bridge.set_device_state.side_effect = [
+            {"device_id": 5, "state": "ON"},
+            RuntimeError("outlet unavailable"),
+        ]
+
+        execute_decision(self.decision)
+
+        action = FarmAction.objects.get()
+        self.assertEqual(action.previous_state, "mixed")
+        self.assertEqual(action.confirmed_state, "mixed")
+        self.assertEqual(action.result, "partial")
+        self.assertEqual(action.hardware_response["errors"][0]["device_id"], 6)
 
 
 class RecommendationApiTests(APITestCase):

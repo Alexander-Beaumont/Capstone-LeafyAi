@@ -1,6 +1,7 @@
 """Quality-gated raw-image VLM/LLM recommendation orchestration."""
 import base64
 import mimetypes
+import time
 from decimal import Decimal
 
 from django.core.exceptions import ValidationError
@@ -11,7 +12,7 @@ from ai_agent.actuators import execute_decision
 from ai_agent.models import AIConfiguration, AIDecision, AIRecommendationRun
 from ai_agent.parsing import parse_recommendations
 from ai_agent.prompts import build_messages, build_vision_messages
-from ai_agent.providers import get_provider, get_vlm_provider
+from ai_agent.providers import ProviderError, get_provider, get_vlm_provider
 from ai_agent.safety import run_safety_check
 from farm_state.services import build_farm_state
 from telemetry.models import Camera, CameraImage, FarmDevice
@@ -25,6 +26,9 @@ class RecommendationGenerationError(RuntimeError):
     def __init__(self, message, run=None):
         super().__init__(message)
         self.run = run
+
+
+LLM_RETRY_DELAYS_SECONDS = (1, 2, 4)
 
 
 def resolve_device(farm):
@@ -121,6 +125,24 @@ def _validate_items(items, farm):
             seen.add(key)
 
 
+def _complete_llm_recommendations(provider, system, user, default_device_id, farm):
+    """Return the first valid text-LLM response after silent bounded retries."""
+    for attempt in range(len(LLM_RETRY_DELAYS_SECONDS) + 1):
+        try:
+            raw = provider.complete(system, user)
+            observations, items = parse_recommendations(raw, default_device_id)
+            _validate_items(items, farm)
+            return raw, observations, items
+        except ProviderError as exc:
+            if not exc.retryable or attempt == len(LLM_RETRY_DELAYS_SECONDS):
+                raise
+        except ValueError:
+            if attempt == len(LLM_RETRY_DELAYS_SECONDS):
+                raise
+
+        time.sleep(LLM_RETRY_DELAYS_SECONDS[attempt])
+
+
 def _persist_items(run, farm_state, items):
     checked = []
     with transaction.atomic():
@@ -183,9 +205,13 @@ def generate_recommendation(farm, device=None, provider=None, vlm_provider=None,
         try:
             selected_provider = provider or get_provider(configuration)
             system, user = build_messages(farm_state)
-            raw = selected_provider.complete(system, user)
-            observations, items = parse_recommendations(raw, default_device.id)
-            _validate_items(items, farm)
+            raw, observations, items = _complete_llm_recommendations(
+                selected_provider,
+                system,
+                user,
+                default_device.id,
+                farm,
+            )
             run.input_mode = "llm"
         except Exception as exc:
             run.status = "failed"

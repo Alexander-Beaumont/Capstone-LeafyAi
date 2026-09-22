@@ -65,7 +65,6 @@ class Command(BaseCommand):
                     "rtsp_port": settings.LEAFY_CAMERA_1_RTSP_PORT,
                     "rtsp_path": settings.LEAFY_CAMERA_1_RTSP_PATH,
                     "enabled": settings.LEAFY_CAMERA_1_ENABLED,
-                    "cv_enabled": settings.LEAFY_CAMERA_1_CV_ENABLED,
                     "capture_interval_minutes": settings.LEAFY_CAMERA_1_CAPTURE_INTERVAL_MINUTES,
                 },
             )
@@ -75,7 +74,6 @@ class Command(BaseCommand):
                 "rtsp_port": settings.LEAFY_CAMERA_1_RTSP_PORT,
                 "rtsp_path": settings.LEAFY_CAMERA_1_RTSP_PATH,
                 "enabled": settings.LEAFY_CAMERA_1_ENABLED,
-                "cv_enabled": settings.LEAFY_CAMERA_1_CV_ENABLED,
                 "capture_interval_minutes": settings.LEAFY_CAMERA_1_CAPTURE_INTERVAL_MINUTES,
             }
             changed_fields = []
