@@ -103,13 +103,12 @@ def capture_decision(
     """
     if not bool(camera.get("enabled", True)):
         return CaptureDecision(False, "camera disabled")
+    if force:
+        return CaptureDecision(True, "forced capture", due_at=now_local)
     start = _parse_time(camera.get("active_start_time"))
     end = _parse_time(camera.get("active_end_time"))
     if not _inside_window(now_local, start, end):
         return CaptureDecision(False, "outside active hours")
-
-    if force:
-        return CaptureDecision(True, "forced capture", due_at=now_local)
 
     if not latest_image:
         return CaptureDecision(True, "no previous official image", due_at=now_local)

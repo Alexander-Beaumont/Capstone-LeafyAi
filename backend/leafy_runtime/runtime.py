@@ -6,12 +6,12 @@ import os
 import threading
 import time
 
-from django.core.management import call_command
 from django.db import close_old_connections
 
 from camera_capture.config import SETTINGS as CAMERA_SETTINGS
 from camera_capture.services import capture_due_once
 from ai_agent.scheduler import run_due_schedules
+from sensor_ingest.services.runtime import collect_due_configurations
 
 
 _started = False
@@ -19,11 +19,7 @@ _start_lock = threading.Lock()
 
 
 def _sensor_worker():
-    """
-    Run the existing sensor_ingest management command.
-
-    collect_sensors handles polling, local HTTP retries, and failure backoff.
-    """
+    """Poll runtime-editable per-device ingestion configurations."""
 
     # Give Django a moment to finish starting.
     time.sleep(2)
@@ -32,27 +28,15 @@ def _sensor_worker():
 
     while True:
         close_old_connections()
-
         try:
-            # Normally this command runs continuously and does not return.
-            call_command("collect_sensors")
-
+            collect_due_configurations()
         except Exception as exc:
-            print(
-                "Leafy AI sensor worker error: "
-                f"{exc}"
-            )
-
+            print(f"Leafy AI sensor worker error: {exc}")
         finally:
             close_old_connections()
-
-        # This is normally reached only if collect_sensors unexpectedly stops.
-        print(
-            "Leafy AI sensor collector stopped. "
-            "Restarting in 30 seconds."
-        )
-
-        time.sleep(30)
+        # A short scheduler tick lets PATCHed poll intervals take effect without
+        # restarting Django. Each device's own interval is enforced in the DB.
+        time.sleep(1)
 
 
 def _camera_worker():

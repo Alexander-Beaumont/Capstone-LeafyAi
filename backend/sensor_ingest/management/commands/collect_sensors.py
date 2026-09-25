@@ -6,6 +6,8 @@ from django.core.management.base import BaseCommand, CommandError
 
 from sensor_ingest.exceptions import SensorIngestError
 from sensor_ingest.services.collector import SensorCollector
+from sensor_ingest.models import SensorIngestConfiguration
+from sensor_ingest.services.runtime import collect_due_configurations, perform_collection
 
 
 logger = logging.getLogger(__name__)
@@ -28,6 +30,35 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
+        database_configured = SensorIngestConfiguration.objects.exists()
+        if database_configured:
+            if options["once"]:
+                configurations = SensorIngestConfiguration.objects.filter(
+                    enabled=True
+                ).select_related("device").order_by("device_id")
+                stored = 0
+                try:
+                    for configuration in configurations:
+                        stored += perform_collection(configuration).stored_count
+                except SensorIngestError as exc:
+                    raise CommandError(str(exc)) from exc
+                self.stdout.write(self.style.SUCCESS(
+                    f"Sensor cycle complete: stored={stored} reading(s)."
+                ))
+                return
+
+            self.stdout.write(self.style.SUCCESS(
+                "Leafy AI database-configured sensor collector started; "
+                "poll timing is read live per device."
+            ))
+            try:
+                while True:
+                    collect_due_configurations()
+                    time.sleep(1)
+            except KeyboardInterrupt:
+                self.stdout.write("Sensor collector stopped.")
+                return
+
         poll_seconds = (
             options["poll_seconds"]
             or int(settings.SENSOR_INGEST_POLL_SECONDS)

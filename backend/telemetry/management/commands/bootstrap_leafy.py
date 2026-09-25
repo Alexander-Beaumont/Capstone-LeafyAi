@@ -5,6 +5,7 @@ from django.core.management import call_command
 from django.core.management.base import BaseCommand, CommandError
 
 from telemetry.models import Camera, Farm, FarmDevice, FarmLevel
+from sensor_ingest.services.configuration import bootstrap_environment_configuration
 
 
 class Command(BaseCommand):
@@ -45,6 +46,7 @@ class Command(BaseCommand):
             device.save(update_fields=changed)
 
         call_command("seed_sensors", device_slug=device.slug)
+        bootstrap_environment_configuration(device)
 
         level_number = settings.LEAFY_CAMERA_1_LEVEL
         if level_number not in (1, 2):
