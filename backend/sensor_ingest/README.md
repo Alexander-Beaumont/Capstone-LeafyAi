@@ -324,6 +324,16 @@ This migration allows existing databases to move safely to the new local-sensor 
 
 ## Configuration
 
+Endpoint and timing values are runtime data in one
+`SensorIngestConfiguration` row per `FarmDevice`. The operator API can update
+them without restarting Django, and the consolidated runtime re-reads due
+configurations on each scheduler tick. URL validation permits credential-free
+HTTP(S) private-LAN IP addresses only.
+
+The environment values below are bootstrap defaults for the device selected by
+`SENSOR_INGEST_DEVICE_SLUG`; repeated bootstrap runs do not overwrite later
+operator edits or create duplicate configuration rows.
+
 For the current local development workflow, the backend reads the repository-root:
 
 ```text
@@ -416,6 +426,7 @@ python manage.py bootstrap_leafy
 Farm
 FarmDevice
 7 sensor definitions
+SensorIngestConfiguration
 FarmLevel
 Camera configuration
 ```

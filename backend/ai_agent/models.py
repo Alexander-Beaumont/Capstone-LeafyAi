@@ -1,7 +1,7 @@
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
-from telemetry.models import CameraImage, Farm, FarmDevice
+from telemetry.models import CameraImage, Farm, FarmDevice, SensorReading
 
 
 class AIConfiguration(models.Model):
@@ -20,12 +20,13 @@ class AIConfiguration(models.Model):
     active_start_time = models.TimeField(default="08:00")
     active_end_time = models.TimeField(default="20:00")
     max_images = models.PositiveSmallIntegerField(default=4, validators=[MinValueValidator(1), MaxValueValidator(8)])
+    max_image_age_minutes = models.PositiveIntegerField(default=60, validators=[MinValueValidator(1), MaxValueValidator(10080)])
     updated_at = models.DateTimeField(auto_now=True)
 
 
 class AIRecommendationRun(models.Model):
     TRIGGER_CHOICES = [("manual", "Manual"), ("scheduled", "Scheduled"), ("legacy", "Legacy")]
-    STATUS_CHOICES = [("pending", "Pending"), ("running", "Running"), ("completed", "Completed"), ("failed", "Failed")]
+    STATUS_CHOICES = [("pending", "Pending"), ("running", "Running"), ("completed", "Completed"), ("failed", "Failed"), ("skipped", "Skipped")]
     INPUT_MODE_CHOICES = [("llm", "Sensor-only LLM"), ("vlm", "Vision and sensor VLM")]
 
     farm = models.ForeignKey(Farm, on_delete=models.CASCADE, related_name="ai_recommendation_runs")
@@ -36,11 +37,14 @@ class AIRecommendationRun(models.Model):
     provider_name = models.CharField(max_length=32, default="unknown")
     model_name = models.CharField(max_length=255, default="unknown")
     source_images = models.ManyToManyField(CameraImage, blank=True, related_name="ai_recommendation_runs")
+    source_readings = models.ManyToManyField(SensorReading, blank=True, related_name="ai_recommendation_runs")
     visual_evidence = models.JSONField(default=list, blank=True)
     image_observations = models.JSONField(default=list, blank=True)
     fallback_used = models.BooleanField(default=False)
     fallback_reason = models.TextField(blank=True, default="")
     error = models.TextField(blank=True, default="")
+    skip_reason = models.TextField(blank=True, default="")
+    input_freshness_summary = models.JSONField(default=dict, blank=True)
     raw_output = models.TextField(blank=True, default="")
     created_at = models.DateTimeField(auto_now_add=True)
     started_at = models.DateTimeField(null=True, blank=True)

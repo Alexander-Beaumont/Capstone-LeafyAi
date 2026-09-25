@@ -15,4 +15,6 @@ urlpatterns = [
     path("ai-agent/farms/<int:farm_id>/recommendations/generate/", views.generate_for_farm, name="ai-generate"),
     path("ai-agent/farms/<int:farm_id>/recommendations/latest/", views.latest_recommendations, name="ai-latest"),
     path("ai-agent/farms/<int:farm_id>/recommendations/recent/", views.recent_recommendations, name="ai-recent"),
+    path("ai-agent/farms/<int:farm_id>/recommendations/history/", views.recommendation_history, name="ai-history"),
+    path("ai-agent/farms/<int:farm_id>/recommendations/<int:run_id>/", views.recommendation_detail, name="ai-run-detail"),
 ]

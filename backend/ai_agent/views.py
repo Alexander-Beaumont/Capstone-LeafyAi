@@ -2,6 +2,10 @@ from django.shortcuts import get_object_or_404
 from rest_framework import status, viewsets
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
+from django.utils import timezone
+from django.utils.dateparse import parse_datetime
+from rest_framework import serializers
+from core.pagination import OperatorLimitOffsetPagination
 
 from ai_agent.models import AIConfiguration, AIDecision, AIRecommendationRun, FarmAction, SafetyCheck
 from ai_agent.providers import get_provider, get_vlm_provider
@@ -88,6 +92,66 @@ def latest_recommendations(request, farm_id):
 def recent_recommendations(request, farm_id):
     runs = AIRecommendationRun.objects.filter(farm=_farm(farm_id))[:3]
     return Response(AIRecommendationRunSerializer(runs, many=True, context={"request": request}).data)
+
+
+def _filter_datetime(request, name):
+    aliases = {
+        "start": ("start", "start_at", "date_from"),
+        "end": ("end", "end_at", "date_to"),
+    }
+    value = next(
+        (request.query_params.get(key) for key in aliases.get(name, (name,)) if request.query_params.get(key)),
+        None,
+    )
+    if not value:
+        return None
+    parsed = parse_datetime(value)
+    if parsed is None:
+        raise serializers.ValidationError({name: "Use an ISO 8601 date-time."})
+    if timezone.is_naive(parsed):
+        parsed = timezone.make_aware(parsed, timezone.get_current_timezone())
+    return parsed
+
+
+@api_view(["GET"])
+def recommendation_history(request, farm_id):
+    farm = _farm(farm_id)
+    queryset = AIRecommendationRun.objects.filter(farm=farm).prefetch_related(
+        "source_images__camera", "source_readings__sensor", "recommendations__actions"
+    ).order_by("-created_at", "-id")
+    filters = {
+        "status": (request.query_params.get("status"), dict(AIRecommendationRun.STATUS_CHOICES)),
+        "trigger": (request.query_params.get("trigger"), dict(AIRecommendationRun.TRIGGER_CHOICES)),
+        "input_mode": (request.query_params.get("input_mode"), dict(AIRecommendationRun.INPUT_MODE_CHOICES)),
+    }
+    for field, (value, choices) in filters.items():
+        if value:
+            if value not in choices:
+                raise serializers.ValidationError({field: f"Unsupported {field}."})
+            queryset = queryset.filter(**{field: value})
+    start = _filter_datetime(request, "start")
+    end = _filter_datetime(request, "end")
+    if start:
+        queryset = queryset.filter(created_at__gte=start)
+    if end:
+        queryset = queryset.filter(created_at__lte=end)
+    paginator = OperatorLimitOffsetPagination()
+    page = paginator.paginate_queryset(queryset, request)
+    data = AIRecommendationRunSerializer(page, many=True, context={"request": request}).data
+    return paginator.get_paginated_response(data)
+
+
+@api_view(["GET"])
+def recommendation_detail(request, farm_id, run_id):
+    run = get_object_or_404(
+        AIRecommendationRun.objects.prefetch_related(
+            "source_images__camera", "source_readings__sensor",
+            "recommendations__actions", "recommendations__safetycheck",
+        ),
+        id=run_id,
+        farm_id=farm_id,
+    )
+    return Response(AIRecommendationRunSerializer(run, context={"request": request}).data)
 
 
 @api_view(["POST"])

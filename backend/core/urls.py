@@ -20,6 +20,8 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/auth/", include("accounts.urls")),
     path("api/", include("farm_state.urls")),
+    path("api/", include("sensor_ingest.urls")),
+    path("api/", include("telemetry.operator_urls")),
     path("api/", include("growth.urls")),
     path("api/", include("ai_agent.urls")),
     path("api/", include("powerboard_control.urls")),

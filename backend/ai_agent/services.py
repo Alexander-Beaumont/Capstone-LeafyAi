@@ -2,6 +2,7 @@
 import base64
 import mimetypes
 import time
+from datetime import timedelta
 from decimal import Decimal
 
 from django.core.exceptions import ValidationError
@@ -15,7 +16,8 @@ from ai_agent.prompts import build_messages, build_vision_messages
 from ai_agent.providers import ProviderError, get_provider, get_vlm_provider
 from ai_agent.safety import run_safety_check
 from farm_state.services import build_farm_state
-from telemetry.models import Camera, CameraImage, FarmDevice
+from farm_state.thresholds import FRESH_THRESHOLD_SECONDS
+from telemetry.models import Camera, CameraImage, FarmDevice, ObservationQuality, Sensor, SensorReading
 
 
 class NoDeviceError(ValidationError):
@@ -61,13 +63,15 @@ def latest_image_candidates(farm):
     return sorted(images, key=lambda item: (item.captured_at, item.id), reverse=True)
 
 
-def _visual_evidence(images, selected_ids, eligible_ids):
+def _visual_evidence(images, selected_ids, eligible_ids, *, cutoff=None):
     evidence = []
     for image in images:
         if image.id in selected_ids:
             reason = "Selected for VLM input."
         elif image.id in eligible_ids:
             reason = "Image passed the technical gate but its file could not be read."
+        elif cutoff is not None and image.captured_at < cutoff:
+            reason = "Image passed the technical gate but is older than the configured maximum age."
         elif image.vlm_ready and image.quality_status in {"PASS", "WARN"}:
             reason = "Image passed the technical gate but exceeded the configured image limit."
         else:
@@ -165,21 +169,113 @@ def _persist_items(run, farm_state, items):
             execute_decision(decision)
 
 
+def latest_fresh_readings(farm, now=None):
+    """Return one fresh, non-suspect reading per enabled farm sensor."""
+    now = now or timezone.now()
+    readings = []
+    summary = {"fresh": 0, "stale": 0, "missing": 0, "suspect": 0}
+    sensors = Sensor.objects.filter(device__farm=farm, enabled=True).order_by("id")
+    for sensor in sensors:
+        reading = SensorReading.objects.filter(sensor=sensor).order_by(
+            "-measured_at", "-id"
+        ).first()
+        if reading is None:
+            summary["missing"] += 1
+            continue
+        if reading.quality_status == ObservationQuality.SUSPECT:
+            summary["suspect"] += 1
+            continue
+        stale_after = sensor.stale_after_seconds or FRESH_THRESHOLD_SECONDS
+        if reading.measured_at < now - timedelta(seconds=stale_after):
+            summary["stale"] += 1
+            continue
+        summary["fresh"] += 1
+        readings.append(reading)
+    return readings, summary
+
+
+def _restrict_farm_state_readings(farm_state, reading_ids):
+    """Remove stale/suspect sensor values from scheduled model input."""
+    reading_ids = set(reading_ids)
+    for device in farm_state.get("devices", []):
+        device["sensors"] = [
+            sensor for sensor in device.get("sensors", [])
+            if sensor.get("sensor_reading_id") in reading_ids
+        ]
+    return farm_state
+
+
+def _input_reuse(farm, run, reading_ids, image_ids):
+    completed = AIRecommendationRun.objects.filter(
+        farm=farm, status="completed"
+    ).exclude(id=run.id)
+    previous = completed.order_by("-completed_at", "-id").first()
+    previous_readings = set(SensorReading.objects.filter(
+        ai_recommendation_runs__in=completed
+    ).values_list("id", flat=True))
+    previous_images = set(CameraImage.objects.filter(
+        ai_recommendation_runs__in=completed
+    ).values_list("id", flat=True))
+    reading_ids = set(reading_ids)
+    image_ids = set(image_ids)
+    return previous, {
+        "new_reading_ids": sorted(reading_ids - previous_readings),
+        "reused_reading_ids": sorted(reading_ids & previous_readings),
+        "new_image_ids": sorted(image_ids - previous_images),
+        "reused_image_ids": sorted(image_ids & previous_images),
+    }
+
+
 def generate_recommendation(farm, device=None, provider=None, vlm_provider=None, persist=True, trigger="manual", scheduled_for=None, run=None):
     default_device = device or resolve_device(farm)
     configuration, _ = AIConfiguration.objects.get_or_create(farm=farm)
+    now = timezone.now()
     farm_state = build_sensor_context(farm)
     run = run or AIRecommendationRun.objects.create(farm=farm, trigger=trigger, scheduled_for=scheduled_for)
-    run.status, run.started_at = "running", timezone.now()
-    run.save(update_fields=["status", "started_at"])
-
+    fresh_readings, sensor_summary = latest_fresh_readings(farm, now)
+    reading_ids = {reading.id for reading in fresh_readings}
+    run.source_readings.set(reading_ids)
+    farm_state = _restrict_farm_state_readings(farm_state, reading_ids)
     candidates = latest_image_candidates(farm)
-    eligible = [image for image in candidates if image.vlm_ready and image.quality_status in {"PASS", "WARN"}][:configuration.max_images]
+    image_cutoff = now - timedelta(minutes=configuration.max_image_age_minutes)
+    eligible = [
+        image for image in candidates
+        if image.vlm_ready
+        and image.quality_status in {"PASS", "WARN"}
+        and image.captured_at >= image_cutoff
+    ][:configuration.max_images]
     readable, failures = _read_images(eligible)
     selected_ids = {item["image"].id for item in readable}
     eligible_ids = {image.id for image in eligible}
     run.source_images.set(selected_ids)
-    run.visual_evidence = _visual_evidence(candidates, selected_ids, eligible_ids)
+    run.visual_evidence = _visual_evidence(
+        candidates, selected_ids, eligible_ids, cutoff=image_cutoff
+    )
+    previous, reuse = _input_reuse(farm, run, reading_ids, selected_ids)
+    run.input_freshness_summary = {
+        "evaluated_at": now.isoformat(),
+        "max_image_age_minutes": configuration.max_image_age_minutes,
+        "sensors": {**sensor_summary, "included": len(reading_ids)},
+        "images": {
+            "latest_candidates": len(candidates),
+            "technically_eligible": len(eligible_ids),
+            "included": len(selected_ids),
+        },
+        "previous_completed_run_id": previous.id if previous else None,
+        **reuse,
+    }
+    has_new_evidence = bool(reuse["new_reading_ids"] or reuse["new_image_ids"])
+    if trigger == "scheduled" and previous is not None and not has_new_evidence:
+        run.status = "skipped"
+        run.skip_reason = "No new eligible sensor readings or camera images were available."
+        run.started_at = now
+        run.completed_at = timezone.now()
+        run.save()
+        from ai_agent.serializers import AIRecommendationRunSerializer
+        return AIRecommendationRunSerializer(run).data
+
+    run.status, run.started_at = "running", now
+    run.save()
     fallback_reasons = list(failures)
     raw = None
     observations = []

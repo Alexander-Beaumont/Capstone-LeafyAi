@@ -1,5 +1,6 @@
 from rest_framework import status, viewsets
 from rest_framework.response import Response
+from core.pagination import OperatorLimitOffsetPagination
 
 from telemetry.models import (
     ActuatorStateObservation,
@@ -38,8 +39,9 @@ from telemetry.serializers import (
 
 
 class FarmViewSet(viewsets.ModelViewSet):
-    queryset = Farm.objects.all()
+    queryset = Farm.objects.all().order_by("id")
     serializer_class = FarmSerializer
+    pagination_class = OperatorLimitOffsetPagination
 
 
 class FarmDeviceViewSet(viewsets.ModelViewSet):
