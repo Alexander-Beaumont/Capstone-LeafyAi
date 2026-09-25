@@ -9,7 +9,7 @@ from rest_framework.test import APITestCase
 from ai_agent.actuators import execute_decision
 from ai_agent.models import AIConfiguration, AIDecision, AIRecommendationRun, FarmAction
 from ai_agent.providers import OpenAICompatibleProvider, ProviderError
-from ai_agent.scheduler import run_due_schedules, schedule_slot
+from ai_agent.scheduler import next_eligible_time, run_due_schedules, schedule_slot
 from ai_agent.services import RecommendationGenerationError, generate_recommendation
 from telemetry.models import Camera, CameraImage, Farm, FarmDevice, FarmLevel, Sensor, SensorReading
 
@@ -194,6 +194,18 @@ class SchedulerTests(TestCase):
         with patch("ai_agent.scheduler.generate_recommendation"):
             run_due_schedules(now); run_due_schedules(now)
         self.assertEqual(AIRecommendationRun.objects.count(), 1)
+
+    def test_next_eligible_time_handles_early_morning_overnight_window(self):
+        self.config.active_start_time = time(20)
+        self.config.active_end_time = time(6)
+        self.config.interval_minutes = 30
+        self.config.save()
+        local_now = timezone.datetime(2026, 9, 25, 2, 5, tzinfo=timezone.get_fixed_timezone(600))
+        result = next_eligible_time(self.config, local_now)
+        self.assertEqual(
+            result.astimezone(timezone.get_fixed_timezone(600)).strftime("%Y-%m-%d %H:%M"),
+            "2026-09-25 02:30",
+        )
 
 
 class ActuatorTests(TestCase):

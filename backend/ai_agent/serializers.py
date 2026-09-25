@@ -1,6 +1,7 @@
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from rest_framework import serializers
+from django.utils import timezone
 
 from ai_agent.credentials import encrypt_api_key, mask_api_key
 from ai_agent.models import AIConfiguration, AIDecision, AIRecommendationRun, FarmAction, SafetyCheck
@@ -18,7 +19,7 @@ class AIConfigurationSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = AIConfiguration
-        fields = ["farm", "llm_provider", "llm_model", "llm_api_key", "llm_api_key_configured", "llm_api_key_mask", "vlm_provider", "vlm_model", "vlm_api_key", "vlm_api_key_configured", "vlm_api_key_mask", "clear_llm_api_key", "clear_vlm_api_key", "schedule_enabled", "timezone", "interval_minutes", "active_start_time", "active_end_time", "max_images", "updated_at"]
+        fields = ["farm", "llm_provider", "llm_model", "llm_api_key", "llm_api_key_configured", "llm_api_key_mask", "vlm_provider", "vlm_model", "vlm_api_key", "vlm_api_key_configured", "vlm_api_key_mask", "clear_llm_api_key", "clear_vlm_api_key", "schedule_enabled", "timezone", "interval_minutes", "active_start_time", "active_end_time", "max_images", "max_image_age_minutes", "updated_at"]
         read_only_fields = ["farm", "updated_at"]
 
     def get_llm_api_key_configured(self, obj): return bool(obj.llm_api_key_encrypted)
@@ -88,6 +89,7 @@ class AIDecisionSerializer(serializers.ModelSerializer):
 
 class AIRecommendationRunSerializer(serializers.ModelSerializer):
     source_images = serializers.SerializerMethodField()
+    source_readings = serializers.SerializerMethodField()
     recommendations = AIDecisionSerializer(many=True, read_only=True)
 
     def get_source_images(self, obj):
@@ -96,10 +98,26 @@ class AIRecommendationRunSerializer(serializers.ModelSerializer):
         for image in obj.source_images.select_related("camera").all().order_by("camera_id"):
             url = image.path.url if image.path else None
             if request and url: url = request.build_absolute_uri(url)
-            result.append({"id": image.id, "camera_id": image.camera_id, "camera_name": image.camera.name, "captured_at": image.captured_at, "url": url, "quality_status": image.quality_status, "quality_flags": image.quality_flags, "quality_message": image.quality_message, "vlm_ready": image.vlm_ready})
+            result.append({"id": image.id, "camera_id": image.camera_id, "camera_name": image.camera.name, "captured_at": image.captured_at, "age_seconds": max(0, round((timezone.now() - image.captured_at).total_seconds())), "reused": image.id in set(obj.input_freshness_summary.get("reused_image_ids", [])), "url": url, "quality_status": image.quality_status, "quality_flags": image.quality_flags, "quality_message": image.quality_message, "vlm_ready": image.vlm_ready})
         return result
+
+    def get_source_readings(self, obj):
+        reused = set(obj.input_freshness_summary.get("reused_reading_ids", []))
+        now = timezone.now()
+        return [{
+            "id": reading.id,
+            "sensor_id": reading.sensor_id,
+            "sensor_slug": reading.sensor.slug,
+            "sensor_type": reading.sensor.sensor_type,
+            "value": float(reading.value),
+            "unit": reading.sensor.unit,
+            "measured_at": reading.measured_at,
+            "age_seconds": max(0, round((now - reading.measured_at).total_seconds())),
+            "quality_status": reading.quality_status,
+            "reused": reading.id in reused,
+        } for reading in obj.source_readings.select_related("sensor").all().order_by("sensor_id")]
 
     class Meta:
         model = AIRecommendationRun
-        fields = ["id", "farm", "trigger", "status", "scheduled_for", "input_mode", "provider_name", "model_name", "source_images", "visual_evidence", "image_observations", "fallback_used", "fallback_reason", "error", "created_at", "started_at", "completed_at", "recommendations"]
+        fields = ["id", "farm", "trigger", "status", "scheduled_for", "input_mode", "provider_name", "model_name", "source_images", "source_readings", "visual_evidence", "image_observations", "fallback_used", "fallback_reason", "error", "skip_reason", "input_freshness_summary", "created_at", "started_at", "completed_at", "recommendations"]
         read_only_fields = fields

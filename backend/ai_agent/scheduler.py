@@ -24,6 +24,53 @@ def schedule_slot(configuration, now=None):
     return (window_start + timedelta(minutes=slot_index * configuration.interval_minutes)).astimezone(datetime_timezone.utc)
 
 
+def next_eligible_time(configuration, now=None):
+    """Return the next schedule boundary in UTC, including one due now."""
+    reference = now or timezone.now()
+    local_now = reference.astimezone(ZoneInfo(configuration.timezone))
+    zone = ZoneInfo(configuration.timezone)
+    interval = timedelta(minutes=configuration.interval_minutes)
+    current_slot = schedule_slot(configuration, reference)
+    if current_slot is not None:
+        candidate = current_slot
+        if candidate < reference.astimezone(datetime_timezone.utc):
+            candidate += interval
+        slot_local = current_slot.astimezone(zone)
+        if (
+            configuration.active_start_time > configuration.active_end_time
+            and slot_local.timetz().replace(tzinfo=None) < configuration.active_end_time
+        ):
+            start_date = slot_local.date() - timedelta(days=1)
+        else:
+            start_date = slot_local.date()
+        end_date = (
+            start_date
+            if configuration.active_start_time < configuration.active_end_time
+            else start_date + timedelta(days=1)
+        )
+        window_end = datetime.combine(end_date, configuration.active_end_time, tzinfo=zone)
+        if candidate < window_end.astimezone(datetime_timezone.utc):
+            return candidate
+    for offset in range(3):
+        start_date = local_now.date() + timedelta(days=offset)
+        window_start = datetime.combine(start_date, configuration.active_start_time, tzinfo=zone)
+        window_end_date = start_date if configuration.active_start_time < configuration.active_end_time else start_date + timedelta(days=1)
+        window_end = datetime.combine(window_end_date, configuration.active_end_time, tzinfo=zone)
+        if local_now <= window_start:
+            candidate = window_start
+        elif local_now < window_end:
+            elapsed = local_now - window_start
+            steps = int(elapsed.total_seconds() // interval.total_seconds())
+            candidate = window_start + steps * interval
+            if candidate < local_now:
+                candidate += interval
+        else:
+            continue
+        if candidate < window_end:
+            return candidate.astimezone(datetime_timezone.utc)
+    return None
+
+
 def run_due_schedules(now=None):
     for configuration in AIConfiguration.objects.filter(schedule_enabled=True).select_related("farm"):
         slot = schedule_slot(configuration, now)
