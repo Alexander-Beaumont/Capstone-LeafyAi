@@ -26,15 +26,65 @@ export const API_ROUTES = {
     updateGrowingAreas: `${import.meta.env.VITE_BACKEND_BASEURL}/api/update-growing-area`,
     updateBatch: `${import.meta.env.VITE_BACKEND_BASEURL}/api/update-batch`,
     createBatch: `${import.meta.env.VITE_BACKEND_BASEURL}/api/create-batch`,
-    deleteGrowingArea: `${import.meta.env.VITE_BACKEND_BASEURL}/api/delete-growing-area
-`,
+    deleteGrowingArea: `${import.meta.env.VITE_BACKEND_BASEURL}/api/delete-growing-area`,
     getFarms: `${import.meta.env.VITE_BACKEND_BASEURL}/api/farms/`,
     getDevices: `${import.meta.env.VITE_BACKEND_BASEURL}/api/devices/`,
     magentaState: `${import.meta.env.VITE_BACKEND_BASEURL}/api/lighting/magenta/state/`,
 }
 
+function backendUrl(path: string) {
+    const base = String(import.meta.env.VITE_BACKEND_BASEURL ?? "").replace(/\/$/, "")
+    return `${base}${path}`
+}
+
 export function farmStateUrl(farmId: number) {
-    return `${import.meta.env.VITE_BACKEND_BASEURL}/api/farm-state/${farmId}/`
+    return backendUrl(`/api/farm-state/${farmId}/`)
+}
+
+export function farmDashboardUrl(farmId: number) {
+    return backendUrl(`/api/farms/${farmId}/dashboard/`)
+}
+
+export function sensorIngestUrl(farmId: number, deviceId?: number) {
+    const suffix = deviceId == null ? "" : `${deviceId}/`
+    return backendUrl(`/api/farms/${farmId}/sensor-ingest/${suffix}`)
+}
+
+export function sensorReadingsUrl(farmId: number) {
+    return backendUrl(`/api/farms/${farmId}/sensor-readings/`)
+}
+
+export function sensorHistoryUrl(farmId: number) {
+    return backendUrl(`/api/farms/${farmId}/sensor-history/`)
+}
+
+export function farmCamerasUrl(farmId: number, cameraId?: number) {
+    const suffix = cameraId == null ? "" : `${cameraId}/`
+    return backendUrl(`/api/farms/${farmId}/cameras/${suffix}`)
+}
+
+export function cameraCaptureUrl(farmId: number, cameraId: number) {
+    return backendUrl(`/api/farms/${farmId}/cameras/${cameraId}/capture/`)
+}
+
+export function cameraImagesUrl(farmId: number) {
+    return backendUrl(`/api/farms/${farmId}/camera-images/`)
+}
+
+export function recommendationHistoryUrl(farmId: number) {
+    return backendUrl(`/api/ai-agent/farms/${farmId}/recommendations/history/`)
+}
+
+export function recommendationDetailUrl(farmId: number, runId: number) {
+    return backendUrl(`/api/ai-agent/farms/${farmId}/recommendations/${runId}/`)
+}
+
+export function farmDevicesUrl() {
+    return backendUrl("/api/farm-devices/")
+}
+
+export function farmLevelsUrl() {
+    return backendUrl("/api/farm-levels/")
 }
 
 export function deviceStateUrl(deviceId: number) {
@@ -64,8 +114,18 @@ export function aiRecentUrl(farmId: number) {
 export function mediaUrl(url: string | null | undefined) {
     if (!url) return null
     if (/^https?:\/\//i.test(url)) return url
-    const base = String(import.meta.env.VITE_BACKEND_BASEURL ?? "").replace(/\/$/, "")
-    return `${base}${url.startsWith("/") ? url : `/${url}`}`
+    return backendUrl(url.startsWith("/") ? url : `/${url}`)
+}
+
+export function withQuery(url: string, params: Record<string, string | number | boolean | null | undefined>) {
+    const search = new URLSearchParams()
+    for (const [key, value] of Object.entries(params)) {
+        if (value == null || value === "") continue
+        search.set(key, String(value))
+    }
+    const query = search.toString()
+    if (!query) return url
+    return `${url}${url.includes("?") ? "&" : "?"}${query}`
 }
 
 export const POWERBOARD_DEVICE_IDS = {

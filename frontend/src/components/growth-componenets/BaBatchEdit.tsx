@@ -13,6 +13,7 @@ import { userContext } from "../../providers/UserProvider"
 import type { APIResult } from "../../util/types"
 import { createBatch, updateBatch } from "../../util/api-service-layer"
 import { GrowthHarvestingContext } from "../../providers/GrowthHarvestProvider"
+import { FarmOverviewContext } from "../../providers/FarmOverviewProvider"
 import { BATCH_STATUS, GROWTH_STAGES } from "../../util/constants"
 
 interface Props{
@@ -23,6 +24,7 @@ interface Props{
 export default function BaBatchEdit({setOpend} : Props) {
     const user = useContext(userContext)
     const gh = useContext(GrowthHarvestingContext)
+    const overview = useContext(FarmOverviewContext)
 
     const [edit, setEdit] = useState(false)
     const [openId, setOpenId] = useState(0)
@@ -48,17 +50,23 @@ export default function BaBatchEdit({setOpend} : Props) {
         if(!valid) return
 
         user.setLoading(true)
+        if (overview.farmId == null) {
+            alert("Select a farm in the navigation bar.")
+            user.setLoading(false)
+            return
+        }
+
         let res: APIResult<{success: boolean, msg: string}> = {success: false, msg: ""}
 
         if(!edit){
-            res = await createBatch(user.accessToken, {
+            res = await createBatch(user.accessToken, overview.farmId, {
                plantType: form.plantType,
                growthStage: form.growthStage!.name,
                status: form.growthStage!.name,
                growingAreaID: (form.selectedGA!.data as GAGrowingArea).growingAreaId
             })
         }else{
-            res = await updateBatch(user.accessToken, {
+            res = await updateBatch(user.accessToken, overview.farmId, {
                batchID: (selectedBatchItem!.data as BABatch).batchId,
                action: action!
             })

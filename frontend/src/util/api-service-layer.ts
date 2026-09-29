@@ -5,8 +5,20 @@ import {
     aiLatestUrl,
     aiProviderTestUrl,
     aiRecentUrl,
+    cameraCaptureUrl,
+    cameraImagesUrl,
     deviceStateUrl,
+    farmCamerasUrl,
+    farmDashboardUrl,
+    farmDevicesUrl,
+    farmLevelsUrl,
     farmStateUrl,
+    recommendationDetailUrl,
+    recommendationHistoryUrl,
+    sensorHistoryUrl,
+    sensorIngestUrl,
+    sensorReadingsUrl,
+    withQuery,
 } from "./constants";
 import type {
     AIConfiguration,
@@ -14,30 +26,42 @@ import type {
     APIResult,
     BABatch,
     BatchDefinition,
+    CameraImage,
+    CameraWrite,
     DeviceStateResult,
     Farm,
+    FarmCamera,
+    FarmDashboard,
+    FarmLevel,
     FarmState,
     GaDefinition,
     GAGrowingArea,
+    GalleryImage,
     MagentaState,
     MoveBatch,
+    Page,
     PowerboardDevice,
     ProviderTestResult,
     ProviderTestRole,
     RecommendationRun,
+    SensorCollectionResult,
+    SensorHistory,
+    SensorIngestConfiguration,
+    SensorIngestPatch,
+    SensorReadingRecord,
 } from "./types";
 
 function errorMessage(body: unknown, fallback: string) {
     if (!body || typeof body !== "object") return fallback
     const record = body as Record<string, unknown>
-    const detail = record.detail ?? record.message ?? record.error
+    const detail = record.detail ?? record.message ?? record.error ?? record.msg
     if (typeof detail === "string" && detail.trim()) return detail
     if (Array.isArray(detail)) return detail.map(String).join(", ")
     const fieldErrors: string[] = []
     for (const [key, value] of Object.entries(record)) {
         if (key === "run" || key === "success") continue
         if (Array.isArray(value)) fieldErrors.push(`${key}: ${value.map(String).join(", ")}`)
-        else if (typeof value === "string" && value.trim() && key !== "detail" && key !== "message" && key !== "error") {
+        else if (typeof value === "string" && value.trim() && key !== "detail" && key !== "message" && key !== "error" && key !== "msg") {
             fieldErrors.push(`${key}: ${value}`)
         }
     }
@@ -88,68 +112,251 @@ async function apiRequest<T>(url: string, accessToken?: string, options: ApiRequ
     }
 }
 
-export async function getGrowingAreas(accessToken?: string): Promise<APIResult<GAGrowingArea[]>>{
-    return await apiRequest<GAGrowingArea[]>(API_ROUTES.getGrowingAreas, accessToken, {
+export async function getGrowingAreas(accessToken: string | undefined, farmId: number): Promise<APIResult<GAGrowingArea[]>>{
+    return await apiRequest<GAGrowingArea[]>(withQuery(API_ROUTES.getGrowingAreas, { farm_id: farmId }), accessToken, {
         method: "GET"
     })
 }
 
-export async function getBatches(accessToken: string | undefined): Promise<APIResult<BABatch[]>>{
-    return await apiRequest<BABatch[]>(API_ROUTES.getBatches, accessToken, {
+export async function getBatches(accessToken: string | undefined, farmId: number): Promise<APIResult<BABatch[]>>{
+    return await apiRequest<BABatch[]>(withQuery(API_ROUTES.getBatches, { farm_id: farmId }), accessToken, {
         method: "GET"
     })
 }
 
-export async function moveBatch(accessToken: string | undefined, moveDetails: MoveBatch): Promise<APIResult<{success: boolean, msg: string}>>{
+export async function moveBatch(accessToken: string | undefined, farmId: number, moveDetails: MoveBatch): Promise<APIResult<{success: boolean, msg: string}>>{
     return await apiRequest<{success: boolean, msg: string}>(API_ROUTES.moveBatch, accessToken, {
         method: "PATCH",
-        body: JSON.stringify(moveDetails),
+        body: JSON.stringify({ ...moveDetails, farm_id: farmId }),
         headers: {"Content-Type": "application/json",}
     })
 }
 
-export async function createGrowingArea(accessToken: string | undefined, gaDetails: GaDefinition): Promise<APIResult<{success: boolean, msg: string}>>{
+export async function createGrowingArea(accessToken: string | undefined, farmId: number, gaDetails: GaDefinition): Promise<APIResult<{success: boolean, msg: string}>>{
     return await apiRequest<{success: boolean, msg: string}>(API_ROUTES.createGrowingArea, accessToken, {
         method: "POST",
-        body: JSON.stringify(gaDetails),
+        body: JSON.stringify({ ...gaDetails, farm_id: farmId }),
         headers: {"Content-Type": "application/json",}
     })
 }
 
-export async function updateGrowingArea(accessToken: string | undefined, gaDetails: GaDefinition): Promise<APIResult<{success: boolean, msg: string}>>{
+export async function updateGrowingArea(accessToken: string | undefined, farmId: number, gaDetails: GaDefinition): Promise<APIResult<{success: boolean, msg: string}>>{
     return await apiRequest<{success: boolean, msg: string}>(API_ROUTES.updateGrowingAreas, accessToken, {
         method: "PATCH",
-        body: JSON.stringify(gaDetails),
+        body: JSON.stringify({ ...gaDetails, farm_id: farmId }),
         headers: {"Content-Type": "application/json",}
     })
 }
 
-export async function updateBatch(accessToken: string | undefined, details: {batchID: string, action: "harvest" | "terminate"}): Promise<APIResult<{success: boolean, msg: string}>>{
+export async function updateBatch(accessToken: string | undefined, farmId: number, details: {batchID: string, action: "harvest" | "terminate"}): Promise<APIResult<{success: boolean, msg: string}>>{
     return await apiRequest<{success: boolean, msg: string}>(API_ROUTES.updateBatch, accessToken, {
         method: "PATCH",
-        body: JSON.stringify(details),
+        body: JSON.stringify({ ...details, farm_id: farmId }),
         headers: {"Content-Type": "application/json",}
     })
 }
 
-export async function createBatch(accessToken: string | undefined, details: BatchDefinition): Promise<APIResult<{success: boolean, msg: string}>>{
+export async function createBatch(accessToken: string | undefined, farmId: number, details: BatchDefinition): Promise<APIResult<{success: boolean, msg: string}>>{
     return await apiRequest<{success: boolean, msg: string}>(API_ROUTES.createBatch, accessToken, {
         method: "POST",
-        body: JSON.stringify(details),
+        body: JSON.stringify({ ...details, farm_id: farmId }),
         headers: {"Content-Type": "application/json",}
     })
 }
 
-export async function deleteGrowingArea(accessToken: string | undefined, GaId: string): Promise<APIResult<{success: boolean, msg: string}>>{
+export async function deleteGrowingArea(accessToken: string | undefined, farmId: number, GaId: string): Promise<APIResult<{success: boolean, msg: string}>>{
     return await apiRequest<{success: boolean, msg: string}>(API_ROUTES.deleteGrowingArea, accessToken, {
         method: "DELETE",
-        body: JSON.stringify({growingAreaID: GaId}),
+        body: JSON.stringify({ growingAreaID: GaId, farm_id: farmId }),
         headers: {"Content-Type": "application/json",}
     })
 }
 
-export async function getFarms(accessToken: string | undefined): Promise<APIResult<Farm[]>> {
-    return await apiRequest<Farm[]>(API_ROUTES.getFarms, accessToken, {
+export async function createFarmWithLayout(
+    accessToken: string | undefined,
+    name: string,
+    location: string,
+): Promise<APIResult<Farm>> {
+    const farm = await apiRequest<Farm>(API_ROUTES.getFarms, accessToken, {
+        method: "POST",
+        body: JSON.stringify({ name, location }),
+    })
+    if (!farm.success || !farm.data) return farm
+
+    const device = await apiRequest<{ id: number }>(farmDevicesUrl(), accessToken, {
+        method: "POST",
+        body: JSON.stringify({ farm: farm.data.id, name: "Controller", device_type: "controller" }),
+    })
+    if (!device.success || !device.data) {
+        return { success: false, msg: device.msg || "Farm was created, but the controller was not.", data: farm.data }
+    }
+
+    for (const levelNumber of [1, 2]) {
+        const level = await apiRequest<{ id: number }>(farmLevelsUrl(), accessToken, {
+            method: "POST",
+            body: JSON.stringify({ device: device.data.id, level_number: levelNumber }),
+        })
+        if (!level.success) {
+            return { success: false, msg: level.msg || "Farm was created, but a level was not.", data: farm.data }
+        }
+    }
+
+    return farm
+}
+
+export async function getFarms(accessToken: string | undefined): Promise<APIResult<Page<Farm>>> {
+    return await apiRequest<Page<Farm>>(withQuery(API_ROUTES.getFarms, { limit: 500 }), accessToken, {
+        method: "GET",
+    })
+}
+
+export async function getFarmDashboard(accessToken: string | undefined, farmId: number): Promise<APIResult<FarmDashboard>> {
+    return await apiRequest<FarmDashboard>(farmDashboardUrl(farmId), accessToken, {
+        method: "GET",
+    })
+}
+
+export async function getSensorIngest(accessToken: string | undefined, farmId: number): Promise<APIResult<Page<SensorIngestConfiguration>>> {
+    return await apiRequest<Page<SensorIngestConfiguration>>(withQuery(sensorIngestUrl(farmId), { limit: 500 }), accessToken, {
+        method: "GET",
+    })
+}
+
+export async function patchSensorIngest(
+    accessToken: string | undefined,
+    farmId: number,
+    deviceId: number,
+    patch: SensorIngestPatch,
+): Promise<APIResult<SensorIngestConfiguration>> {
+    return await apiRequest<SensorIngestConfiguration>(sensorIngestUrl(farmId, deviceId), accessToken, {
+        method: "PATCH",
+        body: JSON.stringify(patch),
+    })
+}
+
+export async function testSensorIngest(
+    accessToken: string | undefined,
+    farmId: number,
+    deviceId: number,
+): Promise<APIResult<SensorCollectionResult>> {
+    return await apiRequest<SensorCollectionResult>(`${sensorIngestUrl(farmId, deviceId)}test/`, accessToken, {
+        method: "POST",
+        body: JSON.stringify({}),
+    })
+}
+
+export async function collectSensorIngest(
+    accessToken: string | undefined,
+    farmId: number,
+    deviceId: number,
+): Promise<APIResult<SensorCollectionResult>> {
+    return await apiRequest<SensorCollectionResult>(`${sensorIngestUrl(farmId, deviceId)}collect/`, accessToken, {
+        method: "POST",
+        body: JSON.stringify({}),
+    })
+}
+
+export async function getSensorReadings(
+    accessToken: string | undefined,
+    farmId: number,
+    query: { sensors?: string; quality?: string; start?: string; end?: string; limit?: number; offset?: number },
+): Promise<APIResult<Page<SensorReadingRecord>>> {
+    return await apiRequest<Page<SensorReadingRecord>>(withQuery(sensorReadingsUrl(farmId), query), accessToken, {
+        method: "GET",
+    })
+}
+
+export async function getSensorHistory(
+    accessToken: string | undefined,
+    farmId: number,
+    query: { preset?: string; start?: string; end?: string; sensors?: string; bucket?: string; limit?: number },
+): Promise<APIResult<SensorHistory>> {
+    return await apiRequest<SensorHistory>(withQuery(sensorHistoryUrl(farmId), query), accessToken, {
+        method: "GET",
+    })
+}
+
+export async function getFarmCameras(accessToken: string | undefined, farmId: number): Promise<APIResult<Page<FarmCamera>>> {
+    return await apiRequest<Page<FarmCamera>>(withQuery(farmCamerasUrl(farmId), { limit: 500 }), accessToken, {
+        method: "GET",
+    })
+}
+
+export async function createFarmCamera(
+    accessToken: string | undefined,
+    farmId: number,
+    body: CameraWrite,
+): Promise<APIResult<FarmCamera>> {
+    return await apiRequest<FarmCamera>(farmCamerasUrl(farmId), accessToken, {
+        method: "POST",
+        body: JSON.stringify(body),
+    })
+}
+
+export async function patchFarmCamera(
+    accessToken: string | undefined,
+    farmId: number,
+    cameraId: number,
+    patch: Partial<CameraWrite> & { is_archived?: boolean },
+): Promise<APIResult<FarmCamera>> {
+    return await apiRequest<FarmCamera>(farmCamerasUrl(farmId, cameraId), accessToken, {
+        method: "PATCH",
+        body: JSON.stringify(patch),
+    })
+}
+
+export async function captureFarmCamera(
+    accessToken: string | undefined,
+    farmId: number,
+    cameraId: number,
+): Promise<APIResult<CameraImage>> {
+    return await apiRequest<CameraImage>(cameraCaptureUrl(farmId, cameraId), accessToken, {
+        method: "POST",
+        body: JSON.stringify({}),
+    })
+}
+
+export async function getCameraImages(
+    accessToken: string | undefined,
+    farmId: number,
+    query: {
+        cameras?: string
+        start?: string
+        end?: string
+        quality?: string
+        vlm_ready?: boolean
+        ai_used?: boolean
+        limit?: number
+        offset?: number
+    },
+): Promise<APIResult<Page<GalleryImage>>> {
+    return await apiRequest<Page<GalleryImage>>(withQuery(cameraImagesUrl(farmId), query), accessToken, {
+        method: "GET",
+    })
+}
+
+export async function getFarmLevels(accessToken: string | undefined): Promise<APIResult<FarmLevel[]>> {
+    return await apiRequest<FarmLevel[]>(farmLevelsUrl(), accessToken, {
+        method: "GET",
+    })
+}
+
+export async function getRecommendationHistory(
+    accessToken: string | undefined,
+    farmId: number,
+    query: { status?: string; trigger?: string; input_mode?: string; start?: string; end?: string; limit?: number; offset?: number },
+): Promise<APIResult<Page<RecommendationRun>>> {
+    return await apiRequest<Page<RecommendationRun>>(withQuery(recommendationHistoryUrl(farmId), query), accessToken, {
+        method: "GET",
+    })
+}
+
+export async function getRecommendationDetail(
+    accessToken: string | undefined,
+    farmId: number,
+    runId: number,
+): Promise<APIResult<RecommendationRun>> {
+    return await apiRequest<RecommendationRun>(recommendationDetailUrl(farmId, runId), accessToken, {
         method: "GET",
     })
 }

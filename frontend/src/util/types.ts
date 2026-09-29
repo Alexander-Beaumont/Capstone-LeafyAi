@@ -17,6 +17,13 @@ export type APIResult<T> = {
     data?: T;
 }
 
+export interface Page<T> {
+    count: number
+    next: string | null
+    previous: string | null
+    results: T[]
+}
+
 export interface SignUpRes{
     user: {
         id: number,
@@ -83,7 +90,192 @@ export interface BatchDefinition {
 export interface Farm {
     id: number
     name: string
-    location: string
+    location: string | null
+}
+
+export interface CameraImage {
+    id: number
+    camera: number
+    captured_at: string
+    path: string | null
+    vlm_ready: boolean
+    quality_status: string
+    quality_flags: string[]
+    quality_message: string
+    quality_metrics: Record<string, unknown>
+}
+
+export interface DashboardImageQuality {
+    status: string
+    flags: string[]
+    message: string
+    vlm_ready: boolean
+}
+
+export interface FarmDashboard {
+    farm: Farm
+    generated_at: string
+    sensors: {
+        counts: {
+            total: number
+            fresh: number
+            stale: number
+            missing: number
+            suspect: number
+        }
+        ingestion_status: "not_configured" | "disabled" | "healthy" | "error"
+        last_successful_collection: string | null
+        devices: number
+    }
+    cameras: {
+        count: number
+        latest_image: CameraImage | null
+        image_quality: DashboardImageQuality | null
+        next_capture: string | null
+    }
+    ai: {
+        schedule_state: "enabled" | "disabled"
+        next_eligible_window: string | null
+        latest_run: RecommendationRun | null
+        action_summary: {
+            recommendations: number
+            automatic: number
+            hardware_actions: number
+        }
+    }
+}
+
+export interface SensorIngestConfiguration {
+    id: number
+    farm_id: number
+    device_id: number
+    device_name: string
+    device_slug: string
+    enabled: boolean
+    water_quality_url: string
+    ambient_sensor_url: string
+    poll_interval_seconds: number
+    sensor_stale_threshold_seconds: number
+    last_attempt_at: string | null
+    last_success_at: string | null
+    last_error: string
+    consecutive_failures: number
+    updated_at: string
+}
+
+export interface SensorIngestPatch {
+    enabled?: boolean
+    water_quality_url?: string
+    ambient_sensor_url?: string
+    poll_interval_seconds?: number
+    sensor_stale_threshold_seconds?: number
+}
+
+export interface SensorCollectionResult {
+    stored_count: number
+    missing_sensors: string[]
+    invalid_sensors: string[]
+    collected_at: string
+    validated: boolean
+    ingest_status: SensorIngestConfiguration
+}
+
+export interface SensorReadingRecord {
+    id: number
+    sensor: number
+    sensor_slug: string
+    sensor_type: string
+    unit: string
+    value: string
+    measured_at: string
+    received_at: string
+    source: string
+    source_channel_id: string
+    source_entry_id: number | null
+    quality_status: string
+    quality_notes: string
+}
+
+export interface SensorHistoryPoint {
+    timestamp: string
+    minimum: number
+    maximum: number
+    average: number
+    latest: number
+    sample_count: number
+}
+
+export interface SensorHistorySeries {
+    sensor_id: number
+    sensor_slug: string
+    sensor_type: string
+    unit: string
+    points: SensorHistoryPoint[]
+}
+
+export interface SensorHistory {
+    preset: string
+    start: string
+    end: string
+    bucket_seconds: number
+    series: SensorHistorySeries[]
+}
+
+export type CameraScheduleState = "due" | "scheduled" | "outside_window" | "disabled" | "archived"
+
+export interface CameraImageQuality {
+    status: string
+    flags: string[]
+    message: string
+    metrics: Record<string, unknown>
+    vlm_ready: boolean
+}
+
+export interface FarmCamera {
+    id: number
+    farm_level_id: number
+    name: string
+    position: string | null
+    source_type: string
+    ip_address: string | null
+    rtsp_port: number | null
+    rtsp_path: string | null
+    enabled: boolean
+    is_archived: boolean
+    capture_interval_minutes: number
+    active_start_time: string | null
+    active_end_time: string | null
+    latest_image: CameraImage | null
+    last_capture_at: string | null
+    next_scheduled_capture: string | null
+    schedule_state: CameraScheduleState
+    image_quality: CameraImageQuality | null
+}
+
+export interface CameraWrite {
+    farm_level_id: number
+    name: string
+    position?: string
+    source_type: "RTSP"
+    ip_address: string
+    rtsp_port: number
+    rtsp_path: string
+    enabled: boolean
+    capture_interval_minutes: number
+    active_start_time: string | null
+    active_end_time: string | null
+}
+
+export interface GalleryImage extends CameraImage {
+    camera_name: string
+    ai_used: boolean
+    ai_run_ids: number[]
+}
+
+export interface FarmLevel {
+    id: number
+    device: number
+    level_number: number
 }
 
 export type SensorFreshness = "fresh" | "stale" | "missing"
@@ -200,7 +392,7 @@ export interface DeviceStateResult {
 
 export type AIProviderName = "openrouter" | "ollama" | "mock"
 export type RecommendationTrigger = "manual" | "scheduled" | "legacy"
-export type RecommendationStatus = "pending" | "running" | "completed" | "failed"
+export type RecommendationStatus = "pending" | "running" | "completed" | "failed" | "skipped"
 export type RecommendationInputMode = "vlm" | "llm"
 export type RecommendationExecutionType = "notification" | "automated"
 export type RecommendationTargetDevice =
@@ -231,6 +423,7 @@ export interface AIConfiguration {
     active_start_time: string
     active_end_time: string
     max_images: number
+    max_image_age_minutes: number
     updated_at: string
 }
 
@@ -249,6 +442,7 @@ export interface AIConfigurationPatch {
     active_start_time?: string
     active_end_time?: string
     max_images?: number
+    max_image_age_minutes?: number
 }
 
 export interface SourceImage {
@@ -256,11 +450,48 @@ export interface SourceImage {
     camera_id: number
     camera_name: string
     captured_at: string
+    age_seconds: number
+    reused: boolean
     url: string | null
     quality_status: QualityStatus
     quality_flags: string[]
     quality_message: string
     vlm_ready: boolean
+}
+
+export interface SourceReading {
+    id: number
+    sensor_id: number
+    sensor_slug: string
+    sensor_type: string
+    value: number
+    unit: string
+    measured_at: string
+    age_seconds: number
+    quality_status: string
+    reused: boolean
+}
+
+export interface InputFreshnessSummary {
+    evaluated_at?: string
+    max_image_age_minutes: number
+    sensors: {
+        fresh: number
+        stale: number
+        missing: number
+        suspect: number
+        included: number
+    }
+    images: {
+        latest_candidates: number
+        technically_eligible: number
+        included: number
+    }
+    previous_completed_run_id?: number | null
+    new_reading_ids: number[]
+    reused_reading_ids: number[]
+    new_image_ids: number[]
+    reused_image_ids: number[]
 }
 
 export interface VisualEvidence {
@@ -334,6 +565,9 @@ export interface RecommendationRun {
     provider_name: string
     model_name: string
     source_images: SourceImage[]
+    source_readings: SourceReading[]
+    input_freshness_summary: InputFreshnessSummary
+    skip_reason: string
     visual_evidence: VisualEvidence[]
     image_observations: ImageObservation[]
     fallback_used: boolean

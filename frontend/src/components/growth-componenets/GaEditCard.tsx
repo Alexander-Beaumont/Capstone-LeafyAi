@@ -12,6 +12,7 @@ import useForm from "../hooks/useFrom"
 import { createGrowingArea, deleteGrowingArea, updateGrowingArea } from "../../util/api-service-layer"
 import { userContext } from "../../providers/UserProvider"
 import { GrowthHarvestingContext } from "../../providers/GrowthHarvestProvider"
+import { FarmOverviewContext } from "../../providers/FarmOverviewProvider"
 
 interface Props{
     opened: boolean
@@ -21,6 +22,7 @@ interface Props{
 export default function GaEditCard({setOpend} : Props) {
     const user = useContext(userContext)
     const gh = useContext(GrowthHarvestingContext)
+    const overview = useContext(FarmOverviewContext)
 
     const [editExistingGa, setEditExistingGa] = useState(false)
     const [selectedItem, setSelectedItem] = useState<dataFormat|null>(null)
@@ -37,16 +39,22 @@ export default function GaEditCard({setOpend} : Props) {
         if(!valid) return
 
         user.setLoading(true)
+        if (overview.farmId == null) {
+            alert("Select a farm in the navigation bar.")
+            user.setLoading(false)
+            return
+        }
+
         let res: APIResult<{success: boolean, msg: string}> = {success: false, msg: ""}
 
         if(!editExistingGa){
-            res = await createGrowingArea(user.accessToken, {
+            res = await createGrowingArea(user.accessToken, overview.farmId, {
                 name: form.name,
                 slotCount: Number(form.SlotCount),
                 farmLevel: Number(form.FarmLevel)
             })
         }else{
-            res = await updateGrowingArea(user.accessToken, {
+            res = await updateGrowingArea(user.accessToken, overview.farmId, {
                 growingAreaID: `${(selectedItem!.data as GAGrowingArea).growingAreaId}`,
                 name: form.name,
                 slotCount: Number(form.SlotCount),
@@ -74,7 +82,12 @@ export default function GaEditCard({setOpend} : Props) {
         }
 
         user.setLoading(true)
-        const res = await deleteGrowingArea(user.accessToken, (selectedItem.data as GAGrowingArea).growingAreaId)
+        if (overview.farmId == null) {
+            alert("Select a farm in the navigation bar.")
+            user.setLoading(false)
+            return
+        }
+        const res = await deleteGrowingArea(user.accessToken, overview.farmId, (selectedItem.data as GAGrowingArea).growingAreaId)
 
 
         if(!res.success) {

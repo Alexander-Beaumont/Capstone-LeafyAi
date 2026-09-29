@@ -12,6 +12,7 @@ import Modal from "../components/primatives/Modal"
 import GaEditCard from "../components/growth-componenets/GaEditCard"
 import BaBatchEdit from "../components/growth-componenets/BaBatchEdit"
 import { GrowthHarvestingContext } from "../providers/GrowthHarvestProvider"
+import { FarmOverviewContext } from "../providers/FarmOverviewProvider"
 import { Util } from "../util/Util"
 
 
@@ -22,6 +23,7 @@ export default function GrowthHarvesting() {
     const [editBatches, setEditBatches] = useState(false)
 
     const growthHarvesting = useContext(GrowthHarvestingContext)
+    const overview = useContext(FarmOverviewContext)
    
     return (
         <div className="flex flex-col w-full items-center p-5 max-w-250 m-auto gap-5">
@@ -29,6 +31,9 @@ export default function GrowthHarvesting() {
                 title="Growth & Harvesting"
                 icon={<TbGrowth/>}
             />
+            {!overview.farmId ?
+                <p className="w-full text-sm text-subtext3">Select a farm in the navigation bar.</p>
+            : null}
             <div className="flex gap-3 w-full flex-wrap">
                 <InformationPanel
                     name="Active Batches"

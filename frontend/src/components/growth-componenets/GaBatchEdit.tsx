@@ -7,6 +7,7 @@ import { useContext, useState } from "react"
 import { TbEdit } from "react-icons/tb"
 import type { GABatch, GAGrowingArea } from "../../util/types"
 import { GrowthHarvestingContext } from "../../providers/GrowthHarvestProvider"
+import { FarmOverviewContext } from "../../providers/FarmOverviewProvider"
 import { userContext } from "../../providers/UserProvider"
 import { moveBatch } from "../../util/api-service-layer"
 
@@ -19,6 +20,7 @@ interface Props{
 
 export default function GaBatchEdit({setOpend, currentGrowingArea, currentBatch} : Props) {
     const gh = useContext(GrowthHarvestingContext)
+    const overview = useContext(FarmOverviewContext)
     const user = useContext(userContext)
 
     const [selectedItem, setSelectedItem] = useState<dataFormat|null>(null)
@@ -34,7 +36,13 @@ export default function GaBatchEdit({setOpend, currentGrowingArea, currentBatch}
 
         user.setLoading(true)
 
-        const res = await moveBatch(user.accessToken, {
+        if (overview.farmId == null) {
+            alert("Select a farm in the navigation bar.")
+            user.setLoading(false)
+            return
+        }
+
+        const res = await moveBatch(user.accessToken, overview.farmId, {
             currentGaID: currentGrowingArea.growingAreaId,
             destinationGaID: (selectedItem.data as GAGrowingArea).growingAreaId,
             batchID: currentBatch.batchId

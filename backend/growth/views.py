@@ -93,21 +93,46 @@ def normalise_status(value):
     }.get(cleaned, "active")
 
 
-def get_or_create_farm_level(level_number):
-    farm, _ = Farm.objects.get_or_create(
-        name="Default Farm",
-        defaults={"location": ""},
-    )
-    device, _ = FarmDevice.objects.get_or_create(
-        farm=farm,
-        name="Default Device",
-        defaults={"device_type": "farm"},
-    )
+def resolve_farm(request):
+    raw = request.data.get("farm_id")
+    if raw is None or raw == "":
+        raw = request.query_params.get("farm_id")
+    if raw is None or raw == "":
+        return None, error_response("farm_id is required")
+    try:
+        farm_id = int(raw)
+    except (TypeError, ValueError):
+        return None, error_response("farm_id must be a number")
+    farm = Farm.objects.filter(id=farm_id).first()
+    if farm is None:
+        return None, error_response("Farm not found", status.HTTP_404_NOT_FOUND)
+    return farm, None
+
+
+def get_or_create_farm_level(farm, level_number):
+    device = FarmDevice.objects.filter(farm=farm).order_by("id").first()
+    if device is None:
+        device = FarmDevice.objects.create(
+            farm=farm,
+            name="Controller",
+            device_type="controller",
+        )
     farm_level, _ = FarmLevel.objects.get_or_create(
         device=device,
         level_number=level_number,
     )
     return farm_level
+
+
+def area_belongs_to_farm(area, farm):
+    return area.farm_level.device.farm_id == farm.id
+
+
+def batch_belongs_to_farm(batch, farm):
+    return BatchPlacement.objects.filter(
+        plant_batch=batch,
+        growing_area__farm_level__device__farm=farm,
+    ).exists()
 
 
 def growing_area_response(area):
@@ -137,9 +162,12 @@ def growing_area_response(area):
     }
 
 
-def batch_response(batch):
+def batch_response(batch, farm):
     placements = (
-        BatchPlacement.objects.filter(plant_batch=batch)
+        BatchPlacement.objects.filter(
+            plant_batch=batch,
+            growing_area__farm_level__device__farm=farm,
+        )
         .select_related("growing_area", "growing_area__farm_level")
         .order_by("-start_date")
     )
@@ -167,23 +195,40 @@ def batch_response(batch):
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def growing_areas(request):
-    areas = GrowingArea.objects.select_related("farm_level").order_by("id")
+    farm, error = resolve_farm(request)
+    if error is not None:
+        return error
+    areas = GrowingArea.objects.filter(
+        farm_level__device__farm=farm,
+    ).select_related("farm_level").order_by("id")
     return Response([growing_area_response(area) for area in areas])
 
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def batches(request):
-    plant_batches = PlantBatch.objects.order_by("-planting_date", "-id")
-    return Response([batch_response(batch) for batch in plant_batches])
+    farm, error = resolve_farm(request)
+    if error is not None:
+        return error
+    plant_batches = PlantBatch.objects.filter(
+        batchplacement__growing_area__farm_level__device__farm=farm,
+    ).distinct().order_by("-planting_date", "-id")
+    return Response([batch_response(batch, farm) for batch in plant_batches])
 
 
 @api_view(["PATCH"])
 @permission_classes([IsAuthenticated])
 def move_batch(request):
+    farm, error = resolve_farm(request)
+    if error is not None:
+        return error
     batch = get_object_or_404(PlantBatch, id=request.data.get("batchID"))
     current_area = get_object_or_404(GrowingArea, id=request.data.get("currentGaID"))
     destination_area = get_object_or_404(GrowingArea, id=request.data.get("destinationGaID"))
+    if not area_belongs_to_farm(current_area, farm) or not area_belongs_to_farm(destination_area, farm):
+        return error_response("Growing area is not on this farm", status.HTTP_404_NOT_FOUND)
+    if not batch_belongs_to_farm(batch, farm):
+        return error_response("Batch is not on this farm", status.HTTP_404_NOT_FOUND)
 
     if current_area.id == destination_area.id:
         return error_response("Destination growing area must be different")
@@ -220,6 +265,9 @@ def move_batch(request):
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def create_growing_area(request):
+    farm, error = resolve_farm(request)
+    if error is not None:
+        return error
     name = (request.data.get("name") or "").strip()
     if not name:
         return error_response("name is required")
@@ -243,7 +291,7 @@ def create_growing_area(request):
     GrowingArea.objects.create(
         name=name,
         slot_count=slot_count,
-        farm_level=get_or_create_farm_level(farm_level_number),
+        farm_level=get_or_create_farm_level(farm, farm_level_number),
     )
     return success_response(response_status=status.HTTP_201_CREATED)
 
@@ -251,7 +299,12 @@ def create_growing_area(request):
 @api_view(["PATCH"])
 @permission_classes([IsAuthenticated])
 def update_growing_area(request):
+    farm, error = resolve_farm(request)
+    if error is not None:
+        return error
     growing_area = get_object_or_404(GrowingArea, id=request.data.get("growingAreaID"))
+    if not area_belongs_to_farm(growing_area, farm):
+        return error_response("Growing area is not on this farm", status.HTTP_404_NOT_FOUND)
 
     name = request.data.get("name")
     if name is not None:
@@ -267,7 +320,7 @@ def update_growing_area(request):
             return error_response("farmLevel must be a number")
         if farm_level_number not in [1, 2]:
             return error_response("farmLevel must be 1 or 2")
-        growing_area.farm_level = get_or_create_farm_level(farm_level_number)
+        growing_area.farm_level = get_or_create_farm_level(farm, farm_level_number)
 
     if "slotCount" in request.data:
         try:
@@ -285,7 +338,12 @@ def update_growing_area(request):
 @api_view(["DELETE"])
 @permission_classes([IsAuthenticated])
 def delete_growing_area(request):
+    farm, error = resolve_farm(request)
+    if error is not None:
+        return error
     growing_area = get_object_or_404(GrowingArea, id=request.data.get("growingAreaID"))
+    if not area_belongs_to_farm(growing_area, farm):
+        return error_response("Growing area is not on this farm", status.HTTP_404_NOT_FOUND)
 
     with transaction.atomic():
         growing_area.delete()
@@ -296,7 +354,12 @@ def delete_growing_area(request):
 @api_view(["PATCH"])
 @permission_classes([IsAuthenticated])
 def update_batch(request):
+    farm, error = resolve_farm(request)
+    if error is not None:
+        return error
     batch = get_object_or_404(PlantBatch, id=request.data.get("batchID"))
+    if not batch_belongs_to_farm(batch, farm):
+        return error_response("Batch is not on this farm", status.HTTP_404_NOT_FOUND)
     action = (request.data.get("action") or "").strip().lower()
 
     if action not in ["harvest", "terminate"]:
@@ -316,7 +379,12 @@ def update_batch(request):
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def create_batch(request):
+    farm, error = resolve_farm(request)
+    if error is not None:
+        return error
     growing_area = get_object_or_404(GrowingArea, id=request.data.get("growingAreaID"))
+    if not area_belongs_to_farm(growing_area, farm):
+        return error_response("Growing area is not on this farm", status.HTTP_404_NOT_FOUND)
 
     if BatchPlacement.objects.filter(growing_area=growing_area, end_date__isnull=True).exists():
         return error_response(
