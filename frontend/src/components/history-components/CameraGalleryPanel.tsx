@@ -10,6 +10,7 @@ import { mediaUrl } from "../../util/constants"
 import { formatTimestamp, localInputToIso } from "../../util/operator"
 import type { FarmCamera, GalleryImage } from "../../util/types"
 import Pager from "./Pager"
+import DateTimeField from "../primatives/DateTimeField"
 
 const QUALITIES = ["PASS", "WARN", "FAIL", "UNKNOWN"]
 const LIMIT = 12
@@ -133,14 +134,8 @@ export default function CameraGalleryPanel() {
                     </div>
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2">
-                    <label className="flex flex-col gap-1 text-xs text-subtext1">
-                        Start
-                        <input className="h-7 rounded-md bg-panel2 outline-1 outline-border2 px-2" type="datetime-local" value={start} onChange={event => { setStart(event.target.value); setOffset(0) }} />
-                    </label>
-                    <label className="flex flex-col gap-1 text-xs text-subtext1">
-                        End
-                        <input className="h-7 rounded-md bg-panel2 outline-1 outline-border2 px-2" type="datetime-local" value={end} onChange={event => { setEnd(event.target.value); setOffset(0) }} />
-                    </label>
+                    <DateTimeField name="Start" value={start} setValue={value => { setStart(value); setOffset(0) }} />
+                    <DateTimeField name="End" value={end} setValue={value => { setEnd(value); setOffset(0) }} />
                 </div>
                 {error ? <p className="text-xs text-high">{error}</p> : null}
                 {loading && images.length === 0 ? <div className="h-24 bg-panel2 animate-pulse rounded-md" /> : null}

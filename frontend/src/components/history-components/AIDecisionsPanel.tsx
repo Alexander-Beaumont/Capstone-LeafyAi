@@ -11,6 +11,7 @@ import { localInputToIso } from "../../util/operator"
 import type { RecommendationRun } from "../../util/types"
 import RunDetails from "../ai-agent/RunDetails"
 import Pager from "./Pager"
+import DateTimeField from "../primatives/DateTimeField"
 
 const LIMIT = 20
 
@@ -95,14 +96,8 @@ export default function AIDecisionsPanel() {
                     <Dropdown items={modes} selectedItem={mode} setSelectedItem={id => { setMode(modes[id]); setOffset(0) }} showIcon divStyles="w-32" />
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2">
-                    <label className="flex flex-col gap-1 text-xs text-subtext1">
-                        Start
-                        <input className="h-7 rounded-md bg-panel2 outline-1 outline-border2 px-2" type="datetime-local" value={start} onChange={event => { setStart(event.target.value); setOffset(0) }} />
-                    </label>
-                    <label className="flex flex-col gap-1 text-xs text-subtext1">
-                        End
-                        <input className="h-7 rounded-md bg-panel2 outline-1 outline-border2 px-2" type="datetime-local" value={end} onChange={event => { setEnd(event.target.value); setOffset(0) }} />
-                    </label>
+                    <DateTimeField name="Start" value={start} setValue={value => { setStart(value); setOffset(0) }} />
+                    <DateTimeField name="End" value={end} setValue={value => { setEnd(value); setOffset(0) }} />
                 </div>
                 {error ? <p className="text-xs text-high">{error}</p> : null}
                 {loading && runs.length === 0 ?

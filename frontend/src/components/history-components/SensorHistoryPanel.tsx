@@ -1,4 +1,5 @@
 import { useContext, useEffect, useState } from "react"
+import { useSearchParams } from "react-router"
 import Panel from "../primatives/Panel"
 import IconTitle from "../primatives/IconTitle"
 import Dropdown, { type dataFormat } from "../primatives/Dropdown"
@@ -7,6 +8,7 @@ import { FarmOverviewContext } from "../../providers/FarmOverviewProvider"
 import { userContext } from "../../providers/UserProvider"
 import { getSensorHistory } from "../../util/api-service-layer"
 import { formatTimestamp, localInputToIso } from "../../util/operator"
+import DateTimeField from "../primatives/DateTimeField"
 import type { SensorHistory } from "../../util/types"
 import Sparkline from "./Sparkline"
 
@@ -27,10 +29,14 @@ const buckets: dataFormat[] = [
 export default function SensorHistoryPanel() {
     const user = useContext(userContext)
     const overview = useContext(FarmOverviewContext)
+    const [params] = useSearchParams()
     const sensors = overview.farmState?.devices.flatMap(device => device.sensors) ?? []
     const [preset, setPreset] = useState(presets[1])
     const [bucket, setBucket] = useState(buckets[0])
-    const [selected, setSelected] = useState<string[]>([])
+    const [selected, setSelected] = useState<string[]>(() => {
+        const sensor = params.get("sensor")
+        return sensor ? [sensor] : []
+    })
     const [start, setStart] = useState("")
     const [end, setEnd] = useState("")
     const [history, setHistory] = useState<SensorHistory | null>(null)
@@ -82,14 +88,8 @@ export default function SensorHistoryPanel() {
                 </div>
                 {preset.data === "custom" ?
                     <div className="grid gap-3 sm:grid-cols-2">
-                        <label className="flex flex-col gap-1 text-xs text-subtext1">
-                            Start
-                            <input className="h-7 rounded-md bg-panel2 outline-1 outline-border2 px-2" type="datetime-local" value={start} onChange={event => setStart(event.target.value)} />
-                        </label>
-                        <label className="flex flex-col gap-1 text-xs text-subtext1">
-                            End
-                            <input className="h-7 rounded-md bg-panel2 outline-1 outline-border2 px-2" type="datetime-local" value={end} onChange={event => setEnd(event.target.value)} />
-                        </label>
+                        <DateTimeField name="Start" value={start} setValue={setStart} />
+                        <DateTimeField name="End" value={end} setValue={setEnd} />
                     </div>
                 : null}
                 <div className="flex flex-wrap gap-2">
@@ -107,7 +107,7 @@ export default function SensorHistoryPanel() {
                 {needsStart ? <p className="text-xs text-high">Choose a start time for a custom range.</p> : null}
                 {error && !needsStart ? <p className="text-xs text-high">{error}</p> : null}
                 {!needsStart && !error && !history ? <div className="h-24 bg-panel2 animate-pulse rounded-md" /> : null}
-                {history && history.series.length === 0 ?
+                {!needsStart && history && history.series.length === 0 ?
                     <p className="text-sm text-subtext3">No readings in this range.</p>
                 : null}
                 {history?.series.map(series => {
@@ -120,7 +120,7 @@ export default function SensorHistoryPanel() {
                                     {latest ? `${latest.latest} ${series.unit}` : series.unit}
                                 </p>
                             </div>
-                            <Sparkline values={series.points.map(point => point.average)} />
+                            <Sparkline points={series.points} unit={series.unit} />
                             {latest ?
                                 <p className="text-xs text-subtext3">
                                     {formatTimestamp(latest.timestamp)} · min {latest.minimum} · max {latest.maximum} · n {latest.sample_count}

@@ -1,3 +1,4 @@
+import { Link } from 'react-router'
 import Panel from './Panel'
 
 interface Props{
@@ -6,10 +7,11 @@ interface Props{
     hint?: string
     muted?: boolean
     loading?: boolean
+    to?: string
 }
-export default function InformationPanel({name, value, hint, muted, loading}: Props) {
-    return (
-        <Panel styles='p-3 flex flex-col gap-2 min-w-fit flex-1'>
+export default function InformationPanel({name, value, hint, muted, loading, to}: Props) {
+    const panel = (
+        <Panel styles={`p-3 flex flex-col gap-2 min-w-fit flex-1 w-full h-full ${to ? "hover:border-highlight" : ""}`}>
             <p className='text-subtext2 text-sm'>
                 {name}
             </p>
@@ -26,5 +28,11 @@ export default function InformationPanel({name, value, hint, muted, loading}: Pr
                 </p>
             : null}
         </Panel>
+    )
+    if (!to) return panel
+    return (
+        <Link to={to} className="block min-w-0 hover:cursor-pointer">
+            {panel}
+        </Link>
     )
 }

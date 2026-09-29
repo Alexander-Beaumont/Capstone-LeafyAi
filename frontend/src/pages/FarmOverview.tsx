@@ -8,6 +8,7 @@ import PageTitlePanel from "../components/primatives/PageTitlePanel";
 import { FarmOverviewContext } from "../providers/FarmOverviewProvider";
 import InformationPanel from "../components/primatives/InformationPanel";
 import { formatTimestamp, ingestionLabel } from "../util/operator";
+import { PAGES } from "../util/constants";
 
 export default function FarmOverview() {
     const overview = useContext(FarmOverviewContext)
@@ -55,18 +56,21 @@ export default function FarmOverview() {
                         hint={dashboard ? `Last collection ${formatTimestamp(dashboard.sensors.last_successful_collection)}` : undefined}
                         muted={dashboard?.sensors.ingestion_status !== "healthy"}
                         loading={overview.loading && !dashboard}
+                        to={`${PAGES.authPages.history}#sensor-history`}
                     />
                     <InformationPanel
                         name="Fresh sensors"
                         value={sensorValue}
                         hint={sensorHint}
                         loading={overview.loading && !dashboard}
+                        to={`${PAGES.authPages.history}#sensor-history`}
                     />
                     <InformationPanel
                         name="Cameras"
                         value={dashboard ? String(dashboard.cameras.count) : "…"}
                         hint={dashboard ? `Next capture ${formatTimestamp(dashboard.cameras.next_capture)}` : undefined}
                         loading={overview.loading && !dashboard}
+                        to={`${PAGES.authPages.history}#camera-gallery`}
                     />
                     <InformationPanel
                         name="Image quality"
@@ -74,6 +78,7 @@ export default function FarmOverview() {
                         hint={quality?.message || (quality ? (quality.vlm_ready ? "VLM ready" : "Not VLM ready") : "No image")}
                         muted={!quality || quality.status === "FAIL" || quality.status === "UNKNOWN"}
                         loading={overview.loading && !dashboard}
+                        to={`${PAGES.authPages.history}#camera-gallery`}
                     />
                     <InformationPanel
                         name="AI schedule"
@@ -81,6 +86,7 @@ export default function FarmOverview() {
                         hint={dashboard ? `Next window ${formatTimestamp(dashboard.ai.next_eligible_window)}` : undefined}
                         muted={dashboard?.ai.schedule_state !== "enabled"}
                         loading={overview.loading && !dashboard}
+                        to={`${PAGES.authPages.history}#ai-decisions`}
                     />
                 </div>
             }
