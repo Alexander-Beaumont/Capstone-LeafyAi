@@ -14,11 +14,13 @@ import { Util } from "../util/Util"
 import RunDetails from "../components/ai-agent/RunDetails"
 import Badge from "../components/ai-agent/Badge"
 import StatusCard from "../components/ai-agent/StatusCard"
+import ConfirmDialog from "../components/primatives/ConfirmDialog"
 
 export default function AiAgent() {
     const overview = useContext(FarmOverviewContext)
     const ai = useContext(AiAgentContext)
     const [openRunId, setOpenRunId] = useState<number | null>(null)
+    const [confirmGenerate, setConfirmGenerate] = useState(false)
 
     const nextSchedule = useMemo(
         () => nextScheduleTime(ai.settings),
@@ -71,9 +73,18 @@ export default function AiAgent() {
                     name="Generate now"
                     highlight
                     loading={ai.generating}
-                    onSubmit={async () => { await ai.generateNow() }}
+                    onSubmit={() => setConfirmGenerate(true)}
                 />
             </Panel>
+            <ConfirmDialog
+                open={confirmGenerate}
+                title="Generate recommendations?"
+                text="This starts a new recommendation run for the selected farm."
+                confirm="Generate"
+                busy={ai.generating}
+                onConfirm={() => { void ai.generateNow().then(() => setConfirmGenerate(false)) }}
+                onClose={() => setConfirmGenerate(false)}
+            />
             {ai.generateError ? <p className="w-full text-sm text-high">{ai.generateError}</p> : null}
             {ai.runsError ? <p className="w-full text-sm text-high">{ai.runsError}</p> : null}
 

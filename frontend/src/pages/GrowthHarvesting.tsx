@@ -13,6 +13,7 @@ import GaEditCard from "../components/growth-componenets/GaEditCard"
 import BaBatchEdit from "../components/growth-componenets/BaBatchEdit"
 import { GrowthHarvestingContext } from "../providers/GrowthHarvestProvider"
 import { FarmOverviewContext } from "../providers/FarmOverviewProvider"
+import EmptyFarm from "../components/primatives/EmptyFarm"
 import { Util } from "../util/Util"
 
 
@@ -31,9 +32,11 @@ export default function GrowthHarvesting() {
                 title="Growth & Harvesting"
                 icon={<TbGrowth/>}
             />
+            {overview.loadError ? <p className="w-full text-sm text-high">{overview.loadError}</p> : null}
+            {growthHarvesting.error ? <p className="w-full text-sm text-high">{growthHarvesting.error}</p> : null}
             {!overview.farmId ?
-                <p className="w-full text-sm text-subtext3">Select a farm in the navigation bar.</p>
-            : null}
+                <EmptyFarm noFarms={overview.farmsLoaded && overview.farms.length === 0 && !overview.loadError} />
+            : <>
             <div className="flex gap-3 w-full flex-wrap">
                 <InformationPanel
                     name="Active Batches"
@@ -127,6 +130,7 @@ export default function GrowthHarvesting() {
                     setOpend={(setEditBatches)} 
                 />
             </Modal>
+            </>}
         </div>
     )
 }

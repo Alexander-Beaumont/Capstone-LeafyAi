@@ -24,20 +24,22 @@ export default function GaBatchEdit({setOpend, currentGrowingArea, currentBatch}
     const user = useContext(userContext)
 
     const [selectedItem, setSelectedItem] = useState<dataFormat|null>(null)
+    const [error, setError] = useState("")
     const items: dataFormat[] = gh.growingAreas
         .filter(g => g.growingAreaId != currentGrowingArea.growingAreaId)
         .map((g, i) => ({name: g.growingAreaName, id: i, data: g}))
 
     async function moveBatchToGa(){
         if(!selectedItem){
-            alert("Select a growing area to move the batch to")
+            setError("Select a growing area to move the batch to")
             return
         }
 
+        setError("")
         user.setLoading(true)
 
         if (overview.farmId == null) {
-            alert("Select a farm in the navigation bar.")
+            setError("Select a farm in the navigation bar.")
             user.setLoading(false)
             return
         }
@@ -49,7 +51,7 @@ export default function GaBatchEdit({setOpend, currentGrowingArea, currentBatch}
         })
 
         if(!res.success) {
-            alert(res.data?.msg); 
+            setError(res.msg || "Could not move the batch");
         }else{
             setOpend(false)
             gh.setUpdate(Math.random())
@@ -64,6 +66,7 @@ export default function GaBatchEdit({setOpend, currentGrowingArea, currentBatch}
                         title="Move Batch"
                         icon={<TbEdit />}
                 />
+                {error ? <p className="text-xs text-high">{error}</p> : null}
                 <hr className="text-border"/>
                 <div className="flex gap-2 items-center justify-between">
                         <p className="text-xs text-subtext1">

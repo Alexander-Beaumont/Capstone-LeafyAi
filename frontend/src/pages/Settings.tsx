@@ -8,6 +8,7 @@ import AiAgentConfig from "../components/ai-agent/AiAgentConfig"
 import CameraSettingsPanel from "../components/settings/CameraSettingsPanel"
 import SensorIngestPanel from "../components/settings/SensorIngestPanel"
 import CreateFarmForm from "../components/settings/CreateFarmForm"
+import EmptyFarm from "../components/primatives/EmptyFarm"
 import { GoGear } from "react-icons/go"
 import { FarmOverviewContext } from "../providers/FarmOverviewProvider"
 import { userContext } from "../providers/UserProvider"
@@ -41,6 +42,10 @@ export default function Settings() {
                 title="Settings"
                 icon={ <GoGear />}
             />
+            {overview.loadError ? <p className="w-full text-sm text-high">{overview.loadError}</p> : null}
+            {overview.farmsLoaded && overview.farms.length === 0 && !overview.loadError ?
+                <EmptyFarm noFarms onSettings />
+            : null}
             <Panel styles="w-full p-3 px-4 flex flex-col gap-4">
                 <IconTitle title="New farm" icon={<GoGear />} />
                 <CreateFarmForm />
@@ -71,8 +76,8 @@ export default function Settings() {
                 <IconTitle title="AI configuration" icon={<GoGear />} />
                 <AiAgentConfig />
             </Panel>
-            <SensorIngestPanel key={farmKey} />
-            <CameraSettingsPanel key={farmKey} />
+            <SensorIngestPanel key={`ingest-${farmKey}`} />
+            <CameraSettingsPanel key={`cameras-${farmKey}`} />
         </div>
     )
 }

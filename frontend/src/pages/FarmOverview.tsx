@@ -9,6 +9,7 @@ import { FarmOverviewContext } from "../providers/FarmOverviewProvider";
 import InformationPanel from "../components/primatives/InformationPanel";
 import { formatTimestamp, ingestionLabel } from "../util/operator";
 import { PAGES } from "../util/constants";
+import EmptyFarm from "../components/primatives/EmptyFarm";
 
 export default function FarmOverview() {
     const overview = useContext(FarmOverviewContext)
@@ -23,13 +24,14 @@ export default function FarmOverview() {
     const counts = dashboard?.sensors.counts
     const sensorValue = counts ? `${counts.fresh}/${counts.total}` : "…"
     const sensorHint = counts
-        ? `${counts.stale} stale, ${counts.missing} missing, ${counts.suspect} suspect quality`
+        ? `${counts.stale} stale, ${counts.missing} missing`
         : undefined
+    const suspectHint = counts ? `${counts.suspect} suspect quality` : undefined
     const quality = dashboard?.cameras.image_quality
 
     const secondsLeft = overview.nextRefreshAt == null
         ? 0
-        : Math.max(0, Math.ceil((overview.nextRefreshAt - now) / 1000))
+        : Math.max(0, Math.floor((overview.nextRefreshAt - now) / 1000))
     const refreshLabel = overview.loading
         ? "Refreshing…"
         : overview.nextRefreshAt == null
@@ -46,10 +48,11 @@ export default function FarmOverview() {
                 refreshLabel={refreshLabel}
                 onRefresh={() => overview.setUpdate(Math.random())}
             />
+            {overview.loadError ? <p className="w-full text-sm text-high">{overview.loadError}</p> : null}
             {!overview.farmId ?
-                <p className="w-full text-sm text-subtext3">Select a farm in the navigation bar.</p>
-            :
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 w-full">
+                <EmptyFarm noFarms={overview.farmsLoaded && overview.farms.length === 0 && !overview.loadError} />
+            : <>
+                <div className="grid grid-cols-2 gap-2 [&>*:last-child:nth-child(odd)]:col-span-2 w-full">
                     <InformationPanel
                         name="Ingestion"
                         value={ingestionLabel(dashboard?.sensors.ingestion_status)}
@@ -62,6 +65,7 @@ export default function FarmOverview() {
                         name="Fresh sensors"
                         value={sensorValue}
                         hint={sensorHint}
+                        note={suspectHint}
                         loading={overview.loading && !dashboard}
                         to={`${PAGES.authPages.history}#sensor-history`}
                     />
@@ -89,12 +93,12 @@ export default function FarmOverview() {
                         to={`${PAGES.authPages.history}#ai-decisions`}
                     />
                 </div>
-            }
             <div className="grid grid-cols-[minmax(0,auto)_minmax(0,1fr)] gap-5 w-full">
                 <SensorReadings/>
                <DeviceControls/>
             </div>
            <AwaitingDecisions/>
+            </>}
         </div>
     )
 }

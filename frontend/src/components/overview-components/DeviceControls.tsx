@@ -1,7 +1,8 @@
-import { useContext } from "react"
+import { useContext, useState } from "react"
 import IconTitle from "../primatives/IconTitle"
 import Panel from "../primatives/Panel"
 import Switch from "../primatives/Switch"
+import ConfirmDialog from "../primatives/ConfirmDialog"
 import { GoGear } from "react-icons/go";
 import { FarmOverviewContext } from "../../providers/FarmOverviewProvider"
 import { userContext } from "../../providers/UserProvider"
@@ -12,46 +13,51 @@ import type { PowerboardDevice } from "../../util/types"
 export default function DeviceControls() {
     const user = useContext(userContext)
     const overview = useContext(FarmOverviewContext)
+    const [busyId, setBusyId] = useState<number | "stop" | null>(null)
+    const [error, setError] = useState("")
+    const [confirmStop, setConfirmStop] = useState(false)
 
     const offline = overview.devices.length === 0 || overview.devices.every(device => !isControllable(device))
-    const controlsBusy = overview.loading || user.loading
 
     async function toggleDevice(device: PowerboardDevice | undefined, currentlyOn: boolean) {
-        if (!isControllable(device) || device == null) return
-        user.setLoading(true)
+        if (!isControllable(device) || device == null || busyId != null) return
+        setBusyId(device.device_id)
+        setError("")
         const res = await setDeviceState(user.accessToken, device.device_id, currentlyOn ? "OFF" : "ON")
+        setBusyId(null)
         if (!res.success) {
-            alert(res.msg)
-        } else {
-            overview.setUpdate(Math.random())
+            setError(res.msg)
+            return
         }
-        user.setLoading(false)
+        overview.setUpdate(Math.random())
     }
 
     async function emergencyStop() {
-        user.setLoading(true)
+        if (busyId != null) return
+        setBusyId("stop")
+        setError("")
         const results = await Promise.all(
             CONTROLLED_DEVICES.map(device => setDeviceState(user.accessToken, device.id, "OFF"))
         )
+        setBusyId(null)
+        setConfirmStop(false)
         const failed = results.find(result => !result.success)
-        if (failed) {
-            alert(failed.msg)
-        }
+        if (failed) setError(failed.msg)
         overview.setUpdate(Math.random())
-        user.setLoading(false)
     }
 
     function controlRow(key: number, label: string, ticked: boolean, enabled: boolean, onToggle: () => void) {
+        const rowBusy = busyId === key
         return (
             <div key={key} className="flex items-center justify-between bg-panel2 p-2 border border-border rounded-lg px-3">
                 <p className="text-subtext1">
                     {label}
                 </p>
-                <div className={enabled && !controlsBusy ? "" : "opacity-40 pointer-events-none"} title={enabled ? undefined : "Device offline"}>
+                <div className={enabled && !rowBusy ? "" : "opacity-40 pointer-events-none"} title={enabled ? undefined : "Device offline"}>
                     <Switch
                         ticked={ticked}
                         setTicked={() => {
-                            if (controlsBusy || !enabled) return
+                            if (rowBusy || busyId != null || !enabled) return
                             onToggle()
                         }}
                     />
@@ -69,11 +75,12 @@ export default function DeviceControls() {
                 />
                 <button className="bg-panel2 border border-high text-high text-sm font-semibold px-3 rounded-md
                     hover:cursor-pointer hover:rounded-lg transition-all duration-200 hover:italic disabled:opacity-40 disabled:cursor-not-allowed"
-                    disabled={controlsBusy}
-                    onClick={() => emergencyStop()}>
-                    E-Stop
+                    disabled={busyId === "stop"}
+                    onClick={() => setConfirmStop(true)}>
+                    {busyId === "stop" ? "Stopping…" : "E-Stop"}
                 </button>
             </div>
+            {error ? <p className="text-xs text-high">{error}</p> : null}
             {overview.loading && overview.devices.length === 0 ?
                 <p className="text-xs text-subtext3">
                     Loading…
@@ -95,6 +102,15 @@ export default function DeviceControls() {
                     )
                 })}
             </div>
+            <ConfirmDialog
+                open={confirmStop}
+                title="Emergency stop?"
+                text="This turns off every controlled outlet."
+                confirm="E-Stop"
+                busy={busyId === "stop"}
+                onConfirm={() => { void emergencyStop() }}
+                onClose={() => setConfirmStop(false)}
+            />
         </Panel>
     )
 }

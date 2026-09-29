@@ -5,11 +5,12 @@ interface Props{
     name: string
     value: string
     hint?: string
+    note?: string
     muted?: boolean
     loading?: boolean
     to?: string
 }
-export default function InformationPanel({name, value, hint, muted, loading, to}: Props) {
+export default function InformationPanel({name, value, hint, note, muted, loading, to}: Props) {
     const panel = (
         <Panel styles={`p-3 flex flex-col gap-2 min-w-fit flex-1 w-full h-full ${to ? "hover:border-highlight" : ""}`}>
             <p className='text-subtext2 text-sm'>
@@ -25,6 +26,11 @@ export default function InformationPanel({name, value, hint, muted, loading, to}
             {hint && !loading ?
                 <p className='text-subtext3 text-xs'>
                     {hint}
+                </p>
+            : null}
+            {note && !loading ?
+                <p className='text-subtext3 text-xs'>
+                    {note}
                 </p>
             : null}
         </Panel>

@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react"
+import { useContext, useEffect, useRef, useState } from "react"
+import { AiAgentContext } from "../../providers/AiAgentProvider"
 
 interface Props {
     name: string
@@ -31,6 +32,7 @@ function displayValue(value: string) {
 }
 
 export default function DateTimeField({ name, value, setValue }: Props) {
+    const timezone = useContext(AiAgentContext).settings?.timezone
     const selected = parseLocal(value)
     const [open, setOpen] = useState(false)
     const [cursor, setCursor] = useState(() => selected ?? new Date())
@@ -62,6 +64,7 @@ export default function DateTimeField({ name, value, setValue }: Props) {
         setHourText(pad(hours))
         setMinuteText(pad(minutes))
         setValue(toLocalValue(new Date(cursor.getFullYear(), cursor.getMonth(), day, hours, minutes)))
+        setOpen(false)
     }
 
     const year = cursor.getFullYear()
@@ -72,7 +75,10 @@ export default function DateTimeField({ name, value, setValue }: Props) {
 
     return (
         <div ref={root} className="relative flex flex-col gap-1.5">
-            <p className="text-xs font-medium text-subtext1">{name}</p>
+            <div className="flex items-baseline justify-between gap-2">
+                <p className="text-xs font-medium text-subtext1">{name}</p>
+                {timezone ? <p className="text-[10px] text-subtext3">{timezone}</p> : null}
+            </div>
             <button
                 type="button"
                 className="h-7 rounded-md bg-panel2 outline-1 outline-border2 px-2 text-left text-xs text-subtext1 hover:cursor-pointer"

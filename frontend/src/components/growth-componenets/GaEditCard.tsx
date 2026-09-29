@@ -26,6 +26,7 @@ export default function GaEditCard({setOpend} : Props) {
 
     const [editExistingGa, setEditExistingGa] = useState(false)
     const [selectedItem, setSelectedItem] = useState<dataFormat|null>(null)
+    const [error, setError] = useState("")
     const items: dataFormat[] = gh.growingAreas.map((g, i) => ({name: g.growingAreaName, id: i, data: g}))
 
     const {setForm, form} = useForm({
@@ -38,14 +39,15 @@ export default function GaEditCard({setOpend} : Props) {
         const valid = validateInput()
         if(!valid) return
 
+        setError("")
         user.setLoading(true)
         if (overview.farmId == null) {
-            alert("Select a farm in the navigation bar.")
+            setError("Select a farm in the navigation bar.")
             user.setLoading(false)
             return
         }
 
-        let res: APIResult<{success: boolean, msg: string}> = {success: false, msg: ""}
+        let res: APIResult<{success: boolean, msg: string}>
 
         if(!editExistingGa){
             res = await createGrowingArea(user.accessToken, overview.farmId, {
@@ -63,7 +65,7 @@ export default function GaEditCard({setOpend} : Props) {
         }
 
         if(!res.success) {
-            alert(res.msg); 
+            setError(res.msg);
         }else{
             setOpend(false)
             gh.setUpdate(Math.random())
@@ -73,17 +75,18 @@ export default function GaEditCard({setOpend} : Props) {
 
     async function deleteGA(){
         if(!selectedItem){
-            alert("Select a growing area to delete first")
+            setError("Select a growing area to delete first")
             return
         }
         if((selectedItem.data as GAGrowingArea).batches.some(b => !b.GrowthAreaEndDate)){
-            alert("Can't delete this growing area as there is a active batch occupying it. Move or termiate this batch before deleting the growing area")
+            setError("Can't delete this growing area as there is a active batch occupying it. Move or terminate this batch before deleting the growing area")
             return
         }
 
+        setError("")
         user.setLoading(true)
         if (overview.farmId == null) {
-            alert("Select a farm in the navigation bar.")
+            setError("Select a farm in the navigation bar.")
             user.setLoading(false)
             return
         }
@@ -91,7 +94,7 @@ export default function GaEditCard({setOpend} : Props) {
 
 
         if(!res.success) {
-            alert(res.msg); 
+            setError(res.msg);
         }else{
             setOpend(false)
             gh.setUpdate(Math.random())
@@ -101,16 +104,16 @@ export default function GaEditCard({setOpend} : Props) {
 
     function validateInput(){
         if(Number(form.FarmLevel) < 1 || Number(form.FarmLevel) > 2){
-            alert("Farm level can either be 1 or 2")
+            setError("Farm level can either be 1 or 2")
             return false
         }
         if(!form.name || !form.SlotCount){
-            alert("All fields must have a value")
+            setError("All fields must have a value")
             return false
         }
 
         if(editExistingGa && !selectedItem){
-            alert("Select a growing area first")
+            setError("Select a growing area first")
             return false
         }
         return true
@@ -123,6 +126,7 @@ export default function GaEditCard({setOpend} : Props) {
                         title={editExistingGa ? "Edit Growing Areas" : "Create New Growing Area"}
                         icon={<TbEdit />}
                 />
+                {error ? <p className="text-xs text-high">{error}</p> : null}
                 <div className="flex gap-2 items-center mt-2 justify-between">
                         <p className="text-xs text-subtext1">
                             Edit existing growing area:

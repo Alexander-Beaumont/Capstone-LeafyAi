@@ -73,7 +73,7 @@ export default function Signup({setHasAccount}: Props) {
                             loading={user.loading}
                         />
                         <p className="text-xs text-subtext3">
-                            {"Allready have an account? "}  
+                            {"Already have an account? "}  
                             <span className="text-highlight underline hover:cursor-pointer"
                                 onClick={() => setHasAccount(true)}>
                                 {"Log In"}

@@ -1,4 +1,5 @@
 import { inputModeLabel } from "../../util/ai-agent"
+import { sensorLabel } from "../../util/sensor-readings"
 import type { RecommendationRun } from "../../util/types"
 import Badge from "./Badge"
 import CameraEvidence from "./CameraEvidence"
@@ -51,7 +52,7 @@ export default function RunDetails({ run, compact }: Props) {
                         <ul className="flex flex-col gap-1">
                             {run.source_readings.map(reading => (
                                 <li key={reading.id} className="text-xs text-subtext2">
-                                    {reading.sensor_slug}: {reading.value} {reading.unit}
+                                    {sensorLabel(reading.sensor_slug)}: {reading.value} {reading.unit}
                                     {reading.reused ? " · reused" : " · new"}
                                 </li>
                             ))}

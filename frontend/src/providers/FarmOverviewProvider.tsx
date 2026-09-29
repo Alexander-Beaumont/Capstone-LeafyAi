@@ -13,6 +13,8 @@ interface FarmOverviewType {
     devices: PowerboardDevice[]
     dashboard: FarmDashboard | null
     loading: boolean
+    farmsLoaded: boolean
+    loadError: string
     nextRefreshAt: number | null
     setUpdate: (num: number) => void
     selectFarm: (farm: Farm) => void
@@ -26,6 +28,8 @@ const initialValues: FarmOverviewType = {
     devices: [],
     dashboard: null,
     loading: false,
+    farmsLoaded: false,
+    loadError: "",
     nextRefreshAt: null,
     setUpdate: () => null,
     selectFarm: () => null,
@@ -40,6 +44,8 @@ interface Props {
 export default function FarmOverviewProvider({ children }: Props) {
     const [update, setUpdate] = useState(0)
     const [loading, setLoading] = useState(false)
+    const [farmsLoaded, setFarmsLoaded] = useState(false)
+    const [loadError, setLoadError] = useState("")
     const [nextRefreshAt, setNextRefreshAt] = useState<number | null>(null)
     const [farms, setFarms] = useState<Farm[]>([])
     const [dashboard, setDashboard] = useState<FarmDashboard | null>(null)
@@ -75,17 +81,20 @@ export default function FarmOverviewProvider({ children }: Props) {
         let cancelled = false
         let timeout: ReturnType<typeof setTimeout> | undefined
 
-        const run = async (notify: boolean) => {
+        const run = async () => {
             setLoading(true)
             let refreshMs = FARM_OVERVIEW_POLL_MS
             try {
                 const farmsResult = await getFarms(user.accessToken)
                 if (!farmsResult.success || !farmsResult.data) {
-                    if (notify) alert(farmsResult.msg)
+                    if (!cancelled) setLoadError(farmsResult.msg || "Could not load farms")
                     return
                 }
                 const list = farmsResult.data.results ?? []
-                if (!cancelled) setFarms(list)
+                if (!cancelled) {
+                    setFarms(list)
+                    setLoadError("")
+                }
 
                 const selected = farm ? list.find(item => item.id === farm.id) ?? null : null
                 if (!selected) {
@@ -94,7 +103,6 @@ export default function FarmOverviewProvider({ children }: Props) {
                     setDashboard(null)
                     const board = await getDevices(user.accessToken)
                     if (!cancelled && board.success) setDevicesJSON(JSON.stringify(board.data ?? []))
-                    if (list.length === 0 && notify) alert("No farm found")
                     return
                 }
                 if (!farm || selected.id !== farm.id || selected.name !== farm.name || selected.location !== farm.location) {
@@ -108,22 +116,23 @@ export default function FarmOverviewProvider({ children }: Props) {
                     getSensorIngest(user.accessToken, selected.id),
                 ])
                 if (cancelled) return
+                const problems: string[] = []
                 if (!state.success) {
-                    if (notify) alert(state.msg)
+                    problems.push(state.msg)
                 } else {
                     setFarmStateJSON(JSON.stringify(state.data ?? null))
                 }
                 if (!board.success) {
-                    if (notify) alert(board.msg)
+                    problems.push(board.msg)
                 } else {
                     setDevicesJSON(JSON.stringify(board.data ?? []))
                 }
                 if (!dash.success) {
-                    if (notify) alert(dash.msg)
-                    setDashboard(null)
+                    problems.push(dash.msg)
                 } else {
                     setDashboard(dash.data ?? null)
                 }
+                setLoadError(problems.filter(Boolean).join(" "))
                 if (ingest.success && ingest.data) {
                     const intervals = ingest.data.results
                         .map(config => config.poll_interval_seconds)
@@ -133,13 +142,14 @@ export default function FarmOverviewProvider({ children }: Props) {
             } finally {
                 if (!cancelled) {
                     setLoading(false)
+                    setFarmsLoaded(true)
                     setNextRefreshAt(Date.now() + refreshMs)
-                    timeout = setTimeout(() => run(false), refreshMs)
+                    timeout = setTimeout(() => run(), refreshMs)
                 }
             }
         }
 
-        run(true)
+        run()
         return () => {
             cancelled = true
             if (timeout) clearTimeout(timeout)
@@ -156,6 +166,8 @@ export default function FarmOverviewProvider({ children }: Props) {
                 devices,
                 dashboard,
                 loading,
+                farmsLoaded,
+                loadError,
                 nextRefreshAt,
                 setUpdate,
                 selectFarm,

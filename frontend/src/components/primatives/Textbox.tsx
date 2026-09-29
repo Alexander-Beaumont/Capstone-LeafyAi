@@ -20,6 +20,7 @@ interface Props{
 export default function TextBox({invalidFunc, negative = false, name, password, value, setValue, charLimit, placeHolder, custom, numeric, infoText}: Props) {
    
     const [showPass, setShowPass] = useState(false)
+    const [showInfo, setShowInfo] = useState(false)
     
 
     return (
@@ -30,12 +31,13 @@ export default function TextBox({invalidFunc, negative = false, name, password, 
                         {name}
                     </p>
                     {infoText ? <IoInformationCircleOutline className="text-subtext3 hover:cursor-pointer text-sm "
-                        onClick={() => alert(infoText)}/> : ""}
+                        onClick={() => setShowInfo(current => !current)}/> : ""}
                 </div>
                 <p className="text-[10px] text-subtext3">
                     {(value ?? "").length}/{charLimit}
                 </p>
             </div>
+            {showInfo && infoText ? <p className="text-xs text-subtext2">{infoText}</p> : null}
             {password ? 
             !showPass ? 
                 

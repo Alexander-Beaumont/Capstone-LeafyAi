@@ -101,7 +101,7 @@ async function apiRequest<T>(url: string, accessToken?: string, options: ApiRequ
         if (!res.ok) {
             return {
                 success: false,
-                msg: errorMessage(parsed, `Request failed (${res.status})`),
+                msg: errorMessage(parsed, res.status === 409 ? "This action is already running." : `Request failed (${res.status})`),
                 data,
             };
         }

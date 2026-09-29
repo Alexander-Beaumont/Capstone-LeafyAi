@@ -9,6 +9,7 @@ import { formatTimestamp, localInputToIso, readingNumber } from "../../util/oper
 import type { SensorReadingRecord } from "../../util/types"
 import Pager from "./Pager"
 import DateTimeField from "../primatives/DateTimeField"
+import { sensorLabel } from "../../util/sensor-readings"
 
 const QUALITIES = ["valid", "unverified", "suspect"]
 const LIMIT = 20
@@ -80,7 +81,7 @@ export default function SensorReadingsPanel() {
                                 setOffset(0)
                             }}
                         >
-                            {sensor.sensor_slug}
+                            {sensorLabel(sensor.sensor_slug)}
                         </button>
                     ))}
                 </div>
@@ -123,7 +124,7 @@ export default function SensorReadingsPanel() {
                                     const value = readingNumber(row.value)
                                     return (
                                         <tr key={row.id} className="border-t border-border text-subtext1">
-                                            <td className="py-2 pr-3">{row.sensor_slug}</td>
+                                            <td className="py-2 pr-3">{sensorLabel(row.sensor_slug)}</td>
                                             <td className="py-2 pr-3">{value == null ? row.value : value} {row.unit}</td>
                                             <td className="py-2 pr-3">{row.quality_status}</td>
                                             <td className="py-2">{formatTimestamp(row.measured_at)}</td>

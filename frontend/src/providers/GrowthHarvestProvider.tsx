@@ -1,4 +1,4 @@
-import { createContext, type ReactNode } from "react"
+import { createContext, type ReactNode, useRef } from "react"
 import type { BABatch, GAGrowingArea } from "../util/types"
 import { useState, useEffect, useContext } from "react"
 import { userContext } from "./UserProvider"
@@ -12,12 +12,14 @@ interface GrowthHarvestType{
     setUpdate: (num: number) => void
     growingAreas: GAGrowingArea[]
     batches: BABatch[]
+    error: string
 }
 
 const initialValues: GrowthHarvestType = {
     setUpdate: () => null,
     growingAreas: [],
-    batches: []
+    batches: [],
+    error: "",
 }
 
 export const GrowthHarvestingContext = createContext<GrowthHarvestType>(initialValues)
@@ -36,27 +38,39 @@ export default function GrowthHarvestProvider({children}: Props) {
 
     const [batchesJSON, setBatchesJSON] = useLocalStorage("batches", "[]")
     const batches = useMemo(() => JSON.parse(batchesJSON ?? "[]") as BABatch[], [batchesJSON])
+    const [error, setError] = useState("")
+    const previousFarm = useRef<number | null | undefined>(undefined)
 
     useEffect(() => {
         const farmId = overview.farmId
         const token = user.accessToken
         let cancelled = false
         const run = async () => {
-            if (!token || farmId == null) {
+            const switched = previousFarm.current !== farmId
+            previousFarm.current = farmId
+            if (switched || !token || farmId == null) {
                 await Promise.resolve()
                 if (cancelled) return
                 setGrowingAreasJSON("[]")
                 setBatchesJSON("[]")
-                return
+                setError("")
             }
+            if (!token || farmId == null) return
             const gas = await getGrowingAreas(token, farmId)
             if (cancelled) return
-            if(!gas.success){ alert(gas.msg); return; }
+            if (!gas.success) {
+                setError(gas.msg)
+                return
+            }
             setGrowingAreasJSON(JSON.stringify(gas.data ?? []))
 
             const bts = await getBatches(token, farmId)
             if (cancelled) return
-            if(!bts.success){ alert(bts.msg); return; }
+            if (!bts.success) {
+                setError(bts.msg)
+                return
+            }
+            setError("")
             setBatchesJSON(JSON.stringify(bts.data ?? []))
         }
         if(user.loggedIn) void run()
@@ -68,6 +82,7 @@ export default function GrowthHarvestProvider({children}: Props) {
             value={{
                batches: batches,
                growingAreas: growingAreas,
+               error,
                setUpdate: setUpdate
             }}>
             {children}

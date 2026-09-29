@@ -11,6 +11,7 @@ import { formatTimestamp, localInputToIso } from "../../util/operator"
 import DateTimeField from "../primatives/DateTimeField"
 import type { SensorHistory } from "../../util/types"
 import Sparkline from "./Sparkline"
+import { sensorLabel } from "../../util/sensor-readings"
 
 const presets: dataFormat[] = [
     { id: 0, name: "1h", data: "1h" },
@@ -100,7 +101,7 @@ export default function SensorHistoryPanel() {
                             className={`text-xs px-2 py-1 rounded-md border ${selected.includes(sensor.sensor_slug) ? "bg-highlight text-btn-text border-highlight" : "bg-panel2 text-subtext2 border-border"}`}
                             onClick={() => toggleSlug(sensor.sensor_slug)}
                         >
-                            {sensor.sensor_slug}
+                            {sensorLabel(sensor.sensor_slug)}
                         </button>
                     ))}
                 </div>
@@ -115,7 +116,7 @@ export default function SensorHistoryPanel() {
                     return (
                         <div key={series.sensor_id} className="border border-border rounded-lg p-3 flex flex-col gap-2">
                             <div className="flex items-baseline justify-between gap-2">
-                                <p className="text-sm text-title font-semibold">{series.sensor_slug}</p>
+                                <p className="text-sm text-title font-semibold">{sensorLabel(series.sensor_slug)}</p>
                                 <p className="text-xs text-subtext3">
                                     {latest ? `${latest.latest} ${series.unit}` : series.unit}
                                 </p>

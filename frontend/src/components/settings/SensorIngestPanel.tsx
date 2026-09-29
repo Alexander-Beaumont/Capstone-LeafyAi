@@ -4,6 +4,7 @@ import IconTitle from "../primatives/IconTitle"
 import Button from "../primatives/Button"
 import Switch from "../primatives/Switch"
 import TextBox from "../primatives/Textbox"
+import ConfirmDialog from "../primatives/ConfirmDialog"
 import { GoGear } from "react-icons/go"
 import { FarmOverviewContext } from "../../providers/FarmOverviewProvider"
 import { userContext } from "../../providers/UserProvider"
@@ -49,6 +50,7 @@ export default function SensorIngestPanel() {
     const [messages, setMessages] = useState<Record<number, string>>({})
     const [errors, setErrors] = useState<Record<number, string>>({})
     const [busyId, setBusyId] = useState<number | null>(null)
+    const [collectTarget, setCollectTarget] = useState<SensorIngestConfiguration | null>(null)
     const [loading, setLoading] = useState(true)
 
     useEffect(() => {
@@ -160,13 +162,26 @@ export default function SensorIngestPanel() {
                         <div className="flex flex-wrap gap-3">
                             <Button name="Save" highlight loading={busyId === config.device_id} onSubmit={() => save(config)} />
                             <Button name="Test" highlight={false} loading={busyId === config.device_id} onSubmit={() => runOperation(config, "test")} />
-                            <Button name="Collect" highlight={false} loading={busyId === config.device_id} onSubmit={() => runOperation(config, "collect")} />
+                            <Button name="Collect" highlight={false} loading={busyId === config.device_id} onSubmit={() => setCollectTarget(config)} />
                         </div>
                         {!changed ? null : <p className="text-xs text-subtext3">Unsaved changes</p>}
                     </div>
                 )
             })}
             {errors[0] ? <p className="text-xs text-high">{errors[0]}</p> : null}
+            <ConfirmDialog
+                open={collectTarget != null}
+                title="Collect readings?"
+                text={`Collect and store readings from ${collectTarget?.device_name ?? "this device"}.`}
+                confirm="Collect"
+                busy={collectTarget != null && busyId === collectTarget.device_id}
+                onConfirm={() => {
+                    if (!collectTarget) return
+                    const target = collectTarget
+                    void runOperation(target, "collect").then(() => setCollectTarget(current => current?.device_id === target.device_id ? null : current))
+                }}
+                onClose={() => setCollectTarget(null)}
+            />
         </Panel>
     )
 }

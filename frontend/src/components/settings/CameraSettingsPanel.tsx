@@ -5,6 +5,7 @@ import Button from "../primatives/Button"
 import Dropdown, { type dataFormat } from "../primatives/Dropdown"
 import Switch from "../primatives/Switch"
 import TextBox from "../primatives/Textbox"
+import ConfirmDialog from "../primatives/ConfirmDialog"
 import { LuCamera } from "react-icons/lu"
 import { FarmOverviewContext } from "../../providers/FarmOverviewProvider"
 import { userContext } from "../../providers/UserProvider"
@@ -101,6 +102,7 @@ export default function CameraSettingsPanel() {
     const [error, setError] = useState("")
     const [message, setMessage] = useState("")
     const [busy, setBusy] = useState(false)
+    const [captureTarget, setCaptureTarget] = useState<FarmCamera | null>(null)
     const [loading, setLoading] = useState(true)
 
     const deviceIds = useMemo(
@@ -285,7 +287,7 @@ export default function CameraSettingsPanel() {
                             {fields(draft, patch => updateDraft(camera.id, patch))}
                             <div className="flex flex-wrap gap-3">
                                 <Button name="Save" highlight loading={busy} onSubmit={() => save(camera)} />
-                                <Button name="Capture" highlight={false} loading={busy} onSubmit={() => capture(camera)} />
+                                <Button name="Capture" highlight={false} loading={busy && captureTarget?.id === camera.id} onSubmit={() => setCaptureTarget(camera)} />
                                 <Button name="Archive" highlight={false} loading={busy} onSubmit={() => archive(camera)} />
                             </div>
                         </div>
@@ -300,6 +302,19 @@ export default function CameraSettingsPanel() {
             </>}
             {error ? <p className="text-xs text-high">{error}</p> : null}
             {message ? <p className="text-xs text-low">{message}</p> : null}
+            <ConfirmDialog
+                open={captureTarget != null}
+                title="Capture image?"
+                text={`Capture an image from ${captureTarget?.name ?? "this camera"}.`}
+                confirm="Capture"
+                busy={busy}
+                onConfirm={() => {
+                    if (!captureTarget) return
+                    const target = captureTarget
+                    void capture(target).then(() => setCaptureTarget(current => current?.id === target.id ? null : current))
+                }}
+                onClose={() => setCaptureTarget(null)}
+            />
         </Panel>
     )
 }
