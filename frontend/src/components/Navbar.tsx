@@ -40,7 +40,7 @@ export default function Navbar() {
     return (
         <>
             {smallLayout ? 
-                <div className="top-0 left-0 z-10 border-b border-border fixed bg-panel1  w-full h-12 flex items-center justify-between">
+                <div className="top-0 left-0 z-10 border-b border-border fixed bg-panel1  w-full h-12 flex items-center justify-between gap-2">
                     <p className='text-lg font-semibold text-title px-3'>
                         Leafy<span className='text-highlight'>AI</span>
                     </p>

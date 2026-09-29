@@ -67,8 +67,8 @@ export default function Settings() {
                     </p>
                     {deleteError ? <p className="text-xs text-red-400">{deleteError}</p> : null}
                     <div className="flex gap-3">
-                        <Button name="Delete farm" highlight loading={deleting} onSubmit={removeFarm} />
-                        <Button name="Cancel" highlight={false} onSubmit={() => setConfirmDelete(false)} />
+                        <Button name="Delete farm" highlight loading={deleting} onSubmit={removeFarm} styles={{ noAnimation: true }} />
+                        <Button name="Cancel" highlight={false} onSubmit={() => setConfirmDelete(false)} styles={{ noAnimation: true }} />
                     </div>
                 </div>
             </Modal>

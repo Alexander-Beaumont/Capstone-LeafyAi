@@ -18,8 +18,8 @@ export default function ConfirmDialog({ open, title, text, confirm, busy, onConf
                 <p className="text-xl font-semibold text-title">{title}</p>
                 <p className="text-sm text-subtext1">{text}</p>
                 <div className="flex gap-3">
-                    <Button name={confirm} highlight loading={busy} onSubmit={onConfirm} />
-                    <Button name="Cancel" highlight={false} onSubmit={() => { if (!busy) onClose() }} />
+                    <Button name={confirm} highlight loading={busy} onSubmit={onConfirm} styles={{ noAnimation: true }} />
+                    <Button name="Cancel" highlight={false} onSubmit={() => { if (!busy) onClose() }} styles={{ noAnimation: true }} />
                 </div>
             </div>
         </Modal>
