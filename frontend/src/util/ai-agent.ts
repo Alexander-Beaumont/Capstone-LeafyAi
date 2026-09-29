@@ -43,14 +43,10 @@ export function validateAiSettings(form: {
     intervalMinutes: string
     maxImages: string
     maxImageAge: string
-    timezone: string
     activeStartTime: string
     activeEndTime: string
 }) {
     const errors: Record<string, string> = {}
-    if (!isValidTimeZone(form.timezone)) {
-        errors.timezone = "Use a valid IANA timezone name."
-    }
     const maxImageAge = Number(form.maxImageAge)
     if (!Number.isInteger(maxImageAge) || maxImageAge < 1 || maxImageAge > 10080) {
         errors.maxImageAge = "Image age must be between 1 and 10080 minutes."

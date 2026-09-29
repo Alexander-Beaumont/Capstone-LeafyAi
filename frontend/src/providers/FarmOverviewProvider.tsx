@@ -1,6 +1,6 @@
 import { createContext, type ReactNode, useContext, useEffect, useMemo, useState } from "react"
 import useLocalStorage from "../components/hooks/useLocalStorage"
-import { getDevices, getFarmDashboard, getFarms, getFarmState } from "../util/api-service-layer"
+import { getDevices, getFarmDashboard, getFarms, getFarmState, getSensorIngest } from "../util/api-service-layer"
 import { FARM_OVERVIEW_POLL_MS } from "../util/constants"
 import type { Farm, FarmDashboard, FarmState, PowerboardDevice } from "../util/types"
 import { userContext } from "./UserProvider"
@@ -77,6 +77,7 @@ export default function FarmOverviewProvider({ children }: Props) {
 
         const run = async (notify: boolean) => {
             setLoading(true)
+            let refreshMs = FARM_OVERVIEW_POLL_MS
             try {
                 const farmsResult = await getFarms(user.accessToken)
                 if (!farmsResult.success || !farmsResult.data) {
@@ -100,10 +101,11 @@ export default function FarmOverviewProvider({ children }: Props) {
                     setFarmJSON(JSON.stringify(selected))
                 }
 
-                const [state, board, dash] = await Promise.all([
+                const [state, board, dash, ingest] = await Promise.all([
                     getFarmState(user.accessToken, selected.id),
                     getDevices(user.accessToken),
                     getFarmDashboard(user.accessToken, selected.id),
+                    getSensorIngest(user.accessToken, selected.id),
                 ])
                 if (cancelled) return
                 if (!state.success) {
@@ -122,11 +124,17 @@ export default function FarmOverviewProvider({ children }: Props) {
                 } else {
                     setDashboard(dash.data ?? null)
                 }
+                if (ingest.success && ingest.data) {
+                    const intervals = ingest.data.results
+                        .map(config => config.poll_interval_seconds)
+                        .filter(seconds => Number.isInteger(seconds) && seconds >= 1 && seconds <= 86400)
+                    if (intervals.length) refreshMs = Math.min(...intervals) * 1000
+                }
             } finally {
                 if (!cancelled) {
                     setLoading(false)
-                    setNextRefreshAt(Date.now() + FARM_OVERVIEW_POLL_MS)
-                    timeout = setTimeout(() => run(false), FARM_OVERVIEW_POLL_MS)
+                    setNextRefreshAt(Date.now() + refreshMs)
+                    timeout = setTimeout(() => run(false), refreshMs)
                 }
             }
         }

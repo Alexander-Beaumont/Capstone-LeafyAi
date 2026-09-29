@@ -102,6 +102,7 @@ export default function SensorIngestPanel() {
         setConfigs(current => current.map(item => item.device_id === config.device_id ? result.data! : item))
         setDrafts(current => ({ ...current, [config.device_id]: draftFrom(result.data!) }))
         setMessages(current => ({ ...current, [config.device_id]: "Ingest settings saved." }))
+        overview.setUpdate(Math.random())
     }
 
     async function runOperation(config: SensorIngestConfiguration, mode: "test" | "collect") {

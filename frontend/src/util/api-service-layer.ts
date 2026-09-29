@@ -210,6 +210,12 @@ export async function getFarms(accessToken: string | undefined): Promise<APIResu
     })
 }
 
+export async function deleteFarm(accessToken: string | undefined, farmId: number): Promise<APIResult<undefined>> {
+    return await apiRequest<undefined>(`${API_ROUTES.getFarms}${farmId}/`, accessToken, {
+        method: "DELETE",
+    })
+}
+
 export async function getFarmDashboard(accessToken: string | undefined, farmId: number): Promise<APIResult<FarmDashboard>> {
     return await apiRequest<FarmDashboard>(farmDashboardUrl(farmId), accessToken, {
         method: "GET",

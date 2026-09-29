@@ -12,7 +12,6 @@ import { RiFolderHistoryLine } from "react-icons/ri";
 import { LuHouse } from "react-icons/lu";
 import { HiOutlineLogout } from "react-icons/hi";
 import { GoGear } from 'react-icons/go'
-import CreateFarmForm from './settings/CreateFarmForm'
 
 export default function Navbar() {
     const smallLayout = useSmallLayout()
@@ -88,7 +87,7 @@ export default function Navbar() {
                         Leafy<span className='text-highlight'>AI</span>
                     </p>
                     {user.loggedIn ?
-                        <div className="px-3 flex flex-col gap-3">
+                        <div className="px-3">
                             <Dropdown
                                 items={farmItems}
                                 selectedItem={selectedFarm}
@@ -97,7 +96,6 @@ export default function Navbar() {
                                 showIcon
                                 divStyles="w-full"
                             />
-                            <CreateFarmForm />
                         </div>
                     : null}
                     <div className='flex flex-col justify-between h-full mb-3'>
