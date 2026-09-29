@@ -1,5 +1,19 @@
 import type { FarmSensorState } from "./types"
 
+const SENSOR_NAMES: Record<string, string> = {
+    ambient_temperature: "Temperature",
+    relative_humidity: "Humidity",
+    water_ph: "pH",
+    electrical_conductivity: "EC",
+    reservoir_water_level: "Water Level",
+    water_temperature: "Water temperature",
+    dew_point: "Dew point",
+}
+
+export function sensorLabel(slug: string) {
+    return SENSOR_NAMES[slug] ?? slug.replaceAll("_", " ")
+}
+
 export function findSensor(sensors: FarmSensorState[], slug: string) {
     return sensors.find(sensor => sensor.sensor_slug === slug)
 }

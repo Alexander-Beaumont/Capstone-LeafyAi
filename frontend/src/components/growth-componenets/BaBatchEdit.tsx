@@ -13,6 +13,7 @@ import { userContext } from "../../providers/UserProvider"
 import type { APIResult } from "../../util/types"
 import { createBatch, updateBatch } from "../../util/api-service-layer"
 import { GrowthHarvestingContext } from "../../providers/GrowthHarvestProvider"
+import { FarmOverviewContext } from "../../providers/FarmOverviewProvider"
 import { BATCH_STATUS, GROWTH_STAGES } from "../../util/constants"
 
 interface Props{
@@ -23,8 +24,10 @@ interface Props{
 export default function BaBatchEdit({setOpend} : Props) {
     const user = useContext(userContext)
     const gh = useContext(GrowthHarvestingContext)
+    const overview = useContext(FarmOverviewContext)
 
     const [edit, setEdit] = useState(false)
+    const [error, setError] = useState("")
     const [openId, setOpenId] = useState(0)
     const [selectedBatchItem, setSelectedBatchItem] = useState<dataFormat|null>(null)
 
@@ -47,25 +50,32 @@ export default function BaBatchEdit({setOpend} : Props) {
         const valid = validateInput()
         if(!valid) return
 
+        setError("")
         user.setLoading(true)
-        let res: APIResult<{success: boolean, msg: string}> = {success: false, msg: ""}
+        if (overview.farmId == null) {
+            setError("Select a farm in the navigation bar.")
+            user.setLoading(false)
+            return
+        }
+
+        let res: APIResult<{success: boolean, msg: string}>
 
         if(!edit){
-            res = await createBatch(user.accessToken, {
+            res = await createBatch(user.accessToken, overview.farmId, {
                plantType: form.plantType,
                growthStage: form.growthStage!.name,
                status: form.growthStage!.name,
                growingAreaID: (form.selectedGA!.data as GAGrowingArea).growingAreaId
             })
         }else{
-            res = await updateBatch(user.accessToken, {
+            res = await updateBatch(user.accessToken, overview.farmId, {
                batchID: (selectedBatchItem!.data as BABatch).batchId,
                action: action!
             })
         }
 
         if(!res.success) {
-            alert(res.msg); 
+            setError(res.msg);
         }else{
             setOpend(false)
             gh.setUpdate(Math.random())
@@ -75,15 +85,15 @@ export default function BaBatchEdit({setOpend} : Props) {
 
     function validateInput(){
         if((!form.plantType || !form.growthStage?.name || !form.status?.name || !form.selectedGA) && !edit){
-            alert("Enter values for all fields")
+            setError("Enter values for all fields")
             return false
         }
         if(!selectedBatchItem && edit){
-            alert("Select a batch to edit first")
+            setError("Select a batch to edit first")
             return false
         }
         if(!edit && (form.selectedGA!.data as GAGrowingArea).batches.some(b => !b.GrowthAreaEndDate)){
-            alert("Select a growing area that does not currently have a active batch")
+            setError("Select a growing area that does not currently have a active batch")
             return false
         }
         return true
@@ -96,6 +106,7 @@ export default function BaBatchEdit({setOpend} : Props) {
                         title={edit ? "Edit Batch" : "Create Batch"}
                         icon={<TbEdit />}
                 />
+                {error ? <p className="text-xs text-high">{error}</p> : null}
                 <div className="flex gap-2 items-center mt-2 justify-between">
                         <p className="text-xs text-subtext1">
                             Edit existing batch:

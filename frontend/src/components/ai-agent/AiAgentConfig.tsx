@@ -31,6 +31,7 @@ export default function AiAgentConfig() {
     const [activeStartTime, setActiveStartTime] = useState("08:00")
     const [activeEndTime, setActiveEndTime] = useState("20:00")
     const [maxImages, setMaxImages] = useState("4")
+    const [maxImageAge, setMaxImageAge] = useState("60")
     const [testMessage, setTestMessage] = useState("")
     const [testError, setTestError] = useState("")
     const [saveMessage, setSaveMessage] = useState("")
@@ -50,15 +51,17 @@ export default function AiAgentConfig() {
         setActiveStartTime(toInputTime(settings.active_start_time))
         setActiveEndTime(toInputTime(settings.active_end_time))
         setMaxImages(String(settings.max_images))
+        setMaxImageAge(String(settings.max_image_age_minutes))
     }, [settings])
 
     const errors = useMemo(() => validateAiSettings({
         scheduleEnabled,
         intervalMinutes,
         maxImages,
+        maxImageAge,
         activeStartTime,
         activeEndTime,
-    }), [scheduleEnabled, intervalMinutes, maxImages, activeStartTime, activeEndTime])
+    }), [scheduleEnabled, intervalMinutes, maxImages, maxImageAge, activeStartTime, activeEndTime])
 
     const dirty = Boolean(settings) && (
         llmProvider !== settings?.llm_provider
@@ -72,6 +75,7 @@ export default function AiAgentConfig() {
             || toApiTime(activeEndTime) !== toApiTime(settings?.active_end_time ?? "")
             || Number(maxImages) !== settings?.max_images
         ))
+        || Number(maxImageAge) !== settings?.max_image_age_minutes
         || llmKey.trim() !== ""
         || vlmKey.trim() !== ""
         || clearLlmKey
@@ -92,6 +96,7 @@ export default function AiAgentConfig() {
             if (toApiTime(activeEndTime) !== toApiTime(settings.active_end_time)) patch.active_end_time = toApiTime(activeEndTime)
             if (Number(maxImages) !== settings.max_images) patch.max_images = Number(maxImages)
         }
+        if (Number(maxImageAge) !== settings.max_image_age_minutes) patch.max_image_age_minutes = Number(maxImageAge)
         if (clearLlmKey) patch.clear_llm_api_key = true
         else if (llmKey.trim()) patch.llm_api_key = llmKey.trim()
         if (clearVlmKey) patch.clear_vlm_api_key = true
@@ -208,6 +213,16 @@ export default function AiAgentConfig() {
                     : <p className="text-xs text-subtext3">No VLM key stored.</p>}
                 </div>
             </div>
+
+            <TextBox
+                name="Maximum image age (minutes)"
+                value={maxImageAge}
+                setValue={setMaxImageAge}
+                charLimit={5}
+                placeHolder="60"
+                numeric
+                invalidFunc={() => Boolean(errors.maxImageAge)}
+            />
 
             <div className="flex items-center justify-between bg-panel2 border border-border rounded-lg p-3">
                 <p className="text-sm text-subtext1">Schedule enabled</p>

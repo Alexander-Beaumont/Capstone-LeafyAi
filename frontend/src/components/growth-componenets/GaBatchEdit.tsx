@@ -7,6 +7,7 @@ import { useContext, useState } from "react"
 import { TbEdit } from "react-icons/tb"
 import type { GABatch, GAGrowingArea } from "../../util/types"
 import { GrowthHarvestingContext } from "../../providers/GrowthHarvestProvider"
+import { FarmOverviewContext } from "../../providers/FarmOverviewProvider"
 import { userContext } from "../../providers/UserProvider"
 import { moveBatch } from "../../util/api-service-layer"
 
@@ -19,29 +20,38 @@ interface Props{
 
 export default function GaBatchEdit({setOpend, currentGrowingArea, currentBatch} : Props) {
     const gh = useContext(GrowthHarvestingContext)
+    const overview = useContext(FarmOverviewContext)
     const user = useContext(userContext)
 
     const [selectedItem, setSelectedItem] = useState<dataFormat|null>(null)
+    const [error, setError] = useState("")
     const items: dataFormat[] = gh.growingAreas
         .filter(g => g.growingAreaId != currentGrowingArea.growingAreaId)
         .map((g, i) => ({name: g.growingAreaName, id: i, data: g}))
 
     async function moveBatchToGa(){
         if(!selectedItem){
-            alert("Select a growing area to move the batch to")
+            setError("Select a growing area to move the batch to")
             return
         }
 
+        setError("")
         user.setLoading(true)
 
-        const res = await moveBatch(user.accessToken, {
+        if (overview.farmId == null) {
+            setError("Select a farm in the navigation bar.")
+            user.setLoading(false)
+            return
+        }
+
+        const res = await moveBatch(user.accessToken, overview.farmId, {
             currentGaID: currentGrowingArea.growingAreaId,
             destinationGaID: (selectedItem.data as GAGrowingArea).growingAreaId,
             batchID: currentBatch.batchId
         })
 
         if(!res.success) {
-            alert(res.data?.msg); 
+            setError(res.msg || "Could not move the batch");
         }else{
             setOpend(false)
             gh.setUpdate(Math.random())
@@ -56,6 +66,7 @@ export default function GaBatchEdit({setOpend, currentGrowingArea, currentBatch}
                         title="Move Batch"
                         icon={<TbEdit />}
                 />
+                {error ? <p className="text-xs text-high">{error}</p> : null}
                 <hr className="text-border"/>
                 <div className="flex gap-2 items-center justify-between">
                         <p className="text-xs text-subtext1">

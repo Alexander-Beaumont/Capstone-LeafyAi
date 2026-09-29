@@ -4,6 +4,7 @@ import { PAGE_NAMES, PAGES } from '../util/constants'
 import Dropdown, { type dataFormat } from './primatives/Dropdown'
 import { useContext, useState } from 'react'
 import { userContext } from '../providers/UserProvider'
+import { FarmOverviewContext } from '../providers/FarmOverviewProvider'
 import { GiHamburgerMenu } from "react-icons/gi";
 import { VscRobot } from "react-icons/vsc";
 import { TbGrowth } from "react-icons/tb";
@@ -16,7 +17,15 @@ export default function Navbar() {
     const smallLayout = useSmallLayout()
     const location = useLocation()
     const user = useContext(userContext)
+    const overview = useContext(FarmOverviewContext)
     const navigate = useNavigate()
+    const farmItems = overview.farms.map(farm => ({ id: farm.id, name: farm.name }))
+    const selectedFarm = farmItems.find(item => item.id === overview.farmId) ?? null
+
+    function chooseFarm(id: number) {
+        const next = overview.farms.find(farm => farm.id === id)
+        if (next) overview.selectFarm(next)
+    }
 
     const [selectedItem, setSelectedItem] = useState<dataFormat | null>(null)
     const items = [
@@ -31,10 +40,21 @@ export default function Navbar() {
     return (
         <>
             {smallLayout ? 
-                <div className="top-0 left-0 z-10 border-b border-border fixed bg-panel1  w-full h-12 flex items-center justify-between">
+                <div className="top-0 left-0 z-10 border-b border-border fixed bg-panel1  w-full h-12 flex items-center justify-between gap-2">
                     <p className='text-lg font-semibold text-title px-3'>
                         Leafy<span className='text-highlight'>AI</span>
                     </p>
+                    {user.loggedIn ?
+                        <Dropdown
+                            items={farmItems}
+                            selectedItem={selectedFarm}
+                            setSelectedItem={chooseFarm}
+                            defaultText="Select farm"
+                            showIcon
+                            divStyles="min-w-0 flex-1"
+                            style="h-8 w-full outline-1 px-3 rounded-md outline-border text-subtext1"
+                        />
+                    : null}
                     <div className='h-12'>
                         {!user.loggedIn ? 
                             <Link to="/auth" className='h-full'>
@@ -66,6 +86,18 @@ export default function Navbar() {
                     <p className='text-xl font-semibold text-title px-3 pt-5'>
                         Leafy<span className='text-highlight'>AI</span>
                     </p>
+                    {user.loggedIn ?
+                        <div className="px-3">
+                            <Dropdown
+                                items={farmItems}
+                                selectedItem={selectedFarm}
+                                setSelectedItem={chooseFarm}
+                                defaultText="Select farm"
+                                showIcon
+                                divStyles="w-full"
+                            />
+                        </div>
+                    : null}
                     <div className='flex flex-col justify-between h-full mb-3'>
                         <div className='w-full flex flex-col gap-3'>
                             <Link to={PAGES.authPages.farmOverview} className=''>

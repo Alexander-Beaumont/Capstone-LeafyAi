@@ -42,10 +42,15 @@ export function validateAiSettings(form: {
     scheduleEnabled: boolean
     intervalMinutes: string
     maxImages: string
+    maxImageAge: string
     activeStartTime: string
     activeEndTime: string
 }) {
     const errors: Record<string, string> = {}
+    const maxImageAge = Number(form.maxImageAge)
+    if (!Number.isInteger(maxImageAge) || maxImageAge < 1 || maxImageAge > 10080) {
+        errors.maxImageAge = "Image age must be between 1 and 10080 minutes."
+    }
     if (!form.scheduleEnabled) return errors
     const interval = Number(form.intervalMinutes)
     if (!Number.isInteger(interval) || interval < 1 || interval > 1440) {

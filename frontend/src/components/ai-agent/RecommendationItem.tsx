@@ -1,6 +1,6 @@
 import { recommendationBadges } from "../../util/ai-agent"
 import { decisionName, decisionSeverity } from "../../util/ai-decisions"
-import type { AIDecision } from "../../util/types"
+import type { AIDecision, FarmAction } from "../../util/types"
 import Badge from "./Badge"
 
 interface Props {
@@ -31,13 +31,40 @@ export default function RecommendationItem({ decision }: Props) {
                 </p>
             : null}
             {(decision.actions ?? []).map(action => (
-                <p key={action.id} className="text-xs text-subtext3">
-                    {action.target_device} {action.requested_state}
-                    {action.powerboard_device_ids.length ? ` [${action.powerboard_device_ids.join(", ")}]` : ""}
-                    {action.result ? ` — ${action.result}` : ""}
-                    {action.explanation ? `. ${action.explanation}` : ""}
-                </p>
+                <div key={action.id} className="flex flex-col gap-1">
+                    <p className="text-xs text-subtext3">
+                        {action.target_device} {action.requested_state}
+                        {action.powerboard_device_ids.length ? ` [${action.powerboard_device_ids.join(", ")}]` : ""}
+                        {action.result ? ` — ${action.result}` : ""}
+                        {action.explanation ? `. ${action.explanation}` : ""}
+                    </p>
+                    {action.result === "partial" ? <HardwareResult action={action} /> : null}
+                </div>
             ))}
         </div>
+    )
+}
+
+function HardwareResult({ action }: { action: FarmAction }) {
+    const devices = Array.isArray(action.hardware_response.devices)
+        ? action.hardware_response.devices as { device_id?: number, name?: string, state?: string }[]
+        : []
+    const errors = Array.isArray(action.hardware_response.errors)
+        ? action.hardware_response.errors as { device_id?: number, error?: string }[]
+        : []
+    if (devices.length === 0 && errors.length === 0) return null
+    return (
+        <ul className="text-xs text-subtext3 list-disc pl-4">
+            {devices.map(device => (
+                <li key={`ok-${device.device_id}`}>
+                    Outlet {device.name ?? device.device_id} succeeded{device.state ? ` (${device.state})` : ""}.
+                </li>
+            ))}
+            {errors.map((failure, index) => (
+                <li key={`fail-${failure.device_id ?? index}`}>
+                    Outlet {failure.device_id ?? "unknown"} failed{failure.error ? `: ${failure.error}` : ""}.
+                </li>
+            ))}
+        </ul>
     )
 }

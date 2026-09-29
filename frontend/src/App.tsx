@@ -15,8 +15,8 @@ import AiAgentProvider from "./providers/AiAgentProvider"
 function App() {
     return (
         <UserProvider>
-            <GrowthHarvestProvider>
-                <FarmOverviewProvider>
+            <FarmOverviewProvider>
+                <GrowthHarvestProvider>
                     <AiAgentProvider>
                         <Routes>
                             <Route element={<Layout/>}>
@@ -30,8 +30,8 @@ function App() {
                             </Route>
                         </Routes>
                     </AiAgentProvider>
-                </FarmOverviewProvider>
-            </GrowthHarvestProvider>
+                </GrowthHarvestProvider>
+            </FarmOverviewProvider>
         </UserProvider>
     )
 }

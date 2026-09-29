@@ -74,19 +74,18 @@ export default function AiAgentProvider({ children }: Props) {
     const [runsError, setRunsError] = useState("")
     const [update, setUpdate] = useState(0)
 
-    const loadSettings = useCallback(async (notify: boolean) => {
+    const loadSettings = useCallback(async () => {
         if (!user.accessToken || farmId == null) return
         const result = await getAiFarmSettings(user.accessToken, farmId)
         if (!result.success) {
             setSettingsError(result.msg)
-            if (notify) alert(result.msg)
             return
         }
         setSettingsError("")
         setSettings(result.data ?? null)
     }, [farmId, user.accessToken])
 
-    const loadRuns = useCallback(async (notify: boolean) => {
+    const loadRuns = useCallback(async () => {
         if (!user.accessToken || farmId == null) return
         const [latest, recent] = await Promise.all([
             getLatestRecommendations(user.accessToken, farmId),
@@ -94,13 +93,11 @@ export default function AiAgentProvider({ children }: Props) {
         ])
         if (!latest.success) {
             setRunsError(latest.msg)
-            if (notify) alert(latest.msg)
         } else {
             setLatestRun(latest.data ?? null)
         }
         if (!recent.success) {
             setRunsError(recent.msg)
-            if (notify) alert(recent.msg)
         } else {
             setRecentRuns(recent.data ?? [])
             if (latest.success) setRunsError("")
@@ -113,7 +110,7 @@ export default function AiAgentProvider({ children }: Props) {
         const run = async () => {
             setLoading(true)
             try {
-                await Promise.all([loadSettings(true), loadRuns(true)])
+                await Promise.all([loadSettings(), loadRuns()])
             } finally {
                 if (!cancelled) setLoading(false)
             }
@@ -131,13 +128,13 @@ export default function AiAgentProvider({ children }: Props) {
 
         const tick = async () => {
             if (document.visibilityState === "visible") {
-                await loadRuns(false)
+                await loadRuns()
             }
             if (!cancelled) timeout = setTimeout(tick, AI_AGENT_POLL_MS)
         }
 
         const onVisibility = () => {
-            if (document.visibilityState === "visible") loadRuns(false)
+            if (document.visibilityState === "visible") loadRuns()
         }
 
         timeout = setTimeout(tick, AI_AGENT_POLL_MS)
@@ -158,10 +155,10 @@ export default function AiAgentProvider({ children }: Props) {
             if (!result.success) {
                 setGenerateError(result.msg)
                 if (result.data) setLatestRun(result.data)
-                await loadRuns(false)
+                await loadRuns()
                 return false
             }
-            await loadRuns(false)
+            await loadRuns()
             return true
         } finally {
             setGenerating(false)
