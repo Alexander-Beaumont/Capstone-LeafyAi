@@ -52,7 +52,7 @@ export default function CreateFarmForm() {
                 <div className="bg-panel1 border border-border p-5 flex flex-col rounded-xl w-[80%] max-w-xl gap-3">
                     <p className="text-xl font-semibold text-title">Farm created</p>
                     <p className="text-sm text-subtext1">
-                        This farm has a controller and levels 1 and 2. Add the rest before it can collect data.
+                        This farm has a controller, standard sensors, and levels 1 and 2. Add the endpoint details before it can collect data.
                     </p>
                     <ul className="flex flex-col gap-2 text-sm text-subtext1 list-disc pl-5">
                         {SETUP_ITEMS.map(item => <li key={item}>{item}</li>)}

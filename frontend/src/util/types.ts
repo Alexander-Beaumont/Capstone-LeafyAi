@@ -509,6 +509,7 @@ export interface VisualEvidence {
 
 export interface ImageObservation {
     camera_id?: number
+    camera_name?: string
     observation?: string
     [key: string]: unknown
 }

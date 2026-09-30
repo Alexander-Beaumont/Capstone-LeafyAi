@@ -15,6 +15,7 @@ from ai_agent.services import generate_recommendation
 from core.operation_locks import operation_lock
 from sensor_ingest.models import SensorIngestConfiguration
 from sensor_ingest.services.collector import CollectionResult
+from sensor_ingest.services.mapper import REQUIRED_SENSOR_SLUGS
 from telemetry.farm_deletion import purge_farm
 from telemetry.models import (
     ActuatorStateObservation,
@@ -62,6 +63,50 @@ class OperatorApiTests(APITestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["count"], 2)
         self.assertEqual([item["id"] for item in response.data["results"]], [self.farm.id, earlier.id])
+
+    def test_farm_create_provisions_editable_sensor_ingestion(self):
+        response = self.client.post(
+            "/api/farms/",
+            {"name": "New farm", "location": "North lab"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        farm = Farm.objects.get(pk=response.data["id"])
+        device = FarmDevice.objects.get(farm=farm)
+        self.assertEqual(device.name, "Controller")
+        self.assertEqual(device.device_type, "controller")
+        self.assertEqual(
+            set(device.sensors.values_list("slug", flat=True)),
+            set(REQUIRED_SENSOR_SLUGS),
+        )
+        self.assertEqual(
+            set(FarmLevel.objects.filter(device=device).values_list("level_number", flat=True)),
+            {1, 2},
+        )
+
+        configuration = SensorIngestConfiguration.objects.get(device=device)
+        self.assertFalse(configuration.enabled)
+        update = self.client.patch(
+            f"/api/farms/{farm.id}/sensor-ingest/{device.id}/",
+            {
+                "enabled": True,
+                "water_quality_url": "http://192.168.1.40/readings",
+                "ambient_sensor_url": "http://192.168.1.41/readings",
+                "poll_interval_seconds": 45,
+                "sensor_stale_threshold_seconds": 180,
+            },
+            format="json",
+        )
+        self.assertEqual(update.status_code, 200)
+        self.assertTrue(update.data["enabled"])
+        self.assertEqual(update.data["device_slug"], device.slug)
+        self.assertFalse(
+            device.sensors.exclude(
+                expected_interval_seconds=45,
+                stale_after_seconds=180,
+            ).exists()
+        )
 
     def test_farm_delete_purges_owned_history_and_camera_files(self):
         sensor = Sensor.objects.create(

@@ -11,6 +11,7 @@ from django.utils import timezone
 
 from ai_agent.actuators import execute_decision
 from ai_agent.models import AIConfiguration, AIDecision, AIRecommendationRun
+from ai_agent.observation_names import attach_camera_names
 from ai_agent.parsing import parse_recommendations
 from ai_agent.prompts import build_messages, build_vision_messages
 from ai_agent.providers import ProviderError, get_provider, get_vlm_provider
@@ -285,10 +286,17 @@ def generate_recommendation(farm, device=None, provider=None, vlm_provider=None,
     if readable:
         try:
             selected_provider = vlm_provider or get_vlm_provider(configuration)
-            metadata = [{"camera_id": item["image"].camera_id, "image_id": item["image"].id, "captured_at": item["image"].captured_at.isoformat(), "quality_status": item["image"].quality_status} for item in readable]
+            metadata = [{"camera_id": item["image"].camera_id, "camera_name": item["image"].camera.name, "image_id": item["image"].id, "captured_at": item["image"].captured_at.isoformat(), "quality_status": item["image"].quality_status} for item in readable]
             system, user = build_vision_messages(farm_state, metadata)
             raw = selected_provider.complete(system, user, images=readable)
             observations, items = parse_recommendations(raw, default_device.id)
+            observations = attach_camera_names(
+                observations,
+                {
+                    item["image"].camera_id: item["image"].camera.name
+                    for item in readable
+                },
+            )
             _validate_items(items, farm)
             run.input_mode = "vlm"
         except Exception as exc:

@@ -10,6 +10,7 @@ from ai_agent.actuators import execute_decision
 from ai_agent.models import AIConfiguration, AIDecision, AIRecommendationRun, FarmAction
 from ai_agent.providers import OpenAICompatibleProvider, ProviderError
 from ai_agent.scheduler import next_eligible_time, run_due_schedules, schedule_slot
+from ai_agent.serializers import AIRecommendationRunSerializer
 from ai_agent.services import RecommendationGenerationError, generate_recommendation
 from telemetry.models import Camera, CameraImage, Farm, FarmDevice, FarmLevel, Sensor, SensorReading
 
@@ -68,6 +69,45 @@ class RecommendationTests(TestCase):
         self.assertEqual(list(run.source_images.values_list("id", flat=True)), [good.id])
         self.assertNotIn(bad.id, list(run.source_images.values_list("id", flat=True)))
         self.assertEqual(len(vlm.calls[0]["images"]), 1)
+
+    @patch("ai_agent.services._image_data_url", return_value="data:image/jpeg;base64,dGVzdA==")
+    def test_vlm_observations_use_trusted_camera_name(self, _image):
+        self.image(self.camera1, True, "PASS")
+        vlm = Provider(
+            '{"image_observations":[{"camera_id":%s,"camera_name":"invented",'
+            '"observation":"Healthy canopy."}],"recommendations":[{"device_id":null,'
+            '"decision_type":"inspect","target_device":"none","device_state":"none",'
+            '"category":"alert","recommendation":"Inspect.","explanation":"Visible.",'
+            '"confidence":0.8}]}' % self.camera1.id
+        )
+
+        result = generate_recommendation(
+            self.farm,
+            provider=Provider(),
+            vlm_provider=vlm,
+        )
+
+        self.assertEqual(result["image_observations"][0]["camera_name"], "One")
+        self.assertEqual(
+            AIRecommendationRun.objects.get(id=result["id"]).image_observations[0]["camera_name"],
+            "One",
+        )
+
+    def test_historical_observations_are_enriched_with_camera_name(self):
+        image = self.image(self.camera2, True, "PASS")
+        run = AIRecommendationRun.objects.create(
+            farm=self.farm,
+            status="completed",
+            input_mode="vlm",
+            image_observations=[
+                {"camera_id": self.camera2.id, "observation": "Older observation."}
+            ],
+        )
+        run.source_images.add(image)
+
+        data = AIRecommendationRunSerializer(run).data
+
+        self.assertEqual(data["image_observations"][0]["camera_name"], "Two")
 
     def test_no_reliable_image_uses_llm(self):
         self.image(self.camera1, False, "FAIL")

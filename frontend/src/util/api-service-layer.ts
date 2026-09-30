@@ -10,7 +10,6 @@ import {
     deviceStateUrl,
     farmCamerasUrl,
     farmDashboardUrl,
-    farmDevicesUrl,
     farmLevelsUrl,
     farmStateUrl,
     recommendationDetailUrl,
@@ -177,31 +176,10 @@ export async function createFarmWithLayout(
     name: string,
     location: string,
 ): Promise<APIResult<Farm>> {
-    const farm = await apiRequest<Farm>(API_ROUTES.getFarms, accessToken, {
+    return await apiRequest<Farm>(API_ROUTES.getFarms, accessToken, {
         method: "POST",
         body: JSON.stringify({ name, location }),
     })
-    if (!farm.success || !farm.data) return farm
-
-    const device = await apiRequest<{ id: number }>(farmDevicesUrl(), accessToken, {
-        method: "POST",
-        body: JSON.stringify({ farm: farm.data.id, name: "Controller", device_type: "controller" }),
-    })
-    if (!device.success || !device.data) {
-        return { success: false, msg: device.msg || "Farm was created, but the controller was not.", data: farm.data }
-    }
-
-    for (const levelNumber of [1, 2]) {
-        const level = await apiRequest<{ id: number }>(farmLevelsUrl(), accessToken, {
-            method: "POST",
-            body: JSON.stringify({ device: device.data.id, level_number: levelNumber }),
-        })
-        if (!level.success) {
-            return { success: false, msg: level.msg || "Farm was created, but a level was not.", data: farm.data }
-        }
-    }
-
-    return farm
 }
 
 export async function getFarms(accessToken: string | undefined): Promise<APIResult<Page<Farm>>> {

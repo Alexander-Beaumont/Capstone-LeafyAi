@@ -18,7 +18,7 @@ Use current readings and trends; never treat missing, stale, or suspect data as 
 Target ranges: EC {ranges['ec']['min']}-{ranges['ec']['max']} {ranges['ec']['unit']}; pH {ranges['ph']['min']}-{ranges['ph']['max']}; water temperature {ranges['water_temperature']['min']}-{ranges['water_temperature']['max']} C; ambient temperature {ranges['ambient_temperature']['min']}-{ranges['ambient_temperature']['max']} C; humidity {ranges['humidity']['min']}-{ranges['humidity']['max']}%; water level {ranges['water_level']['min']}-{ranges['water_level']['max']} {ranges['water_level']['unit']}.
 
 Return one raw JSON object with no markdown:
-{{"image_observations":[{{"camera_id":1,"observation":"visible evidence"}}],"recommendations":[{{"device_id":1,"decision_type":"short_name","target_device":"fans|light|irrigation_pump|nutrient_doser|ph_doser|none","device_state":"on|off|none","category":"climate|lighting|dosing|water|harvest|alert","recommendation":"concise action","explanation":"evidence-based reason","confidence":0.0}}]}}
+{{"image_observations":[{{"camera_id":1,"camera_name":"camera name from metadata","observation":"visible evidence"}}],"recommendations":[{{"device_id":1,"decision_type":"short_name","target_device":"fans|light|irrigation_pump|nutrient_doser|ph_doser|none","device_state":"on|off|none","category":"climate|lighting|dosing|water|harvest|alert","recommendation":"concise action","explanation":"evidence-based reason","confidence":0.0}}]}}
 
 Return every material recommendation. Fan and light on/off recommendations may be executed after server safety checks. Every other target is advice only. Use only device_id values present in the farm JSON."""
 

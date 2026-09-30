@@ -3,8 +3,9 @@ from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
-from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+from rest_framework_simplejwt.views import TokenObtainPairView
 
+from accounts.views import SafeTokenRefreshView
 from ai_agent.urls import router as ai_agent_router
 from telemetry.urls import router as telemetry_router
 
@@ -16,7 +17,7 @@ router.registry.extend(ai_agent_router.registry)
 urlpatterns = [
     path("api/", include(router.urls)),
     path("api/auth/login/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
-    path("api/auth/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
+    path("api/auth/refresh/", SafeTokenRefreshView.as_view(), name="token_refresh"),
     path("admin/", admin.site.urls),
     path("api/auth/", include("accounts.urls")),
     path("api/", include("farm_state.urls")),

@@ -5,6 +5,7 @@ from django.utils import timezone
 
 from ai_agent.credentials import encrypt_api_key, mask_api_key
 from ai_agent.models import AIConfiguration, AIDecision, AIRecommendationRun, FarmAction, SafetyCheck
+from ai_agent.observation_names import attach_camera_names
 
 
 class AIConfigurationSerializer(serializers.ModelSerializer):
@@ -90,6 +91,7 @@ class AIDecisionSerializer(serializers.ModelSerializer):
 class AIRecommendationRunSerializer(serializers.ModelSerializer):
     source_images = serializers.SerializerMethodField()
     source_readings = serializers.SerializerMethodField()
+    image_observations = serializers.SerializerMethodField()
     recommendations = AIDecisionSerializer(many=True, read_only=True)
 
     def get_source_images(self, obj):
@@ -116,6 +118,20 @@ class AIRecommendationRunSerializer(serializers.ModelSerializer):
             "quality_status": reading.quality_status,
             "reused": reading.id in reused,
         } for reading in obj.source_readings.select_related("sensor").all().order_by("sensor_id")]
+
+    def get_image_observations(self, obj):
+        camera_names = {
+            image.camera_id: image.camera.name
+            for image in obj.source_images.select_related("camera").all()
+        }
+        for evidence in obj.visual_evidence or []:
+            if not isinstance(evidence, dict):
+                continue
+            camera_id = evidence.get("camera_id")
+            camera_name = evidence.get("camera_name")
+            if camera_id is not None and camera_name and camera_id not in camera_names:
+                camera_names[camera_id] = camera_name
+        return attach_camera_names(obj.image_observations, camera_names)
 
     class Meta:
         model = AIRecommendationRun

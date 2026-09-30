@@ -7,7 +7,7 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from telemetry.models import Camera, Farm, FarmDevice, Sensor, SensorReading
+from telemetry.models import Camera, Farm, FarmDevice, FarmLevel, Sensor, SensorReading
 
 
 class TelemetryModelTests(TestCase):
@@ -53,6 +53,12 @@ class BootstrapLeafyTests(TestCase):
         call_command("bootstrap_leafy")
 
         self.assertEqual(Camera.objects.count(), 1)
+        device = FarmDevice.objects.get()
+        self.assertEqual(
+            set(FarmLevel.objects.filter(device=device).values_list("level_number", flat=True)),
+            {1, 2},
+        )
+        self.assertEqual(Camera.objects.get().farm_level.level_number, 1)
 
 
 class SensorAPIIntegrationTests(APITestCase):

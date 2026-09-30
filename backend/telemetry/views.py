@@ -1,8 +1,10 @@
+from django.db import transaction
 from rest_framework import status, viewsets
 from rest_framework.response import Response
 from core.pagination import OperatorLimitOffsetPagination
 
 from telemetry.farm_deletion import purge_farm
+from telemetry.farm_provisioning import provision_farm
 
 from telemetry.models import (
     ActuatorStateObservation,
@@ -44,6 +46,11 @@ class FarmViewSet(viewsets.ModelViewSet):
     queryset = Farm.objects.all().order_by("id")
     serializer_class = FarmSerializer
     pagination_class = OperatorLimitOffsetPagination
+
+    @transaction.atomic
+    def perform_create(self, serializer):
+        farm = serializer.save()
+        provision_farm(farm)
 
     def perform_destroy(self, instance):
         purge_farm(instance.pk)

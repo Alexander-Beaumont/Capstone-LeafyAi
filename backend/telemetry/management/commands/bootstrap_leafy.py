@@ -52,10 +52,13 @@ class Command(BaseCommand):
         if level_number not in (1, 2):
             raise CommandError("LEAFY_CAMERA_1_LEVEL must be 1 or 2.")
 
-        level, _ = FarmLevel.objects.get_or_create(
-            device=device,
-            level_number=level_number,
-        )
+        levels = {}
+        for number in (1, 2):
+            levels[number], _ = FarmLevel.objects.get_or_create(
+                device=device,
+                level_number=number,
+            )
+        level = levels[level_number]
 
         if settings.LEAFY_CAMERA_1_IP:
             camera, _ = Camera.objects.get_or_create(
