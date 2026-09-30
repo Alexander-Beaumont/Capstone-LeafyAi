@@ -1,8 +1,8 @@
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 
-from sensor_ingest.services.mapper import SENSOR_DEFINITIONS
-from telemetry.models import FarmDevice, Sensor
+from sensor_ingest.services.configuration import ensure_sensor_definitions
+from telemetry.models import FarmDevice
 
 
 class Command(BaseCommand):
@@ -30,45 +30,10 @@ class Command(BaseCommand):
                 f"FarmDevice slug '{device_slug}' does not exist."
             ) from exc
 
-        expected = int(settings.SENSOR_INGEST_EXPECTED_INTERVAL_SECONDS)
-        stale = int(settings.SENSOR_INGEST_SENSOR_STALE_SECONDS)
-
-        created_count = 0
-        updated_count = 0
-        for definition in SENSOR_DEFINITIONS:
-            defaults = {
-                "sensor_type": definition.sensor_type,
-                "unit": definition.unit,
-                "enabled": True,
-                "expected_interval_seconds": expected,
-                "stale_after_seconds": stale,
-            }
-            sensor, created = Sensor.objects.get_or_create(
-                device=device,
-                slug=definition.slug,
-                defaults=defaults,
-            )
-            if created:
-                created_count += 1
-                continue
-
-            changed = False
-            if sensor.sensor_type != definition.sensor_type:
-                sensor.sensor_type = definition.sensor_type
-                changed = True
-            if sensor.unit != definition.unit:
-                sensor.unit = definition.unit
-                changed = True
-            if options["force_timing"]:
-                if sensor.expected_interval_seconds != expected:
-                    sensor.expected_interval_seconds = expected
-                    changed = True
-                if sensor.stale_after_seconds != stale:
-                    sensor.stale_after_seconds = stale
-                    changed = True
-            if changed:
-                sensor.save()
-                updated_count += 1
+        created_count, updated_count = ensure_sensor_definitions(
+            device,
+            force_timing=options["force_timing"],
+        )
 
         self.stdout.write(
             self.style.SUCCESS(
