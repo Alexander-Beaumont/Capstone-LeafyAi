@@ -1,24 +1,34 @@
 from datetime import timedelta
+from pathlib import Path
+from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
 from django.contrib.auth.models import User
-from django.test import TestCase
+from django.core.files.base import ContentFile
+from django.db.models.deletion import ProtectedError
+from django.test import TestCase, override_settings
 from django.utils import timezone
 from rest_framework.test import APITestCase
 
-from ai_agent.models import AIConfiguration, AIRecommendationRun
+from ai_agent.models import AIConfiguration, AIDecision, AIRecommendationRun
 from ai_agent.services import generate_recommendation
 from core.operation_locks import operation_lock
 from sensor_ingest.models import SensorIngestConfiguration
 from sensor_ingest.services.collector import CollectionResult
+from telemetry.farm_deletion import purge_farm
 from telemetry.models import (
+    ActuatorStateObservation,
+    BatchPlacement,
     Camera,
     CameraImage,
     Farm,
     FarmDevice,
     FarmLevel,
+    GrowingArea,
+    PlantBatch,
     Sensor,
     SensorReading,
+    SetpointObservation,
 )
 
 
@@ -36,6 +46,11 @@ class Provider:
 
 class OperatorApiTests(APITestCase):
     def setUp(self):
+        self.media_directory = TemporaryDirectory()
+        self.addCleanup(self.media_directory.cleanup)
+        media_override = override_settings(MEDIA_ROOT=self.media_directory.name)
+        media_override.enable()
+        self.addCleanup(media_override.disable)
         self.client.force_authenticate(User.objects.create_user("operator"))
         self.farm = Farm.objects.create(name="Operator farm")
         self.device = FarmDevice.objects.create(farm=self.farm, name="Controller", slug="controller")
@@ -47,6 +62,162 @@ class OperatorApiTests(APITestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["count"], 2)
         self.assertEqual([item["id"] for item in response.data["results"]], [self.farm.id, earlier.id])
+
+    def test_farm_delete_purges_owned_history_and_camera_files(self):
+        sensor = Sensor.objects.create(
+            device=self.device, slug="ph", sensor_type="ph", unit="pH"
+        )
+        reading = SensorReading.objects.create(
+            sensor=sensor, value=6.2, measured_at=timezone.now()
+        )
+        ActuatorStateObservation.objects.create(
+            device=self.device,
+            actuator_slug="pump",
+            state="on",
+            measured_at=timezone.now(),
+        )
+        SetpointObservation.objects.create(
+            device=self.device,
+            setpoint_slug="target-ph",
+            value=6.0,
+            unit="pH",
+            measured_at=timezone.now(),
+        )
+        area = GrowingArea.objects.create(
+            farm_level=self.level, name="Bed", slot_count=12
+        )
+        batch = PlantBatch.objects.create(
+            plant_type="Lettuce",
+            planting_date=timezone.localdate(),
+            growth_stage="seedling",
+            status="active",
+        )
+        BatchPlacement.objects.create(
+            plant_batch=batch,
+            growing_area=area,
+            start_date=timezone.now(),
+        )
+        camera = Camera.objects.create(
+            farm_level=self.level, name="Delete camera", source_type="RTSP"
+        )
+        image = CameraImage(
+            camera=camera,
+            captured_at=timezone.now(),
+            vlm_ready=True,
+            quality_status="PASS",
+        )
+        image.path.save("delete.jpg", ContentFile(b"delete-me"), save=False)
+        image.save()
+        deleted_image_path = Path(image.path.path)
+
+        run = AIRecommendationRun.objects.create(
+            farm=self.farm, status="completed"
+        )
+        AIConfiguration.objects.create(farm=self.farm)
+        run.source_images.add(image)
+        run.source_readings.add(reading)
+        AIDecision.objects.create(
+            run=run,
+            device=self.device,
+            decision_type="inspect",
+            recommendation="Inspect",
+            explanation="Test",
+        )
+
+        other_farm = Farm.objects.create(name="Other farm")
+        other_device = FarmDevice.objects.create(
+            farm=other_farm, name="Other controller"
+        )
+        other_sensor = Sensor.objects.create(
+            device=other_device, slug="ph", sensor_type="ph", unit="pH"
+        )
+        other_reading = SensorReading.objects.create(
+            sensor=other_sensor, value=7.0, measured_at=timezone.now()
+        )
+
+        self.assertTrue(deleted_image_path.exists())
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.delete(f"/api/farms/{self.farm.id}/")
+
+        self.assertEqual(response.status_code, 204)
+        self.assertFalse(Farm.objects.filter(pk=self.farm.id).exists())
+        self.assertFalse(FarmDevice.objects.filter(pk=self.device.id).exists())
+        self.assertFalse(SensorReading.objects.filter(pk=reading.id).exists())
+        self.assertFalse(CameraImage.objects.filter(pk=image.id).exists())
+        self.assertFalse(AIRecommendationRun.objects.filter(pk=run.id).exists())
+        self.assertFalse(AIConfiguration.objects.filter(farm_id=self.farm.id).exists())
+        self.assertFalse(
+            SensorIngestConfiguration.objects.filter(device_id=self.device.id).exists()
+        )
+        self.assertFalse(BatchPlacement.objects.filter(plant_batch=batch).exists())
+        self.assertTrue(PlantBatch.objects.filter(pk=batch.id).exists())
+        self.assertFalse(deleted_image_path.exists())
+        self.assertTrue(Farm.objects.filter(pk=other_farm.id).exists())
+        self.assertTrue(SensorReading.objects.filter(pk=other_reading.id).exists())
+
+    def test_farm_delete_returns_404_when_farm_is_missing(self):
+        response = self.client.delete("/api/farms/999999/")
+        self.assertEqual(response.status_code, 404)
+
+    def test_farm_delete_requires_authentication(self):
+        self.client.force_authenticate(user=None)
+        response = self.client.delete(f"/api/farms/{self.farm.id}/")
+        self.assertEqual(response.status_code, 401)
+        self.assertTrue(Farm.objects.filter(pk=self.farm.id).exists())
+
+    def test_protected_history_still_blocks_direct_parent_deletion(self):
+        sensor = Sensor.objects.create(
+            device=self.device, slug="ec", sensor_type="ec", unit="uS/cm"
+        )
+        SensorReading.objects.create(
+            sensor=sensor, value=1200, measured_at=timezone.now()
+        )
+        camera = Camera.objects.create(
+            farm_level=self.level, name="Protected camera", source_type="RTSP"
+        )
+        CameraImage.objects.create(
+            camera=camera,
+            captured_at=timezone.now(),
+            path="camera_images/protected.jpg",
+        )
+
+        with self.assertRaises(ProtectedError):
+            sensor.delete()
+        with self.assertRaises(ProtectedError):
+            camera.delete()
+
+    def test_farm_purge_rollback_keeps_database_and_image_file(self):
+        camera = Camera.objects.create(
+            farm_level=self.level, name="Rollback camera", source_type="RTSP"
+        )
+        image = CameraImage(camera=camera, captured_at=timezone.now())
+        image.path.save("rollback.jpg", ContentFile(b"keep-me"), save=False)
+        image.save()
+        image_path = Path(image.path.path)
+
+        with patch("telemetry.farm_deletion.Farm.delete", side_effect=RuntimeError("stop")):
+            with self.assertRaisesRegex(RuntimeError, "stop"):
+                purge_farm(self.farm.id)
+
+        self.assertTrue(Farm.objects.filter(pk=self.farm.id).exists())
+        self.assertTrue(CameraImage.objects.filter(pk=image.id).exists())
+        self.assertTrue(image_path.exists())
+
+    def test_farm_delete_logs_media_cleanup_failure_after_database_commit(self):
+        camera = Camera.objects.create(
+            farm_level=self.level, name="Storage error camera", source_type="RTSP"
+        )
+        image = CameraImage(camera=camera, captured_at=timezone.now())
+        image.path.save("storage-error.jpg", ContentFile(b"orphan"), save=False)
+        image.save()
+
+        with patch.object(image.path.storage, "delete", side_effect=OSError("offline")):
+            with self.assertLogs("telemetry.farm_deletion", level="WARNING"):
+                with self.captureOnCommitCallbacks(execute=True):
+                    response = self.client.delete(f"/api/farms/{self.farm.id}/")
+
+        self.assertEqual(response.status_code, 204)
+        self.assertFalse(Farm.objects.filter(pk=self.farm.id).exists())
 
     def test_ingest_patch_validates_lan_urls_and_updates_sensor_timing(self):
         sensor = Sensor.objects.create(device=self.device, slug="water-ph", sensor_type="ph", unit="pH")
