@@ -14,6 +14,19 @@ function imageUrl(evidence: VisualEvidence, sourceImages: SourceImage[]) {
     return mediaUrl(source?.url)
 }
 
+function observationCameraName(
+    observation: ImageObservation,
+    evidence: VisualEvidence[],
+    sourceImages: SourceImage[],
+) {
+    if (observation.camera_name?.trim()) return observation.camera_name
+    const source = sourceImages.find(image => image.camera_id === observation.camera_id)
+    if (source?.camera_name) return source.camera_name
+    const visual = evidence.find(item => item.camera_id === observation.camera_id)
+    if (visual?.camera_name) return visual.camera_name
+    return observation.camera_id != null ? `Camera ${observation.camera_id}` : "Camera"
+}
+
 export default function CameraEvidence({ evidence, sourceImages, observations }: Props) {
     if (evidence.length === 0 && sourceImages.length === 0 && observations.length === 0) {
         return <p className="text-sm text-subtext3">No camera evidence for this run.</p>
@@ -53,7 +66,7 @@ export default function CameraEvidence({ evidence, sourceImages, observations }:
                     <p className="text-sm text-subtext1 font-semibold">VLM observations</p>
                     {observations.map((item, index) => (
                         <p key={`${item.camera_id ?? "obs"}-${index}`} className="text-xs text-subtext2">
-                            {item.camera_id != null ? `Camera ${item.camera_id}: ` : ""}
+                            {`${observationCameraName(item, evidence, sourceImages)}: `}
                             {String(item.observation ?? JSON.stringify(item))}
                         </p>
                     ))}
