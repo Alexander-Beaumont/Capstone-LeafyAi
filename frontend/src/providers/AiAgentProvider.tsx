@@ -121,6 +121,8 @@ export default function AiAgentProvider({ children }: Props) {
         }
     }, [farmId, user.loggedIn, user.accessToken, update, loadSettings, loadRuns])
 
+    // Recommendation history is polled only while a farm is selected. Hidden
+    // browser tabs avoid unnecessary refresh traffic until visible again.
     useEffect(() => {
         if (!user.loggedIn || !user.accessToken || farmId == null) return
         let cancelled = false

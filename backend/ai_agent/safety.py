@@ -116,6 +116,8 @@ def evaluate_safety(decision, farm_state, config=None):
         failures.append("AI confidence is missing.")
     elif confidence < CONFIDENCE_THRESHOLD:
         failures.append(f"AI confidence {confidence} is below {CONFIDENCE_THRESHOLD}.")
+    # Safety re-derives the allowed execution mode instead of trusting model
+    # metadata, so pump/doser/harvest recommendations cannot become automatic.
     expected_execution = "automated" if decision.target_device in {"fans", "light"} else "notification"
     if decision.execution_type != expected_execution:
         failures.append(f"Target {decision.target_device} must use execution type {expected_execution}.")

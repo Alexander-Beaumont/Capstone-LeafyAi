@@ -40,6 +40,8 @@ def configuration_is_due(configuration, now=None):
     if configuration.last_attempt_at is None:
         return True
     delay = configuration.poll_interval_seconds
+    # Repeated failures use bounded exponential backoff while preserving the
+    # configured polling interval as the minimum delay.
     if configuration.consecutive_failures:
         backoff = int(settings.SENSOR_INGEST_FAILURE_BACKOFF_BASE_SECONDS) * (
             2 ** (configuration.consecutive_failures - 1)
@@ -60,6 +62,8 @@ def collect_due_configurations(now=None):
     for configuration in configurations:
         if not configuration_is_due(configuration, now):
             continue
+        # One non-blocking lock per controller prevents the background worker and
+        # manual operator requests from collecting the same device concurrently.
         lock = operation_lock("sensor-collect", configuration.device_id)
         if not lock.acquire(blocking=False):
             continue

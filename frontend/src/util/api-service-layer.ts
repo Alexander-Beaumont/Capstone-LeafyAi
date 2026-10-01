@@ -171,6 +171,8 @@ export async function deleteGrowingArea(accessToken: string | undefined, farmId:
     })
 }
 
+// Farm creation sends only the farm record; the backend provisions the standard
+// controller, sensor definitions and farm levels in the same transaction.
 export async function createFarmWithLayout(
     accessToken: string | undefined,
     name: string,

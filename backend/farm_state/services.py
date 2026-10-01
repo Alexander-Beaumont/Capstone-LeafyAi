@@ -337,6 +337,8 @@ def _device_state(device, now):
     }
 
 
+# farm_state is the normalized read model shared by the dashboard and AI agent;
+# it aggregates persisted telemetry rather than contacting hardware directly.
 def build_farm_state(farm):
     """Assemble the complete current farm-state document for a Farm."""
 

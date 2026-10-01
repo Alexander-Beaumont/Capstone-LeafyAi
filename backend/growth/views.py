@@ -249,6 +249,8 @@ def move_batch(request):
             "Destination growing area already has a batch move that batch first"
         )
 
+    # Moving a batch closes the current placement and creates the destination
+    # placement atomically so one batch is never left between areas.
     with transaction.atomic():
         now = timezone.now()
         current_placement.end_date = now

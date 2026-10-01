@@ -16,6 +16,8 @@ class DjangoCameraRepository:
         camera = Camera.objects.select_related("farm_level").get(id=camera_id)
         return dict(CameraSerializer(camera).data)
 
+    # Scheduling only needs the newest official image and its quality/VLM state;
+    # historical images remain available through the operator camera-image API.
     def get_latest_image(self, camera_id: Any) -> dict[str, Any] | None:
         image = CameraImage.objects.filter(camera_id=camera_id).order_by("-captured_at", "-id").first()
         if image is None: return None
@@ -29,6 +31,8 @@ class DjangoCameraRepository:
             "vlm_ready":
                 image.vlm_ready,
         }
+    # Persist the original JPEG together with deterministic technical quality
+    # metadata so downstream AI can decide whether the image is eligible.
     def upload_official_image(self,camera_id, jpeg_bytes,*,captured_at,quality,):        
         if not jpeg_bytes: raise ValueError("Official JPEG bytes are empty")
         camera = Camera.objects.get(id=camera_id)

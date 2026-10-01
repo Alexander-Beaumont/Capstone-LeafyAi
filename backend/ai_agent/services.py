@@ -150,6 +150,8 @@ def _complete_llm_recommendations(provider, system, user, default_device_id, far
 
 def _persist_items(run, farm_state, items):
     checked = []
+    # Persist each model recommendation and its safety result before any hardware
+    # action is attempted, preserving an auditable decision trail.
     with transaction.atomic():
         for item in items:
             decision = AIDecision.objects.create(
@@ -237,6 +239,8 @@ def generate_recommendation(farm, device=None, provider=None, vlm_provider=None,
     reading_ids = {reading.id for reading in fresh_readings}
     run.source_readings.set(reading_ids)
     farm_state = _restrict_farm_state_readings(farm_state, reading_ids)
+    # One latest image per enabled camera is considered. Only recent PASS/WARN
+    # images marked vlm_ready can become visual model input.
     candidates = latest_image_candidates(farm)
     image_cutoff = now - timedelta(minutes=configuration.max_image_age_minutes)
     eligible = [
@@ -266,6 +270,8 @@ def generate_recommendation(farm, device=None, provider=None, vlm_provider=None,
         **reuse,
     }
     has_new_evidence = bool(reuse["new_reading_ids"] or reuse["new_image_ids"])
+    # Scheduled runs are skipped when every eligible reading/image has already
+    # been used by a completed run, avoiding duplicate recommendations.
     if trigger == "scheduled" and previous is not None and not has_new_evidence:
         run.status = "skipped"
         run.skip_reason = "No new eligible sensor readings or camera images were available."
@@ -283,6 +289,8 @@ def generate_recommendation(farm, device=None, provider=None, vlm_provider=None,
     items = None
     selected_provider = None
 
+    # Prefer the VLM whenever at least one current camera image is readable.
+    # Sensor-only LLM generation below is the explicit fallback path.
     if readable:
         try:
             selected_provider = vlm_provider or get_vlm_provider(configuration)

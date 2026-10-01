@@ -25,6 +25,8 @@ def execute_decision(decision):
     if decision.execution_type != "automated" or decision.target_device not in {"fans", "light"}:
         return []
 
+    # The AI may operate only the low-risk fan/light mappings. Dosing and pump
+    # recommendations never reach this hardware execution path.
     ids = [FAN_DEVICE_ID] if decision.target_device == "fans" else list(LIGHT_DEVICE_IDS)
     action = FarmAction.objects.create(
         decision=decision,
@@ -36,6 +38,8 @@ def execute_decision(decision):
     requested = decision.device_state.upper()
     bridge = get_powerboard_bridge()
     try:
+        # Read the physical state before changing it so the action audit can
+        # distinguish a real state change from an already-satisfied no-op.
         previous_states = _current_states(bridge, ids)
         action.previous_state = (
             previous_states[0]

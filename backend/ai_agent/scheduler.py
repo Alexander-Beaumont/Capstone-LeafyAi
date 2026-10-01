@@ -71,6 +71,8 @@ def next_eligible_time(configuration, now=None):
     return None
 
 
+# Scheduled recommendations reuse the same generation/safety/action pipeline as
+# manual runs; this function only decides which farm schedule is currently due.
 def run_due_schedules(now=None):
     for configuration in AIConfiguration.objects.filter(schedule_enabled=True).select_related("farm"):
         slot = schedule_slot(configuration, now)

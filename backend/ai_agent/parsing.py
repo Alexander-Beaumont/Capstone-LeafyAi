@@ -20,6 +20,8 @@ class Recommendation:
         self.confidence = confidence
         self.used_fallback = False
 
+    # Only fan and light on/off decisions are eligible for automatic execution;
+    # all other targets remain advisory notifications.
     @property
     def execution_type(self):
         return "automated" if self.target_device in {"fans", "light"} and self.device_state in {"on", "off"} else "notification"

@@ -13,6 +13,8 @@ def ensure_sensor_definitions(device, *, force_timing=False):
     created_count = 0
     updated_count = 0
 
+    # Sensor slugs are the stable contract shared by ingestion, farm_state and AI.
+    # Existing rows are updated only where the canonical definition requires it.
     for definition in SENSOR_DEFINITIONS:
         defaults = {
             "sensor_type": definition.sensor_type,
@@ -66,6 +68,8 @@ def bootstrap_environment_configuration(device=None):
         device = FarmDevice.objects.filter(slug=slug).first()
     if device is None:
         return None, False
+    # Environment values bootstrap the first configuration only; after creation,
+    # the database row is the runtime-editable source used by the operator API.
     configuration, created = SensorIngestConfiguration.objects.get_or_create(
         device=device,
         defaults={

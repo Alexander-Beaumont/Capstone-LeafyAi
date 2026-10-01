@@ -132,6 +132,8 @@ def start_background_runtime():
             daemon=True,
         )
 
+        # Sensor and camera workers always start together. AI scheduling is
+        # independently switchable with LEAFY_AI_SCHEDULER_ENABLED.
         sensor_thread.start()
         camera_thread.start()
         if os.getenv("LEAFY_AI_SCHEDULER_ENABLED", "true").strip().lower() in {"1", "true", "yes", "on"}:

@@ -140,10 +140,14 @@ class SensorCollector:
 
     def collect(self, *, store=True):
         self.validate_configuration()
+        # Treat the two physical HTTP endpoints as one collection cycle. If either
+        # request fails, no readings from this cycle are persisted.
         water_payload = self._get_json(self.water_quality_url, "Water-quality sensor")
         ambient_payload = self._get_json(self.ambient_sensor_url, "Ambient/level sensor")
         normalized = normalize_payloads(water_payload, ambient_payload)
         measured_at = timezone.now()
+        # The mapper may omit measurements that the hardware marks invalid or
+        # missing; only normalized values are converted into SensorReading rows.
         readings = [
             SensorReading(
                 sensor=self.sensors[slug],

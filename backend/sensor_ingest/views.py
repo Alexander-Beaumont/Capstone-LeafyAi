@@ -60,6 +60,8 @@ def _operation(request, farm_id, device_id, *, store):
             {"detail": "A collection is already running for this device."},
             status=status.HTTP_409_CONFLICT,
         )
+    # Test performs the complete fetch/validation path without persistence;
+    # Collect follows the same path and stores the resulting SensorReading rows.
     try:
         try:
             result = (

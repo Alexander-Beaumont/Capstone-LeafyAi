@@ -10,6 +10,8 @@ from ai_agent.urls import router as ai_agent_router
 from telemetry.urls import router as telemetry_router
 
 
+# Combine the generic telemetry and AI routers first; the farm-scoped operator,
+# sensor, growth and powerboard APIs are mounted explicitly below.
 router = DefaultRouter()
 router.registry.extend(telemetry_router.registry)
 router.registry.extend(ai_agent_router.registry)

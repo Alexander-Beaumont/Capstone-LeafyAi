@@ -51,6 +51,8 @@ export default function FarmOverviewProvider({ children }: Props) {
     const [dashboard, setDashboard] = useState<FarmDashboard | null>(null)
     const user = useContext(userContext)
 
+    // Keep the selected farm and latest overview data across page navigation;
+    // server data is still refreshed on the polling cycle below.
     const [farmJSON, setFarmJSON] = useLocalStorage("selectedFarm", "null")
     const farm = useMemo(
         () => JSON.parse(farmJSON ?? "null") as Farm | null,
@@ -109,6 +111,8 @@ export default function FarmOverviewProvider({ children }: Props) {
                     setFarmJSON(JSON.stringify(selected))
                 }
 
+                // Load the four independent overview sources in parallel so one
+                // slow hardware-facing API does not serialize the whole refresh.
                 const [state, board, dash, ingest] = await Promise.all([
                     getFarmState(user.accessToken, selected.id),
                     getDevices(user.accessToken),
