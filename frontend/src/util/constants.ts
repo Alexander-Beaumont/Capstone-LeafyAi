@@ -145,7 +145,6 @@ export const AI_PROVIDERS = ["openrouter", "ollama", "mock"] as const
 
 export const PAGES = {
     noAuthPages: {
-        landingPage: "/",
         authPage: "/auth"
     },
     authPages: {
@@ -159,7 +158,6 @@ export const PAGES = {
 
 export const PAGE_NAMES = {
     noAuthPages: {
-        landingPage: "Landing Page",
         authPage: "Auth Page"
     },
     authPages: {
