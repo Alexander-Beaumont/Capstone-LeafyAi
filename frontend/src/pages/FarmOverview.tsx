@@ -52,8 +52,12 @@ export default function FarmOverview() {
             {!overview.farmId ?
                 <EmptyFarm noFarms={overview.farmsLoaded && overview.farms.length === 0 && !overview.loadError} />
             : <>
-                <div className="grid grid-cols-2 gap-2 [&>*:last-child:nth-child(odd)]:col-span-2 w-full">
+                <SensorReadings />
+                <AwaitingDecisions />
+                <DeviceControls />
+                <div className="flex flex-wrap gap-2 w-full">
                     <InformationPanel
+                        compact
                         name="Ingestion"
                         value={ingestionLabel(dashboard?.sensors.ingestion_status)}
                         hint={dashboard ? `Last collection ${formatTimestamp(dashboard.sensors.last_successful_collection)}` : undefined}
@@ -62,6 +66,7 @@ export default function FarmOverview() {
                         to={`${PAGES.authPages.history}#sensor-history`}
                     />
                     <InformationPanel
+                        compact
                         name="Fresh sensors"
                         value={sensorValue}
                         hint={sensorHint}
@@ -70,6 +75,7 @@ export default function FarmOverview() {
                         to={`${PAGES.authPages.history}#sensor-history`}
                     />
                     <InformationPanel
+                        compact
                         name="Cameras"
                         value={dashboard ? String(dashboard.cameras.count) : "…"}
                         hint={dashboard ? `Next capture ${formatTimestamp(dashboard.cameras.next_capture)}` : undefined}
@@ -77,6 +83,7 @@ export default function FarmOverview() {
                         to={`${PAGES.authPages.history}#camera-gallery`}
                     />
                     <InformationPanel
+                        compact
                         name="Image quality"
                         value={quality?.status ?? "None"}
                         hint={quality?.message || (quality ? (quality.vlm_ready ? "VLM ready" : "Not VLM ready") : "No image")}
@@ -85,6 +92,7 @@ export default function FarmOverview() {
                         to={`${PAGES.authPages.history}#camera-gallery`}
                     />
                     <InformationPanel
+                        compact
                         name="AI schedule"
                         value={dashboard?.ai.schedule_state === "enabled" ? "On" : dashboard ? "Off" : "…"}
                         hint={dashboard ? `Next window ${formatTimestamp(dashboard.ai.next_eligible_window)}` : undefined}
@@ -93,11 +101,6 @@ export default function FarmOverview() {
                         to={`${PAGES.authPages.history}#ai-decisions`}
                     />
                 </div>
-            <div className="grid grid-cols-[minmax(0,auto)_minmax(0,1fr)] gap-5 w-full">
-                <SensorReadings/>
-               <DeviceControls/>
-            </div>
-           <AwaitingDecisions/>
             </>}
         </div>
     )
