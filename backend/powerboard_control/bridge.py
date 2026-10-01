@@ -11,6 +11,8 @@ from .kasa_service import PowerboardController
 
 class PowerboardBridge:
     def __init__(self) -> None:
+        # Django request handlers are synchronous, while python-kasa is async.
+        # A dedicated daemon event loop lets both callers share one controller.
         self._loop = asyncio.new_event_loop()
         self._controller: PowerboardController | None = None
         self._ready = threading.Event()
@@ -51,6 +53,8 @@ _LOCK = threading.Lock()
 
 def get_powerboard_bridge() -> PowerboardBridge:
     global _BRIDGE
+    # Lazily create one process-wide bridge so concurrent requests do not start
+    # competing Kasa event loops.
     with _LOCK:
         if _BRIDGE is None:
             _BRIDGE = PowerboardBridge()

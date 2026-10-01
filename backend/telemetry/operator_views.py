@@ -216,6 +216,8 @@ def camera_detail(request, farm_id, camera_id):
     return Response(FarmCameraSerializer(camera, context={"request": request, "farm": farm}).data)
 
 
+# Manual capture uses the same CameraCollector path as the background runtime;
+# the operation lock prevents two requests from capturing one camera at once.
 @api_view(["POST"])
 def capture_camera(request, farm_id, camera_id):
     farm = _farm(farm_id)
@@ -296,6 +298,8 @@ def camera_images(request, farm_id):
     )
 
 
+# The dashboard endpoint intentionally aggregates summaries from the same farm
+# state, sensor-ingest, camera and AI records used elsewhere in the backend.
 @api_view(["GET"])
 def dashboard(request, farm_id):
     farm = _farm(farm_id)

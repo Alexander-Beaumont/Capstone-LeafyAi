@@ -47,6 +47,8 @@ class FarmViewSet(viewsets.ModelViewSet):
     serializer_class = FarmSerializer
     pagination_class = OperatorLimitOffsetPagination
 
+    # Farm creation and standard controller/sensor/level provisioning share one
+    # database transaction so a partially provisioned farm is not exposed.
     @transaction.atomic
     def perform_create(self, serializer):
         farm = serializer.save()

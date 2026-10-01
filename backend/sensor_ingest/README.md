@@ -1,196 +1,164 @@
-# Leafy AI sensor_ingest
+# LeafyAI Sensor Ingestion
 
-`sensor_ingest` is the integration boundary between the physical LeafyAI farm sensors and Leafy AI's internal Django database.
+`backend/sensor_ingest` owns the current physical sensor-ingestion boundary for LeafyAI.
 
-It deliberately **does not** decide whether the farm is healthy or whether hardware should run. It retrieves, validates, normalises and stores physical sensor observations.
+It reads the configured local HTTP devices, validates/normalizes their payloads, persists valid observations as `telemetry.SensorReading`, and records runtime health on `SensorIngestConfiguration`.
 
-Operational interpretation belongs to `farm_state`, the safety layer and the AI/VLM layer.
-
-The current implementation communicates directly with the physical farm devices over the local network.
-
-ThingSpeak is no longer part of the sensor-ingestion architecture.
-
----
-
-## Data contract
-
-The current physical farm devices are mapped as follows:
-
-| Device | Payload field | Leafy AI storage |
-| --- | --- | --- |
-| Water-quality sensor | `ph` | `SensorReading` (`water_ph`) |
-| Water-quality sensor | `ec` | `SensorReading` (`electrical_conductivity`) |
-| Water-quality sensor | `water_temperature_c` | `SensorReading` (`water_temperature`) |
-| Ambient sensor | `ambient_temperature_c` | `SensorReading` (`ambient_temperature`) |
-| Ambient sensor | `humidity_percent` | `SensorReading` (`relative_humidity`) |
-| Ambient sensor | `dew_point_c` | `SensorReading` (`dew_point`) |
-| Ambient / level sensor | `water_level` | `SensorReading` (`reservoir_water_level`) |
-
-The mapping is version-controlled in:
+## Runtime flow
 
 ```text
-sensor_ingest/services/mapper.py
+SensorIngestConfiguration
+        |
+        +--> water-quality HTTP endpoint
+        |
+        +--> ambient/water-level HTTP endpoint
+        |
+        v
+SensorCollector
+        |
+        v
+normalize_payloads()
+        |
+        v
+SensorReading
+        |
+        v
+farm_state
+        |
+        v
+dashboard / history / AI Agent
 ```
 
-It should not be made editable from the frontend because an incorrect mapping could mislabel physical farm data.
+The backend background worker calls `collect_due_configurations()` when `LEAFY_RUNTIME_ENABLED=true`.
 
-The current sensor definitions are:
+## Standard sensor definitions
 
-```text
-water_ph
-electrical_conductivity
-water_temperature
-ambient_temperature
-relative_humidity
-dew_point
-reservoir_water_level
+The standard controller owns seven sensor definitions:
+
+| Slug | Type | Unit | Source | Payload key | Validity key |
+| --- | --- | --- | --- | --- | --- |
+| `water_ph` | `ph` | pH | water quality | `ph` | `ph_valid` |
+| `electrical_conductivity` | `ec` | uS/cm | water quality | `ec` | `ec_valid` |
+| `water_temperature` | `water_temperature` | °C | water quality | `water_temperature_c` | `water_temperature_valid` |
+| `ambient_temperature` | `ambient_temperature` | °C | ambient | `ambient_temperature_c` | `ambient_valid` |
+| `relative_humidity` | `humidity` | % | ambient | `humidity_percent` | `ambient_valid` |
+| `dew_point` | `dew_point` | °C | ambient | `dew_point_c` | `ambient_valid` |
+| `reservoir_water_level` | `water_level` | cm | ambient | `water_level` | `water_level_valid` |
+
+The stable slugs above are shared by sensor ingestion, farm-state generation and the AI/safety layer.
+
+## Current Lab endpoints
+
+Defaults in `.env.example` are:
+
+```env
+LEAFY_WATER_QUALITY_URL=http://192.168.1.100/readings
+LEAFY_AMBIENT_SENSOR_URL=http://192.168.1.111:8080/readings
 ```
 
----
+For a normal farm created from the UI, the sensor-ingest URLs can be edited through the farm-scoped ingestion configuration API.
 
-## Physical sensor endpoints
+## Farm provisioning
 
-The currently tested LeafyAI Lab devices are:
+`telemetry.farm_provisioning.provision_farm()` is called when a new `Farm` is created.
+
+It creates:
 
 ```text
-Water-quality sensor:
-http://192.168.1.100/readings
+Farm
+└── Controller FarmDevice
+    ├── seven standard Sensor rows
+    ├── Farm Level 1
+    └── Farm Level 2
 ```
 
+`ensure_sensor_definitions()` is the canonical helper used to create/update the standard sensor rows.
+
+## Collection semantics
+
+`SensorCollector.collect()` treats both physical HTTP endpoints as one collection cycle.
+
 ```text
-Ambient / water-level sensor:
-http://192.168.1.111:8080/readings
+validate configuration
+    -> GET water-quality payload
+    -> GET ambient payload
+    -> normalize measurements
+    -> optionally persist SensorReading rows
 ```
 
-These addresses are private Lab-network addresses.
+If either HTTP request fails, returns invalid JSON, or does not return a JSON object, the collection raises an error before the cycle is persisted.
 
-They are expected to be unreachable when the developer is outside the LeafyAI Lab network.
+When both endpoints respond successfully, the mapper evaluates each measurement individually:
 
-A connection failure to these IP addresses outside the Lab does not by itself indicate a backend defect.
+- a hardware validity flag must be `true`
+- the payload field must be present
+- the value must be numeric and storable
+- basic physical-domain checks may mark a value `suspect`
 
----
+Measurements that are missing or explicitly invalid are omitted from that cycle and reported in `missing_sensors` / `invalid_sensors`. Other valid normalized measurements can still be stored.
 
-## Reliability properties
+Crop operating ranges are not enforced by ingestion. They belong to the AI safety/control layer.
 
-The current implementation:
-
-- Reads physical sensor data directly over local HTTP.
-- Uses configurable HTTP timeout and retry behaviour.
-- Fetches the water-quality and ambient devices independently.
-- Does not require one device to succeed before processing valid observations from the other.
-- Uses hardware validity flags where available.
-- Performs basic physical-range validation.
-- Stores valid observations in `telemetry.SensorReading`.
-- Keeps source measurement time separate from Django receipt time where provided.
-- Allows physically valid but crop-unsafe values to remain in history.
-- Leaves crop safety and operational interpretation to `farm_state`, safety logic and the AI/VLM layer.
-- Uses persisted sensor readings as the source of truth for downstream farm-state calculations.
-
-The ingestion layer should remain focused on physical data acquisition and normalization.
-
----
-
-## Quality status
-
-The local physical devices expose validity information that is used by the mapper.
-
-Relevant validity flags include:
+Persisted physical readings use:
 
 ```text
-ph_valid
-ec_valid
-water_temperature_valid
-ambient_valid
-water_level_valid
-```
-
-Valid physical observations are normally stored as:
-
-```text
-quality_status = valid
 source = local_http
+source_channel_id = water_quality | ambient
 ```
 
-Physically impossible values detected by the mapper may be stored as:
+## Runtime-editable configuration
+
+`SensorIngestConfiguration` stores, per controller:
 
 ```text
-quality_status = suspect
+enabled
+water_quality_url
+ambient_sensor_url
+poll_interval_seconds
+sensor_stale_threshold_seconds
+last_attempt_at
+last_success_at
+last_error
+consecutive_failures
 ```
 
-A real measurement that is unsafe for the crop must not be deleted by the ingestion layer.
+The environment values are used to bootstrap the initial Lab configuration. The database configuration is then editable through the operator API.
 
-For example, a pH value can still be a valid physical measurement even if it is outside the desired crop operating range.
+Updating poll/stale timing propagates the timing values to the controller's `Sensor` rows.
 
-Crop-specific interpretation belongs to:
+## Operator API
+
+Current routes:
 
 ```text
-farm_state
-safety logic
-AI/VLM layer
+GET   /api/farms/{farm_id}/sensor-ingest/
+GET   /api/farms/{farm_id}/sensor-ingest/{device_id}/
+PATCH /api/farms/{farm_id}/sensor-ingest/{device_id}/
+
+POST  /api/farms/{farm_id}/sensor-ingest/{device_id}/test/
+POST  /api/farms/{farm_id}/sensor-ingest/{device_id}/collect/
 ```
 
----
+`test/` performs the real fetch and validation path with `store=False`.
 
-## Active architecture
+`collect/` performs the same path and persists the resulting readings.
 
-The current ingestion flow is:
+The per-device operation lock prevents manual test/collect requests and the background worker from collecting the same controller concurrently.
 
-```text
-Water-quality device
-192.168.1.100/readings
-        |
-        | HTTP
-        v
-  SensorCollector
-        |
-        +---- water_ph
-        +---- electrical_conductivity
-        +---- water_temperature
-        |
-        v
+## Scheduling and failure backoff
 
-Ambient / level device
-192.168.1.111:8080/readings
-        |
-        | HTTP
-        v
-  SensorCollector
-        |
-        +---- ambient_temperature
-        +---- relative_humidity
-        +---- dew_point
-        +---- reservoir_water_level
-        |
-        v
+The background runtime checks enabled configurations frequently, while each configuration's `poll_interval_seconds` decides whether it is due.
 
-telemetry.SensorReading
-        |
-        v
-farm_state
-        |
-        v
-REST API
-        |
-        v
-Frontend / AI layer
+After failures, the runtime applies bounded exponential backoff using:
+
+```env
+SENSOR_INGEST_FAILURE_BACKOFF_BASE_SECONDS=5
+SENSOR_INGEST_FAILURE_BACKOFF_MAX_SECONDS=300
 ```
 
-There is one active physical sensor-ingestion path:
-
-```text
-Physical sensors
-    -> SensorCollector
-    -> mapper
-    -> SensorReading
-```
-
-Do not add another parallel sensor provider unless the architecture is intentionally changed by the team.
-
----
+A failure on one controller does not stop other configured controllers from being processed.
 
 ## Important files
-
-The active sensor-ingestion files are:
 
 ```text
 sensor_ingest/
@@ -199,588 +167,119 @@ sensor_ingest/
 │       ├── collect_sensors.py
 │       └── seed_sensors.py
 ├── migrations/
-│   ├── 0001_initial.py
-│   └── 0002_remove_legacy_ingestion_audit.py
 ├── services/
 │   ├── collector.py
-│   └── mapper.py
-├── apps.py
+│   ├── configuration.py
+│   ├── mapper.py
+│   └── runtime.py
+├── tests/
+│   ├── test_collector.py
+│   ├── test_mapper.py
+│   └── test_seed_command.py
 ├── exceptions.py
 ├── models.py
-└── README.md
+├── serializers.py
+├── signals.py
+├── urls.py
+└── views.py
 ```
-
-### `services/collector.py`
 
 Responsibilities:
 
-- Connect to both local physical sensor endpoints.
-- Apply HTTP timeout and retry behaviour.
-- Retrieve device payloads.
-- Pass payloads to the mapper.
-- Persist normalized observations.
+- `mapper.py`: canonical physical sensor definitions and payload normalization.
+- `configuration.py`: provision definitions and bootstrap runtime configuration.
+- `collector.py`: HTTP fetch, validation and persistence.
+- `runtime.py`: due scheduling, status recording, backoff and locking.
+- `views.py`: farm-scoped configuration/test/collect API.
+- `signals.py`: creates the ingestion configuration associated with a controller where required.
 
-### `services/mapper.py`
+## Commands
 
-Responsibilities:
-
-- Map physical payload fields to LeafyAI sensor definitions.
-- Read hardware validity flags.
-- Validate numeric values.
-- Apply basic physical-range checks.
-- Produce normalized readings.
-
-### `management/commands/collect_sensors.py`
-
-Responsibilities:
-
-- Run one physical collection cycle.
-- Run continuous polling.
-- Respect the configured polling interval.
-
-### `management/commands/seed_sensors.py`
-
-Responsibilities:
-
-- Create or update the seven sensor definitions for an existing `FarmDevice`.
-
-For a complete fresh system setup, use:
-
-```text
-bootstrap_leafy
-```
-
-instead.
-
----
-
-## Removed legacy components
-
-The previous ThingSpeak ingestion path has been removed.
-
-The following components are no longer part of the active architecture:
-
-```text
-sensor_ingest/clients/thingspeak.py
-sensor_ingest/services/parser.py
-sensor_ingest/services/ingestion.py
-sensor_ingest/services/health.py
-sensor_ingest/serializers.py
-sensor_ingest/urls.py
-sensor_ingest/views.py
-```
-
-The related legacy tests were also removed:
-
-```text
-sensor_ingest/tests/test_thingspeak_client.py
-sensor_ingest/tests/test_parser.py
-sensor_ingest/tests/test_ingestion.py
-sensor_ingest/tests/test_health_api.py
-```
-
-The following ThingSpeak-era behaviour is no longer required:
-
-```text
-ThingSpeak API access
-ThingSpeak API keys
-ThingSpeak entry_id tracking
-payload SHA-256 ingestion audit
-historical backfill
-periodic reconciliation
-ThingSpeak health endpoint
-provider switching
-ThingSpeak pump-state ingestion
-ThingSpeak target-EC ingestion
-```
-
-Do not reintroduce these components unless the team intentionally changes the ingestion architecture.
-
----
-
-## Legacy database migration
-
-The following migration files must remain in the repository:
-
-```text
-sensor_ingest/migrations/0001_initial.py
-sensor_ingest/migrations/0002_remove_legacy_ingestion_audit.py
-```
-
-Do not delete `0002_remove_legacy_ingestion_audit.py`.
-
-It removes the previous legacy models:
-
-```text
-IngestionRecord
-IngestionSourceState
-```
-
-from databases that were created using the older ingestion design.
-
-This migration allows existing databases to move safely to the new local-sensor architecture.
-
----
-
-## Configuration
-
-Endpoint and timing values are runtime data in one
-`SensorIngestConfiguration` row per `FarmDevice`. The operator API can update
-them without restarting Django, and the consolidated runtime re-reads due
-configurations on each scheduler tick. URL validation permits credential-free
-HTTP(S) private-LAN IP addresses only.
-
-The environment values below are bootstrap defaults for the device selected by
-`SENSOR_INGEST_DEVICE_SLUG`; repeated bootstrap runs do not overwrite later
-operator edits or create duplicate configuration rows.
-
-For the current local development workflow, the backend reads the repository-root:
-
-```text
-.env.example
-```
-
-directly.
-
-A separate `.env` file is not required unless the project configuration is intentionally changed.
-
-The relevant sensor configuration is:
-
-```env
-SENSOR_INGEST_DEVICE_SLUG=test-device
-
-LEAFY_WATER_QUALITY_URL=http://192.168.1.100/readings
-LEAFY_AMBIENT_SENSOR_URL=http://192.168.1.111:8080/readings
-
-SENSOR_INGEST_POLL_SECONDS=30
-SENSOR_INGEST_EXPECTED_INTERVAL_SECONDS=30
-SENSOR_INGEST_SENSOR_STALE_SECONDS=120
-
-SENSOR_INGEST_HTTP_TIMEOUT_SECONDS=5
-SENSOR_INGEST_HTTP_RETRY_TOTAL=4
-SENSOR_INGEST_HTTP_RETRY_BACKOFF=0.5
-
-SENSOR_INGEST_FAILURE_BACKOFF_BASE_SECONDS=5
-SENSOR_INGEST_FAILURE_BACKOFF_MAX_SECONDS=300
-
-SENSOR_INGEST_LOG_LEVEL=INFO
-```
-
-System or process environment variables can override these values.
-
-Do not commit real API keys, passwords or other secrets into `.env.example`.
-
----
-
-## One-time local setup
-
-### Windows PowerShell
-
-From the repository root:
+Create/update standard sensor definitions:
 
 ```powershell
-python -m venv .venv
+python manage.py seed_sensors --device-slug <device-slug>
 ```
 
-Activate the virtual environment:
-
-```powershell
-.\.venv\Scripts\Activate.ps1
-```
-
-If PowerShell blocks script activation:
-
-```powershell
-Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
-.\.venv\Scripts\Activate.ps1
-```
-
-Install backend dependencies:
-
-```powershell
-python -m pip install --upgrade pip
-pip install -r .\backend\requirements.txt
-```
-
-Enter the backend directory:
-
-```powershell
-cd backend
-```
-
-Apply database migrations:
-
-```powershell
-python manage.py migrate
-```
-
-Bootstrap the LeafyAI configuration:
-
-```powershell
-python manage.py bootstrap_leafy
-```
-
-`bootstrap_leafy` creates or updates the configured:
-
-```text
-Farm
-FarmDevice
-7 sensor definitions
-SensorIngestConfiguration
-FarmLevel
-Camera configuration
-```
-
-where applicable.
-
----
-
-## Local test without farm hardware
-
-The physical sensors use local `192.168.1.x` addresses.
-
-When testing outside the Lab, disable the background hardware runtime:
-
-```powershell
-$env:LEAFY_RUNTIME_ENABLED="false"
-```
-
-Run the Django system check:
-
-```powershell
-python manage.py check
-```
-
-Run the relevant backend tests:
-
-```powershell
-python manage.py test sensor_ingest telemetry farm_state
-```
-
-The Django server can then be started without attempting the physical background runtime:
-
-```powershell
-python manage.py runserver 0.0.0.0:8000 --noreload
-```
-
-Expected startup output includes:
-
-```text
-Leafy AI background runtime disabled by LEAFY_RUNTIME_ENABLED.
-System check identified no issues (0 silenced).
-```
-
-To restore the configured runtime behaviour:
-
-```powershell
-Remove-Item Env:LEAFY_RUNTIME_ENABLED
-```
-
----
-
-## Lab hardware test
-
-The physical collection test must be run while connected to the LeafyAI Lab network.
-
-Activate the local virtual environment:
-
-```powershell
-.\.venv\Scripts\Activate.ps1
-```
-
-Enter the backend:
-
-```powershell
-cd backend
-```
-
-Ensure migrations and bootstrap data are ready:
-
-```powershell
-python manage.py migrate
-python manage.py bootstrap_leafy
-```
-
-Run one physical sensor collection cycle:
+Run one collection cycle:
 
 ```powershell
 python manage.py collect_sensors --once
 ```
 
-Expected successful output:
-
-```text
-Local sensor cycle stored 7 reading(s); missing=[] invalid=[]
-Sensor cycle complete: stored=7 reading(s).
-```
-
-This confirms that both physical sensor devices were reachable and all seven expected observations were persisted.
-
----
-
-## Verify stored readings
-
-The latest readings can be inspected from the Django shell.
-
-Run:
-
-```powershell
-python manage.py shell
-```
-
-Then:
-
-```python
-from telemetry.models import SensorReading
-from django.utils import timezone
-
-for reading in (
-    SensorReading.objects
-    .select_related("sensor")
-    .order_by("-measured_at")[:7]
-):
-    print(
-        reading.sensor.slug,
-        reading.value,
-        reading.sensor.unit,
-        reading.quality_status,
-        timezone.localtime(reading.measured_at),
-    )
-```
-
-Expected sensor slugs:
-
-```text
-water_ph
-electrical_conductivity
-water_temperature
-ambient_temperature
-relative_humidity
-dew_point
-reservoir_water_level
-```
-
-Valid local hardware observations should normally show:
-
-```text
-quality_status = valid
-source = local_http
-```
-
----
-
-## Continuous collection
-
-Run the collector continuously with:
+Run the standalone database-configured collector loop:
 
 ```powershell
 python manage.py collect_sensors
 ```
 
-Run one cycle only:
+In the normal Docker development runtime, the background worker already collects due configurations while Django `runserver` is running.
+
+## Unit tests
+
+From `backend/`:
 
 ```powershell
-python manage.py collect_sensors --once
+python manage.py test sensor_ingest
 ```
 
-Override the configured polling interval:
+With Docker:
 
 ```powershell
-python manage.py collect_sensors --poll-seconds 10
+docker compose exec backend python manage.py test sensor_ingest
 ```
 
-The normal LeafyAI background runtime can also run sensor collection when:
+The unit tests use mocks/fixtures and are intended to validate software logic without requiring the physical Lab devices.
+
+## Lab connectivity test
+
+The Lab addresses are private network devices. Test them from a machine/container that can reach the LeafyAI hardware.
+
+Water-quality endpoint:
+
+```powershell
+docker compose exec backend python -c "import requests; print(requests.get('http://192.168.1.100/readings', timeout=5).json())"
+```
+
+Ambient/water-level endpoint:
+
+```powershell
+docker compose exec backend python -c "import requests; print(requests.get('http://192.168.1.111:8080/readings', timeout=5).json())"
+```
+
+Then test the LeafyAI ingestion path:
+
+```powershell
+docker compose exec backend python manage.py collect_sensors --once
+```
+
+## Verification after collection
+
+Recent rows can be inspected with:
+
+```powershell
+docker compose exec backend python manage.py shell -c "from telemetry.models import SensorReading; print(list(SensorReading.objects.order_by('-measured_at').values('sensor__slug','value','quality_status','measured_at')[:14]))"
+```
+
+A successful complete hardware cycle should normally provide the seven expected sensor values when all hardware validity flags are true.
+
+## Off-Lab development
+
+To stop the Django development server from polling physical sensors/cameras in the background:
 
 ```env
-LEAFY_RUNTIME_ENABLED=true
+LEAFY_RUNTIME_ENABLED=false
 ```
 
-Do not use the old ThingSpeak options:
+This does not disable unit tests or manual management commands.
 
-```text
---no-backfill
---backfill
---reconcile-seconds
-```
+## Maintenance rules
 
-They are not part of the current local HTTP architecture.
+When extending this subsystem:
 
----
-
-## Farm state
-
-`sensor_ingest` does not directly decide farm health and does not directly control hardware.
-
-Persisted readings are consumed by `farm_state`.
-
-The intended flow is:
-
-```text
-Physical sensor
-      |
-      v
-SensorCollector
-      |
-      v
-SensorReading
-      |
-      v
-farm_state
-      |
-      v
-REST API / frontend / AI
-```
-
-`farm_state` is responsible for exposing and aggregating information such as:
-
-- stable sensor slug and type
-- current value and unit
-- source measurement time
-- receipt time
-- reading quality
-- reading age/freshness
-- recent trend information
-
-The current deterministic trend window is configured by:
-
-```env
-FARM_STATE_SENSOR_TREND_WINDOW_MINUTES=30
-```
-
-The old ThingSpeak-derived irrigation-pump state and external target-EC setpoint are no longer part of this sensor-ingestion feed.
-
-Powerboard state is handled independently by the powerboard subsystem.
-
----
-
-## Time handling
-
-Django stores timestamps using timezone-aware UTC values.
-
-Do not manually store Melbourne local time in the database.
-
-For display or debugging, use Django timezone conversion:
-
-```python
-from django.utils import timezone
-
-timezone.localtime(reading.measured_at)
-```
-
-The application timezone is configured as:
-
-```text
-Australia/Melbourne
-```
-
-This allows daylight-saving behaviour to be handled correctly.
-
----
-
-## Runtime files
-
-The following files and directories are generated locally and must not be committed:
-
-```text
-.venv/
-.env
-backend/db.sqlite3
-backend/media/
-__pycache__/
-*.pyc
-```
-
-They should be covered by the repository `.gitignore`.
-
-The local SQLite database can be recreated with:
-
-```powershell
-python manage.py migrate
-python manage.py bootstrap_leafy
-```
-
-Generated camera media is recreated when new images are captured and stored.
-
----
-
-## Tests
-
-Local unit/integration tests do not require the real farm hardware when the physical background runtime is disabled.
-
-Run:
-
-```powershell
-$env:LEAFY_RUNTIME_ENABLED="false"
-python manage.py test sensor_ingest telemetry farm_state
-```
-
-Physical sensor connectivity must be verified separately in the Lab using:
-
-```powershell
-python manage.py collect_sensors --once
-```
-
-The two tests serve different purposes:
-
-```text
-Local tests
-    -> verify backend logic
-
-Lab collection test
-    -> verify real network and physical sensor integration
-```
-
----
-
-## Handover checklist
-
-Before merging sensor-ingestion changes, confirm:
-
-- [ ] ThingSpeak runtime code has not been reintroduced.
-- [ ] `SensorCollector` remains the single physical ingestion path.
-- [ ] The two local sensor endpoints are configured correctly.
-- [ ] All seven sensor definitions are present.
-- [ ] `dew_point` remains included.
-- [ ] Hardware validity flags are still respected.
-- [ ] Valid observations are stored with `source=local_http`.
-- [ ] `0002_remove_legacy_ingestion_audit.py` remains in the migration history.
-- [ ] `farm_state` still consumes persisted `SensorReading` data.
-- [ ] No ThingSpeak health API is exposed.
-- [ ] No ThingSpeak backfill or reconciliation options remain.
-- [ ] Local testing works with `LEAFY_RUNTIME_ENABLED=false`.
-- [ ] `python manage.py check` passes.
-- [ ] Backend tests pass.
-- [ ] Lab testing stores all seven readings using `collect_sensors --once`.
-- [ ] `.venv`, `db.sqlite3`, media and Python cache files are not committed.
-
----
-
-## Final handover state
-
-The current expected architecture is:
-
-```text
-LeafyAI physical sensors
-        |
-        | Local HTTP
-        v
-SensorCollector
-        |
-        v
-Sensor mapper / validation
-        |
-        v
-telemetry.SensorReading
-        |
-        v
-farm_state
-        |
-        v
-LeafyAI REST API / frontend / AI layer
-```
-
-ThingSpeak is not required.
-
-A provider-switching layer is not required.
-
-The local HTTP implementation has been tested successfully against the physical LeafyAI farm sensor system.
+- keep the seven canonical sensor slugs stable unless the wider farm-state/AI contract is deliberately migrated
+- preserve hardware validity flags
+- keep crop safety thresholds outside ingestion
+- retain the per-controller operation lock
+- test both transport failure and invalid/missing measurement behaviour
+- keep physical credentials or private secrets out of tracked files

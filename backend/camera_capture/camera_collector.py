@@ -178,6 +178,8 @@ class CameraCollector:
         captured_at = datetime.now(self.zone)
         height, width = frame.shape[:2]
 
+        # Quality assessment is technical only. Plant-health interpretation is
+        # deliberately deferred to the downstream VLM/AI recommendation layer.
         quality = assess_image_quality(
             frame
         )
@@ -271,6 +273,8 @@ class CameraCollector:
             ]
         ] = []
 
+        # Capture every due camera first, then persist the completed captures.
+        # This keeps a slow upload from delaying acquisition of the other views.
         for camera, decision in due:
             camera_id = camera.get("id", camera.get("camera_id", "?"))
             due_at = decision.due_at.isoformat() if decision.due_at else "now"

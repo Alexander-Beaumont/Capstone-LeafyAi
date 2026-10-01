@@ -20,6 +20,8 @@ def devices(_request):
         )
 
 
+# State changes are always confirmed through the shared Kasa bridge before the
+# API returns success to the frontend.
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def device_state(request, device_id: int):

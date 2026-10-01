@@ -45,6 +45,8 @@ export default function GrowthHarvestProvider({children}: Props) {
         const farmId = overview.farmId
         const token = user.accessToken
         let cancelled = false
+        // Growth data is farm-scoped. Clear cached areas/batches immediately when
+        // the selected farm changes so records from two farms are never mixed.
         const run = async () => {
             const switched = previousFarm.current !== farmId
             previousFarm.current = farmId

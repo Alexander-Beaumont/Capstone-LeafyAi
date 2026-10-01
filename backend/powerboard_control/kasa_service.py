@@ -117,6 +117,8 @@ class PowerboardController:
 
         info = DEVICES[device_id]
         board_key = info["board"]
+        # Serialize operations against a strip; KP303 devices are less reliable
+        # when multiple discover/update sequences hit them concurrently.
         async with self._lock:
             board = await self._connect_board(board_key)
             plug = self._plug_for(board, device_id)

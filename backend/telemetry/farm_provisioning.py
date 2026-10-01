@@ -5,6 +5,8 @@ from telemetry.models import FarmDevice, FarmLevel
 def provision_farm(farm):
     """Create the editable controller layout required by a new farm."""
 
+    # Every newly created farm starts with one controller. The standard sensor
+    # definitions and both physical farm levels are attached to this device.
     device = FarmDevice.objects.create(
         farm=farm,
         name="Controller",

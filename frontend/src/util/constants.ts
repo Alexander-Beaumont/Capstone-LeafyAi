@@ -15,6 +15,7 @@ export const BATCH_STATUS: dataFormat[] = [
 ]
 
 
+// Centralise backend route construction so pages/providers do not embed API paths.
 export const API_ROUTES = {
     login: `${import.meta.env.VITE_BACKEND_BASEURL}/api/auth/login/`,
     signup: `${import.meta.env.VITE_BACKEND_BASEURL}/api/auth/register/`,
@@ -128,6 +129,7 @@ export function withQuery(url: string, params: Record<string, string | number | 
     return `${url}${url.includes("?") ? "&" : "?"}${query}`
 }
 
+// These IDs must stay aligned with backend/powerboard_control/config.py.
 export const POWERBOARD_DEVICE_IDS = {
     phDoser: 1,
     ecDoser: 2,
