@@ -63,7 +63,7 @@ export default function Dropdown(props: DropdownProps) {
                 type="button"
                 aria-expanded={clicked}
                 aria-haspopup="listbox"
-                className={`whitespace-nowrap group text-xs relative transition-transform flex justify-between bg-panel2 items-center gap-1  hover:cursor-pointer ${props.style ? props.style : "w-full flex outline-1 px-3 h-7 rounded-md outline-border text-subtext3 "}`}
+                className={`whitespace-nowrap group text-xs relative transition-transform flex justify-between ${props.divStyles?.includes("bg-") ? "" : "bg-panel2"} items-center gap-1  hover:cursor-pointer ${props.style ? props.style : "w-full flex outline-1 px-3 h-7 rounded-md outline-border text-subtext3 "}`}
                 onClick={(e) => {
                     setClicked(!clicked)
                     setHighlight(0)

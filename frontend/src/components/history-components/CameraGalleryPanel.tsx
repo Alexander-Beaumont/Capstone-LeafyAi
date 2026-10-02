@@ -6,7 +6,7 @@ import { LuCamera } from "react-icons/lu"
 import { FarmOverviewContext } from "../../providers/FarmOverviewProvider"
 import { userContext } from "../../providers/UserProvider"
 import { getCameraImages, getFarmCameras } from "../../util/api-service-layer"
-import { mediaUrl } from "../../util/constants"
+import { downloadMedia, mediaUrl } from "../../util/constants"
 import { formatTimestamp, localInputToIso } from "../../util/operator"
 import type { FarmCamera, GalleryImage } from "../../util/types"
 import Pager from "./Pager"
@@ -148,7 +148,12 @@ export default function CameraGalleryPanel() {
                             return (
                                 <figure key={image.id} className="border border-border rounded-lg overflow-hidden bg-panel2">
                                     {src ?
-                                        <img src={src} alt={`${image.camera_name} capture`} className="w-full h-28 object-cover" />
+                                        <img
+                                            src={src}
+                                            alt={`${image.camera_name} capture`}
+                                            className="w-full h-28 object-cover hover:cursor-pointer"
+                                            onClick={() => { void downloadMedia(src) }}
+                                        />
                                     :
                                         <div className="h-28" />
                                     }
