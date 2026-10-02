@@ -23,7 +23,7 @@ export default function DeviceControls() {
         if (!isControllable(device) || device == null || busyId != null) return
         setBusyId(device.device_id)
         setError("")
-        const res = await setDeviceState(user.accessToken, device.device_id, currentlyOn ? "OFF" : "ON")
+        const res = await setDeviceState(user.accessToken, device.device_id, currentlyOn ? "OFF" : "ON", overview.farmId ?? undefined)
         setBusyId(null)
         if (!res.success) {
             setError(res.msg)
@@ -37,7 +37,7 @@ export default function DeviceControls() {
         setBusyId("stop")
         setError("")
         const results = await Promise.all(
-            CONTROLLED_DEVICES.map(device => setDeviceState(user.accessToken, device.id, "OFF"))
+            CONTROLLED_DEVICES.map(device => setDeviceState(user.accessToken, device.id, "OFF", overview.farmId ?? undefined))
         )
         setBusyId(null)
         setConfirmStop(false)

@@ -88,6 +88,10 @@ export function farmLevelsUrl() {
     return backendUrl("/api/farm-levels/")
 }
 
+export function farmPowerboardConfigUrl(farmId: number) {
+    return backendUrl(`/api/farms/${farmId}/powerboard-config/`)
+}
+
 export function deviceStateUrl(deviceId: number) {
     return `${import.meta.env.VITE_BACKEND_BASEURL}/api/devices/${deviceId}/state/`
 }

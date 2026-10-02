@@ -10,10 +10,11 @@ from .kasa_service import PowerboardController
 
 
 class PowerboardBridge:
-    def __init__(self) -> None:
+    def __init__(self, powerboards=None) -> None:
         # Django request handlers are synchronous, while python-kasa is async.
         # A dedicated daemon event loop lets both callers share one controller.
         self._loop = asyncio.new_event_loop()
+        self._powerboards = powerboards
         self._controller: PowerboardController | None = None
         self._ready = threading.Event()
         self._thread = threading.Thread(
@@ -26,7 +27,7 @@ class PowerboardBridge:
 
     def _run(self) -> None:
         asyncio.set_event_loop(self._loop)
-        self._controller = PowerboardController()
+        self._controller = PowerboardController(powerboards=self._powerboards)
         self._ready.set()
         self._loop.run_forever()
 
@@ -47,15 +48,28 @@ class PowerboardBridge:
         return self._call(self.controller.set_device_state(device_id, state))
 
 
-_BRIDGE: PowerboardBridge | None = None
+_BRIDGES: dict[tuple[str, str], PowerboardBridge] = {}
 _LOCK = threading.Lock()
 
 
-def get_powerboard_bridge() -> PowerboardBridge:
-    global _BRIDGE
-    # Lazily create one process-wide bridge so concurrent requests do not start
-    # competing Kasa event loops.
+def _bridge_key(powerboards) -> tuple[str, str]:
+    if powerboards is None:
+        from .config import POWERBOARDS
+
+        powerboards = POWERBOARDS
+    return (
+        str(powerboards.get("board_1", {}).get("ip") or ""),
+        str(powerboards.get("board_2", {}).get("ip") or ""),
+    )
+
+
+def get_powerboard_bridge(powerboards=None) -> PowerboardBridge:
+    # Reuse one event-loop/controller per physical pair. Calling this with no
+    # argument preserves the existing environment-variable based behaviour.
+    key = _bridge_key(powerboards)
     with _LOCK:
-        if _BRIDGE is None:
-            _BRIDGE = PowerboardBridge()
-        return _BRIDGE
+        bridge = _BRIDGES.get(key)
+        if bridge is None:
+            bridge = PowerboardBridge(powerboards=powerboards)
+            _BRIDGES[key] = bridge
+        return bridge

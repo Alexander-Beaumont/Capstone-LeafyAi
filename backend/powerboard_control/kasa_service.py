@@ -29,8 +29,9 @@ class PowerboardController:
     4 expected bytes" even though a one-shot probe succeeds.
     """
 
-    def __init__(self):
+    def __init__(self, powerboards=None):
         self.mode = MODE
+        self.powerboards = powerboards or POWERBOARDS
         self._lock = asyncio.Lock()
 
     def _discover_kwargs(self) -> dict[str, Any]:
@@ -47,7 +48,7 @@ class PowerboardController:
         """Discover + update one real strip, retrying transient transport failures."""
         from kasa import Discover
 
-        board = POWERBOARDS[board_key]
+        board = self.powerboards[board_key]
         ip = str(board.get("ip") or "").strip()
         if not ip:
             raise RuntimeError(f"NOT_CONFIGURED: {board_key} has no IP configured")
@@ -88,7 +89,7 @@ class PowerboardController:
             alias = getattr(board, "alias", None)
             raise RuntimeError(
                 f"Kasa child_index {index} invalid for device {device_id} on {info['board']} "
-                f"({POWERBOARDS[info['board']]['ip']}, model={model}, alias={alias!r}, children={len(children)})"
+                f"({self.powerboards[info['board']]['ip']}, model={model}, alias={alias!r}, children={len(children)})"
             )
         return children[index]
 
@@ -105,7 +106,7 @@ class PowerboardController:
                     await asyncio.sleep(KASA_RETRY_DELAY_SECONDS * attempt)
                     board = await self._connect_board(board_key)
         raise RuntimeError(
-            f"Unable to refresh Kasa powerboard {board_key} at {POWERBOARDS[board_key]['ip']}: {last_exc}"
+            f"Unable to refresh Kasa powerboard {board_key} at {self.powerboards[board_key]['ip']}: {last_exc}"
         ) from last_exc
 
     async def set_device_state(self, device_id: int, state: str) -> dict[str, Any]:
@@ -142,7 +143,7 @@ class PowerboardController:
             "device_id": device_id,
             "name": info["name"],
             "board": board_key,
-            "board_ip": POWERBOARDS[board_key]["ip"],
+            "board_ip": self.powerboards[board_key]["ip"],
             "child_index": info["child_index"],
             "is_on": bool(is_on),
             "state": "ON" if is_on else "OFF",
@@ -162,7 +163,7 @@ class PowerboardController:
         """Read all six logical devices with only one network query per physical strip."""
         rows: list[dict[str, Any]] = []
         async with self._lock:
-            for board_key in POWERBOARDS:
+            for board_key in self.powerboards:
                 device_ids = [device_id for device_id, info in DEVICES.items() if info["board"] == board_key]
                 try:
                     board = await self._connect_board(board_key)
@@ -178,7 +179,7 @@ class PowerboardController:
                                 "device_id": device_id,
                                 "name": info["name"],
                                 "board": board_key,
-                                "board_ip": POWERBOARDS[board_key]["ip"],
+                                "board_ip": self.powerboards[board_key]["ip"],
                                 "child_index": info["child_index"],
                                 "is_on": None,
                                 "state": "NOT CONFIGURED" if not_configured else "ERROR",

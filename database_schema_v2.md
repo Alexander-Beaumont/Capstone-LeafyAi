@@ -226,6 +226,33 @@ Relay-controlled dosing pumps that add nutrients or pH adjusters to the shared w
 
 **Relationships:** DEVICE — DOSER: 1:M
 
+### POWERBOARD_CONFIGURATION
+
+Stores the two physical TP-Link/Kasa strip addresses assigned to a farm. Logical outlet IDs remain fixed in application configuration; only the two strip addresses vary by farm. The Lab `.env` values seed the initial farm once, after which this database row is authoritative for farm-scoped runtime operations.
+
+| Column | Type | Constraints | Description |
+|---|---|---|---|
+| `id` | INTEGER AUTO-INCREMENT | PK | Unique identifier |
+| `farm_id` | INTEGER | FK → FARM, NOT NULL, UNIQUE | One Powerboard configuration per farm |
+| `powerboard_1_ip` | IP ADDRESS / VARCHAR | NULLABLE | Physical address of board 1 |
+| `powerboard_2_ip` | IP ADDRESS / VARCHAR | NULLABLE | Physical address of board 2 |
+| `updated_at` | TIMESTAMP | NOT NULL, AUTO UPDATE | Last configuration update |
+
+**Relationships:** FARM — POWERBOARD_CONFIGURATION: 1:0..1
+
+Current fixed outlet contract:
+
+| Device ID | Logical device | Board | Child index |
+|---:|---|---|---:|
+| 1 | pH Doser | board 1 | 0 |
+| 2 | EC Doser | board 1 | 1 |
+| 3 | Irrigation Pump | board 1 | 2 |
+| 4 | Farm Fan | board 2 | 0 |
+| 5 | Light Level 1 | board 2 | 1 |
+| 6 | Light Level 2 | board 2 | 2 |
+
+The Django table created by `powerboard_control/migrations/0001_initial.py` is `powerboard_control_powerboardconfiguration`.
+
 ---
 
 ## 7. Sensor Ingestion & External Observations
@@ -354,7 +381,7 @@ Software-based safety validation result. The proposal states: *"Implement a soft
 
 ### FARMACTION
 
-Audited result of a safety-approved automatic fan or grouped-light command.
+Audited result of a safety-approved automatic fan or grouped-light command. Automatic hardware execution resolves the two physical Powerboard IPs from the recommendation run's farm-specific `POWERBOARD_CONFIGURATION`; an unconfigured farm must fail closed rather than use another farm's addresses.
 
 | Column | Type | Constraints | Description |
 |---|---|---|---|
