@@ -5,11 +5,16 @@ from django.core.management import call_command
 from django.core.management.base import BaseCommand, CommandError
 
 from telemetry.models import Camera, Farm, FarmDevice, FarmLevel
-from sensor_ingest.services.configuration import bootstrap_environment_configuration
+from sensor_ingest.services.configuration import (
+    bootstrap_environment_configuration as bootstrap_sensor_configuration,
+)
+from powerboard_control.services.configuration import (
+    bootstrap_environment_configuration as bootstrap_powerboard_configuration,
+)
 
 
 class Command(BaseCommand):
-    help = "Create/update the LeafyAI lab farm, device, sensors, camera, and media directories."
+    help = "Create/update the LeafyAI lab farm, device, sensors, powerboards, camera, and media directories."
 
     def handle(self, *args, **options):
         device_slug = str(settings.SENSOR_INGEST_DEVICE_SLUG or "").strip()
@@ -23,6 +28,11 @@ class Command(BaseCommand):
         if settings.LEAFY_FARM_LOCATION and farm.location != settings.LEAFY_FARM_LOCATION:
             farm.location = settings.LEAFY_FARM_LOCATION
             farm.save(update_fields=["location"])
+
+        # Match sensor configuration semantics: environment values seed the Lab
+        # farm only when its database row does not already exist. UI edits are
+        # therefore not overwritten when Docker/backend restarts.
+        bootstrap_powerboard_configuration(farm)
 
         device, _ = FarmDevice.objects.get_or_create(
             slug=device_slug,
@@ -46,7 +56,7 @@ class Command(BaseCommand):
             device.save(update_fields=changed)
 
         call_command("seed_sensors", device_slug=device.slug)
-        bootstrap_environment_configuration(device)
+        bootstrap_sensor_configuration(device)
 
         level_number = settings.LEAFY_CAMERA_1_LEVEL
         if level_number not in (1, 2):

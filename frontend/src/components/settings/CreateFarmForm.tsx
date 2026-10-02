@@ -1,4 +1,4 @@
-import { useContext, useState } from "react"
+import { useContext, useState, type ReactNode } from "react"
 import Button from "../primatives/Button"
 import TextBox from "../primatives/Textbox"
 import Modal from "../primatives/Modal"
@@ -13,7 +13,7 @@ const SETUP_ITEMS = [
     "AI, on this page: the schedule is off and the provider is the mock default. Set a real provider and turn the schedule on if this farm should produce recommendations.",
 ]
 
-export default function CreateFarmForm() {
+export default function CreateFarmForm({ extra }: { extra?: ReactNode }) {
     const user = useContext(userContext)
     const overview = useContext(FarmOverviewContext)
     const [name, setName] = useState("")
@@ -47,7 +47,10 @@ export default function CreateFarmForm() {
             <TextBox name="Name" charLimit={255} value={name} setValue={setName} placeHolder="North rack" />
             <TextBox name="Location" charLimit={255} value={location} setValue={setLocation} placeHolder="Lab" />
             {error ? <p className="text-xs text-red-400">{error}</p> : null}
-            <Button name="Create farm" highlight loading={busy} onSubmit={submit} styles={{ fullWidth: true }} />
+            <div className="flex flex-wrap gap-3">
+                <Button name="Create farm" highlight loading={busy} onSubmit={submit} />
+                {extra}
+            </div>
             <Modal open={setupOpen} onClose={() => setSetupOpen(false)}>
                 <div className="bg-panel1 border border-border p-5 flex flex-col rounded-xl w-[80%] max-w-xl gap-3">
                     <p className="text-xl font-semibold text-title">Farm created</p>

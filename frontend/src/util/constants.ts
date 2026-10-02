@@ -88,6 +88,10 @@ export function farmLevelsUrl() {
     return backendUrl("/api/farm-levels/")
 }
 
+export function farmPowerboardConfigUrl(farmId: number) {
+    return backendUrl(`/api/farms/${farmId}/powerboard-config/`)
+}
+
 export function deviceStateUrl(deviceId: number) {
     return `${import.meta.env.VITE_BACKEND_BASEURL}/api/devices/${deviceId}/state/`
 }
@@ -118,6 +122,24 @@ export function mediaUrl(url: string | null | undefined) {
     return backendUrl(url.startsWith("/") ? url : `/${url}`)
 }
 
+function mediaFileName(url: string) {
+    const path = url.split("?")[0].split("#")[0]
+    const name = decodeURIComponent(path.split("/").pop() ?? "")
+    return name.includes(".") ? name : "image.jpg"
+}
+
+export async function downloadMedia(url: string) {
+    const response = await fetch(url)
+    if (!response.ok) return
+    const blob = await response.blob()
+    const objectUrl = URL.createObjectURL(blob)
+    const link = document.createElement("a")
+    link.href = objectUrl
+    link.download = mediaFileName(url)
+    link.click()
+    URL.revokeObjectURL(objectUrl)
+}
+
 export function withQuery(url: string, params: Record<string, string | number | boolean | null | undefined>) {
     const search = new URLSearchParams()
     for (const [key, value] of Object.entries(params)) {
@@ -145,7 +167,6 @@ export const AI_PROVIDERS = ["openrouter", "ollama", "mock"] as const
 
 export const PAGES = {
     noAuthPages: {
-        landingPage: "/",
         authPage: "/auth"
     },
     authPages: {
@@ -159,7 +180,6 @@ export const PAGES = {
 
 export const PAGE_NAMES = {
     noAuthPages: {
-        landingPage: "Landing Page",
         authPage: "Auth Page"
     },
     authPages: {

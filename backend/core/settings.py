@@ -113,7 +113,7 @@ CORS_ALLOWED_ORIGINS = [
     ).split(",")
     if origin.strip()
 ]
-CORS_URLS_REGEX = r"^/api/.*$"
+CORS_URLS_REGEX = r"^/(api|media)/.*$"
 CORS_PREFLIGHT_MAX_AGE = 86400
 
 ROOT_URLCONF = "core.urls"
@@ -186,6 +186,21 @@ LEAFY_CAMERA_1_CAPTURE_INTERVAL_MINUTES = int(
 LEAFY_CAMERA_1_ENABLED = os.getenv(
     "LEAFY_CAMERA_1_ENABLED", "true"
 ).strip().lower() in {"1", "true", "yes", "on"}
+
+# ---------------------------------------------------------------------------
+# Powerboard bootstrap / legacy fallback
+# ---------------------------------------------------------------------------
+# These environment values seed the initial Lab farm once. Farm-scoped runtime
+# requests use PowerboardConfiguration from the database after it exists.
+LEAFY_POWERBOARD_1_IP = os.getenv(
+    "LEAFY_POWERBOARD_1_IP",
+    "",
+).strip()
+
+LEAFY_POWERBOARD_2_IP = os.getenv(
+    "LEAFY_POWERBOARD_2_IP",
+    "",
+).strip()
 
 # ---------------------------------------------------------------------------
 # Sensor ingestion / local physical devices

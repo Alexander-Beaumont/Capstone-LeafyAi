@@ -14,8 +14,10 @@ KASA_RETRY_DELAY_SECONDS = max(
 KASA_USERNAME = os.getenv("LEAFY_KASA_USERNAME") or os.getenv("KASA_USERNAME") or ""
 KASA_PASSWORD = os.getenv("LEAFY_KASA_PASSWORD") or os.getenv("KASA_PASSWORD") or ""
 
-# Physical strip addresses come from deployment environment variables. The
-# logical outlet map below is the contract used by the UI and AI actuator layer.
+# Environment addresses are the initial Lab bootstrap values and the legacy
+# fallback used only when a caller does not provide a farm-specific mapping.
+# Normal farm-scoped runtime requests read PowerboardConfiguration from the DB.
+# The logical outlet map below stays fixed across farms.
 POWERBOARDS = {
     "board_1": {"ip": os.getenv("LEAFY_POWERBOARD_1_IP", "")},
     "board_2": {"ip": os.getenv("LEAFY_POWERBOARD_2_IP", "")},

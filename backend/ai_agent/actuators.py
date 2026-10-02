@@ -3,6 +3,7 @@ from django.utils import timezone
 
 from ai_agent.models import FarmAction
 from powerboard_control.bridge import get_powerboard_bridge
+from powerboard_control.runtime_config import powerboards_for_farm
 
 FAN_DEVICE_ID = 4
 LIGHT_DEVICE_IDS = [5, 6]
@@ -36,7 +37,12 @@ def execute_decision(decision):
         attempted_at=timezone.now(),
     )
     requested = decision.device_state.upper()
-    bridge = get_powerboard_bridge()
+
+    # Automatic fan/light actions must use the two physical strips assigned to
+    # this decision's farm. A new/unconfigured farm resolves to blank addresses
+    # and fails safely as NOT_CONFIGURED instead of falling back to another farm.
+    powerboards = powerboards_for_farm(decision.run.farm_id)
+    bridge = get_powerboard_bridge(powerboards)
     try:
         # Read the physical state before changing it so the action audit can
         # distinguish a real state change from an already-satisfied no-op.

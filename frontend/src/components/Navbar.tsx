@@ -76,6 +76,7 @@ export default function Navbar() {
                                     navigate(item!.data)
                                 }}
                                 setText={<GiHamburgerMenu size={18}/>}
+                                divStyles='bg-'
                                 style='h-12 flex justify-center w-15 hover:cursor-pointer text-subtext1 hover:bg-highlight hover:text-btn-text  text-xs transition-all duration-200 ease-in-out px-3'
                             />
                         }

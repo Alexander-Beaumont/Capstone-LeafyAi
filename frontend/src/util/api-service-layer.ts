@@ -10,6 +10,7 @@ import {
     deviceStateUrl,
     farmCamerasUrl,
     farmDashboardUrl,
+    farmPowerboardConfigUrl,
     farmLevelsUrl,
     farmStateUrl,
     recommendationDetailUrl,
@@ -40,6 +41,8 @@ import type {
     MoveBatch,
     Page,
     PowerboardDevice,
+    PowerboardConfiguration,
+    PowerboardConfigurationPatch,
     ProviderTestResult,
     ProviderTestRole,
     RecommendationRun,
@@ -353,8 +356,11 @@ export async function getFarmState(accessToken: string | undefined, farmId: numb
     })
 }
 
-export async function getDevices(accessToken: string | undefined): Promise<APIResult<PowerboardDevice[]>> {
-    return await apiRequest<PowerboardDevice[]>(API_ROUTES.getDevices, accessToken, {
+export async function getDevices(
+    accessToken: string | undefined,
+    farmId?: number,
+): Promise<APIResult<PowerboardDevice[]>> {
+    return await apiRequest<PowerboardDevice[]>(withQuery(API_ROUTES.getDevices, { farm_id: farmId }), accessToken, {
         method: "GET",
     })
 }
@@ -363,10 +369,11 @@ export async function setDeviceState(
     accessToken: string | undefined,
     deviceId: number,
     state: "ON" | "OFF",
+    farmId?: number,
 ): Promise<APIResult<DeviceStateResult>> {
     return await apiRequest<DeviceStateResult>(deviceStateUrl(deviceId), accessToken, {
         method: "POST",
-        body: JSON.stringify({ state }),
+        body: JSON.stringify({ state, farm_id: farmId }),
     })
 }
 
@@ -464,5 +471,26 @@ export async function getRecentRecommendations(
 ): Promise<APIResult<RecommendationRun[]>> {
     return await apiRequest<RecommendationRun[]>(aiRecentUrl(farmId), accessToken, {
         method: "GET",
+    })
+}
+
+
+export async function getFarmPowerboardConfiguration(
+    accessToken: string | undefined,
+    farmId: number,
+): Promise<APIResult<PowerboardConfiguration>> {
+    return await apiRequest<PowerboardConfiguration>(farmPowerboardConfigUrl(farmId), accessToken, {
+        method: "GET",
+    })
+}
+
+export async function patchFarmPowerboardConfiguration(
+    accessToken: string | undefined,
+    farmId: number,
+    patch: PowerboardConfigurationPatch,
+): Promise<APIResult<PowerboardConfiguration>> {
+    return await apiRequest<PowerboardConfiguration>(farmPowerboardConfigUrl(farmId), accessToken, {
+        method: "PATCH",
+        body: JSON.stringify(patch),
     })
 }

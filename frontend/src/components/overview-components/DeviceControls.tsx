@@ -23,7 +23,7 @@ export default function DeviceControls() {
         if (!isControllable(device) || device == null || busyId != null) return
         setBusyId(device.device_id)
         setError("")
-        const res = await setDeviceState(user.accessToken, device.device_id, currentlyOn ? "OFF" : "ON")
+        const res = await setDeviceState(user.accessToken, device.device_id, currentlyOn ? "OFF" : "ON", overview.farmId ?? undefined)
         setBusyId(null)
         if (!res.success) {
             setError(res.msg)
@@ -37,7 +37,7 @@ export default function DeviceControls() {
         setBusyId("stop")
         setError("")
         const results = await Promise.all(
-            CONTROLLED_DEVICES.map(device => setDeviceState(user.accessToken, device.id, "OFF"))
+            CONTROLLED_DEVICES.map(device => setDeviceState(user.accessToken, device.id, "OFF", overview.farmId ?? undefined))
         )
         setBusyId(null)
         setConfirmStop(false)
@@ -49,8 +49,8 @@ export default function DeviceControls() {
     function controlRow(key: number, label: string, ticked: boolean, enabled: boolean, onToggle: () => void) {
         const rowBusy = busyId === key
         return (
-            <div key={key} className="flex items-center justify-between bg-panel2 p-2 border border-border rounded-lg px-3">
-                <p className="text-subtext1">
+            <div key={key} className="flex w-full items-center justify-between gap-2 border border-border bg-panel2 px-2 py-1.5 rounded-lg">
+                <p className="text-sm text-subtext1">
                     {label}
                 </p>
                 <div className={enabled && !rowBusy ? "" : "opacity-40 pointer-events-none"} title={enabled ? undefined : "Device offline"}>
@@ -67,30 +67,28 @@ export default function DeviceControls() {
     }
 
     return (
-        <Panel styles="p-3 px-4 flex flex-col gap-5">
-            <div className="flex  items-center justify-between">
+        <Panel styles="w-full p-3 px-4 flex flex-col gap-5">
+            <div className="flex items-center justify-between">
                 <IconTitle
                     title="Device Control"
                     icon={<GoGear />}
                 />
-                <button className="bg-panel2 border border-high text-high text-sm font-semibold px-3 rounded-md
-                    hover:cursor-pointer hover:rounded-lg transition-all duration-200 hover:italic disabled:opacity-40 disabled:cursor-not-allowed"
-                    disabled={busyId === "stop"}
-                    onClick={() => setConfirmStop(true)}>
-                    {busyId === "stop" ? "Stopping…" : "E-Stop"}
-                </button>
+                <div className="flex items-center gap-2">
+                    {overview.loading && overview.devices.length === 0 ?
+                        <p className="text-xs text-subtext3">Loading…</p>
+                    : offline ?
+                        <p className="text-xs text-subtext3">Powerboard offline</p>
+                    : null}
+                    <button className="bg-panel2 border border-high text-high text-xs font-semibold px-3 rounded-md
+                        hover:cursor-pointer hover:rounded-lg transition-all duration-200 hover:italic disabled:opacity-40 disabled:cursor-not-allowed"
+                        disabled={busyId === "stop"}
+                        onClick={() => setConfirmStop(true)}>
+                        {busyId === "stop" ? "Stopping…" : "E-Stop"}
+                    </button>
+                </div>
             </div>
             {error ? <p className="text-xs text-high">{error}</p> : null}
-            {overview.loading && overview.devices.length === 0 ?
-                <p className="text-xs text-subtext3">
-                    Loading…
-                </p>
-            : offline ?
-                <p className="text-xs text-subtext3">
-                    Powerboard offline
-                </p>
-            : null}
-            <div className="flex flex-col gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                 {CONTROLLED_DEVICES.map(controlled => {
                     const device = findDevice(overview.devices, controlled.id)
                     return controlRow(
