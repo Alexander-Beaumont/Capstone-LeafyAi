@@ -1,5 +1,4 @@
-import { Route, Routes } from "react-router"
-import LandingPage from "./pages/LandingPage"
+import { Navigate, Route, Routes } from "react-router"
 import AuthPage from "./pages/AuthPage"
 import Layout from "./pages/Layout"
 import UserProvider from "./providers/UserProvider"
@@ -20,7 +19,7 @@ function App() {
                     <AiAgentProvider>
                         <Routes>
                             <Route element={<Layout/>}>
-                                <Route index element={<LandingPage/>}/>
+                                <Route index element={<Navigate to="/auth" replace />}/>
                                 <Route path="auth" element={<AuthPage/>}/>
                                 <Route path="farm-overview" element={<FarmOverview/>}/>
                                 <Route path="ai-agent" element={<AiAgent/>}/>

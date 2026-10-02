@@ -38,22 +38,30 @@ export default function GrowthHarvesting() {
                 <EmptyFarm noFarms={overview.farmsLoaded && overview.farms.length === 0 && !overview.loadError} />
             : <>
             <div className="flex gap-3 w-full flex-wrap">
-                <InformationPanel
-                    name="Active Batches"
-                    value={`${growthHarvesting.batches.filter(b => b.status == "active").length}`}
-                />
-                <InformationPanel
-                    name="Completed Batches"
-                    value={`${growthHarvesting.batches.filter(b => b.status == "completed").length}`}
-                />
-                <InformationPanel
-                    name="Avg Batch Age"
-                    value={`${Util.millisecondsToDays(Util.avgAge(growthHarvesting.batches.filter(b => b.status == "Growing").map(b => new Date(b.batchPlantDate))),0)}d`}
-                />
-                <InformationPanel
-                    name="Growing Area Usage"
-                    value={`${Math.round(growthHarvesting.growingAreas.filter(ga => ga.batches.filter(b => !b.GrowthAreaEndDate).length > 0).length / growthHarvesting.growingAreas.length * 100)}%`}
-                />
+                <div className="flex min-w-0 flex-1 flex-col">
+                    <InformationPanel
+                        name="Active Batches"
+                        value={`${growthHarvesting.batches.filter(b => b.status == "active").length}`}
+                    />
+                </div>
+                <div className="flex min-w-0 flex-1 flex-col">
+                    <InformationPanel
+                        name="Completed Batches"
+                        value={`${growthHarvesting.batches.filter(b => b.status == "completed").length}`}
+                    />
+                </div>
+                <div className="flex min-w-0 flex-1 flex-col">
+                    <InformationPanel
+                        name="Avg Batch Age"
+                        value={`${Util.millisecondsToDays(Util.avgAge(growthHarvesting.batches.filter(b => b.status == "Growing").map(b => new Date(b.batchPlantDate))),0)}d`}
+                    />
+                </div>
+                <div className="flex min-w-0 flex-1 flex-col">
+                    <InformationPanel
+                        name="Growing Area Usage"
+                        value={`${Math.round(growthHarvesting.growingAreas.filter(ga => ga.batches.filter(b => !b.GrowthAreaEndDate).length > 0).length / growthHarvesting.growingAreas.length * 100)}%`}
+                    />
+                </div>
             </div>
             <Panel styles="w-full p-3 flex flex-col gap-3">
                 <div className="flex items-center justify-between">

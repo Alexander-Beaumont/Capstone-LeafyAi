@@ -13,7 +13,7 @@ import { actionSummary, formatInTimeZone, inputModeLabel, nextScheduleTime } fro
 import { Util } from "../util/Util"
 import RunDetails from "../components/ai-agent/RunDetails"
 import Badge from "../components/ai-agent/Badge"
-import StatusCard from "../components/ai-agent/StatusCard"
+import InformationPanel from "../components/primatives/InformationPanel"
 import ConfirmDialog from "../components/primatives/ConfirmDialog"
 
 export default function AiAgent() {
@@ -89,25 +89,29 @@ export default function AiAgent() {
             {ai.runsError ? <p className="w-full text-sm text-high">{ai.runsError}</p> : null}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 w-full gap-3">
-                <StatusCard
+                <InformationPanel
+                    compact
                     name="Providers"
                     value={providerStatus}
                     hint={ai.settings ? `LLM ${ai.settings.llm_model}` : undefined}
                     loading={ai.loading && !ai.settings}
                 />
-                <StatusCard
+                <InformationPanel
+                    compact
                     name="Next schedule"
                     value={nextLabel}
                     hint={ai.settings?.timezone}
                     loading={ai.loading && !ai.settings}
                 />
-                <StatusCard
+                <InformationPanel
+                    compact
                     name="Last input"
                     value={ai.latestRun ? lastMode : "None"}
                     hint={ai.latestRun?.fallback_used ? "Fell back to sensors" : ai.latestRun?.model_name}
                     loading={ai.loading && !ai.latestRun}
                 />
-                <StatusCard
+                <InformationPanel
+                    compact
                     name="Actions"
                     value={ai.latestRun ? String((ai.latestRun.recommendations ?? []).flatMap(item => item.actions ?? []).length) : "0"}
                     hint={actionSummary(ai.latestRun)}

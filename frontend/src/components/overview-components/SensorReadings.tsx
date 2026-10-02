@@ -25,7 +25,7 @@ export default function SensorReadings() {
     ]
 
     return (
-        <div className="grid grid-cols-2 gap-2 [&>*:last-child:nth-child(odd)]:col-span-2">
+        <div className="flex flex-wrap gap-2 w-full">
             {cards.map(card => (
                 <InformationPanel
                     key={card.name}

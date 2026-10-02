@@ -156,7 +156,11 @@ export default function SensorIngestPanel() {
                         <p className="text-xs text-subtext3">
                             Last success {formatTimestamp(config.last_success_at)} · failures {config.consecutive_failures}
                         </p>
-                        {config.last_error ? <p className="text-xs text-high">{config.last_error}</p> : null}
+                        {config.last_error ?
+                            <p className={`text-xs ${config.last_error.startsWith("Missing sensor-ingest settings") ? "text-subtext3" : "text-high"}`}>
+                                {config.last_error}
+                            </p>
+                        : null}
                         {errors[config.device_id] ? <p className="text-xs text-high">{errors[config.device_id]}</p> : null}
                         {messages[config.device_id] ? <p className="text-xs text-low">{messages[config.device_id]}</p> : null}
                         <div className="flex flex-wrap gap-3">

@@ -113,7 +113,7 @@ CORS_ALLOWED_ORIGINS = [
     ).split(",")
     if origin.strip()
 ]
-CORS_URLS_REGEX = r"^/api/.*$"
+CORS_URLS_REGEX = r"^/(api|media)/.*$"
 CORS_PREFLIGHT_MAX_AGE = 86400
 
 ROOT_URLCONF = "core.urls"

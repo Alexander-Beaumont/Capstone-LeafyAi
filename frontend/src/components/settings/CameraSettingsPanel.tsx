@@ -222,7 +222,7 @@ export default function CameraSettingsPanel() {
         }
         setBusy(true)
         setError("")
-        const result = await createFarmCamera(user.accessToken, overview.farmId, writeBody(createDraft))
+        const result = await createFarmCamera(user.accessToken, overview.farmId, { ...writeBody(createDraft), enabled: true })
         setBusy(false)
         if (!result.success || !result.data) {
             setError(result.msg)
@@ -234,7 +234,7 @@ export default function CameraSettingsPanel() {
         setMessage(`${result.data.name} created.`)
     }
 
-    function fields(draft: Draft, onChange: (patch: Partial<Draft>) => void) {
+    function fields(draft: Draft, onChange: (patch: Partial<Draft>) => void, includeEnabled = true) {
         const selectedLevel = levelItems.find(item => item.id === draft.farm_level_id) ?? null
         return (
             <div className="flex flex-col gap-3">
@@ -248,14 +248,16 @@ export default function CameraSettingsPanel() {
                 <TextBox name="Name" value={draft.name} setValue={value => onChange({ name: value })} charLimit={255} placeHolder="Top level" />
                 <TextBox name="Position" value={draft.position} setValue={value => onChange({ position: value })} charLimit={100} placeHolder="front" />
                 <TextBox name="IP address" value={draft.ip_address} setValue={value => onChange({ ip_address: value })} charLimit={64} placeHolder="192.168.1.108" />
+                <TextBox name="Interval (minutes)" value={draft.capture_interval_minutes} setValue={value => onChange({ capture_interval_minutes: value })} charLimit={5} placeHolder="30" numeric />
                 <div className="grid gap-3 sm:grid-cols-2">
                     <TextBox name="RTSP port" value={draft.rtsp_port} setValue={value => onChange({ rtsp_port: value })} charLimit={5} placeHolder="554" numeric />
                     <TextBox name="RTSP path" value={draft.rtsp_path} setValue={value => onChange({ rtsp_path: value })} charLimit={255} placeHolder="/stream1" />
-                    <TextBox name="Interval (minutes)" value={draft.capture_interval_minutes} setValue={value => onChange({ capture_interval_minutes: value })} charLimit={5} placeHolder="30" numeric />
-                    <div className="flex items-center justify-between bg-panel2 border border-border rounded-lg px-3">
-                        <p className="text-sm text-subtext1">Enabled</p>
-                        <Switch ticked={draft.enabled} setTicked={enabled => onChange({ enabled })} />
-                    </div>
+                    {includeEnabled ?
+                        <div className="flex items-center justify-between bg-panel2 border border-border rounded-lg px-3">
+                            <p className="text-sm text-subtext1">Enabled</p>
+                            <Switch ticked={draft.enabled} setTicked={enabled => onChange({ enabled })} />
+                        </div>
+                    : null}
                     <TextBox name="Active start" value={draft.active_start_time} setValue={value => onChange({ active_start_time: value })} charLimit={5} placeHolder="06:00" />
                     <TextBox name="Active end" value={draft.active_end_time} setValue={value => onChange({ active_end_time: value })} charLimit={5} placeHolder="22:00" />
                 </div>
@@ -296,7 +298,7 @@ export default function CameraSettingsPanel() {
                 <div className="border border-border rounded-lg p-3 flex flex-col gap-3">
                     <p className="text-sm text-title font-semibold">Add camera</p>
                     <p className="text-xs text-subtext3">Only RTSP cameras can be added. Leave both active times blank for 24-hour capture.</p>
-                    {fields(createDraft, patch => setCreateDraft(current => ({ ...current, ...patch })))}
+                    {fields(createDraft, patch => setCreateDraft(current => ({ ...current, ...patch })), false)}
                     <Button name="Create camera" highlight loading={busy} onSubmit={create} />
                 </div>
             </>}

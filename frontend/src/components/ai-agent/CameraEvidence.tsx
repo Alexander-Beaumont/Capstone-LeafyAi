@@ -1,4 +1,4 @@
-import { mediaUrl } from "../../util/constants"
+import { downloadMedia, mediaUrl } from "../../util/constants"
 import { Util } from "../../util/Util"
 import type { ImageObservation, SourceImage, VisualEvidence } from "../../util/types"
 import Badge from "./Badge"
@@ -43,7 +43,8 @@ export default function CameraEvidence({ evidence, sourceImages, observations }:
                                 <img
                                     src={url}
                                     alt={`${item.camera_name} camera frame`}
-                                    className="w-full h-36 object-cover bg-panel3"
+                                    className="w-full h-36 object-cover bg-panel3 hover:cursor-pointer"
+                                    onClick={() => { void downloadMedia(url) }}
                                 />
                             : null}
                             <div className="p-3 flex flex-col gap-2">
