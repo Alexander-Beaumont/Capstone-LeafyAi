@@ -51,8 +51,6 @@ export default function AwaitingDecisions() {
                             reason={decision.explanation}
                             decisionSeverity={decisionSeverity(decision.confidence_score)}
                             date={new Date(decision.created_at)}
-                            onAccept={() => {}}
-                            onDecline={() => {}}
                         />
                     ))}
                 </div>
