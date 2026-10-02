@@ -82,13 +82,10 @@ export default function Settings() {
                 : null}
                 <Panel styles="w-full p-3 px-4 flex flex-col gap-4">
                     <IconTitle title="New farm" icon={<GoGear />} />
-                    <CreateFarmForm />
-                    {overview.farmId != null ?
-                        <div className="flex flex-col gap-2 border-t border-border pt-4">
-                            <p className="text-sm text-subtext1">Selected farm: {overview.farmName}</p>
-                            <Button name="Delete farm" highlight={false} onSubmit={() => { setDeleteError(""); setConfirmDelete(true) }} />
-                        </div>
-                    : null}
+                    <CreateFarmForm extra={overview.farmId != null ?
+                        <Button name="Delete selected farm" highlight={false} onSubmit={() => { setDeleteError(""); setConfirmDelete(true) }} />
+                    : null} />
+                   
                 </Panel>
                 <Modal open={confirmDelete} onClose={() => { if (!deleting) setConfirmDelete(false) }}>
                     <div

@@ -230,7 +230,7 @@ export default function AiAgentConfig() {
             </div>
 
             {scheduleEnabled ?
-                <div className="grid gap-4 md:grid-cols-2">
+                <div className="grid grid-cols-2 gap-3">
                     <TextBox
                         name="Frequency (minutes)"
                         value={intervalMinutes}
