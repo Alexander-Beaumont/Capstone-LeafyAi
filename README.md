@@ -56,6 +56,7 @@ The Django development runtime also starts background workers for sensor collect
 - Automatic control is restricted to fan/light on-off decisions.
 - Per-farm Powerboard configuration for the two physical Kasa strip IP addresses.
 - Kasa powerboard status and control for the six fixed logical devices.
+- Software E-Stop control for sending OFF commands to all six logical devices.
 - Recommendation/action history and input provenance.
 
 ## Technology stack
@@ -108,11 +109,12 @@ From the repository root:
 Copy-Item .env.example .env
 ```
 
-Edit `.env` before starting the system. At minimum, replace placeholder secrets such as:
+Edit `.env` before starting the system. Replace the placeholder values for the Django secret and Fernet encryption key. Configure an OpenRouter API key only if you use OpenRouter as the AI provider:
 
 ```env
 DJANGO_SECRET_KEY=...
 AI_SETTINGS_ENCRYPTION_KEY=...
+# Required when using OpenRouter; otherwise configure the chosen provider.
 OPENROUTER_API_KEY=...
 ```
 
@@ -127,7 +129,7 @@ The IP addresses in `.env.example` are the current LeafyAI Lab bootstrap default
 ### 2. Start the application
 
 ```powershell
-docker compose up --build
+docker-compose up --build
 ```
 
 The backend container automatically runs:
@@ -147,6 +149,8 @@ Admin:    http://localhost:8000/admin/
 ```
 
 Create an account from the application before using authenticated farm APIs.
+
+To stop the Docker Compose stack, run `docker-compose down` from the repository root. This stops the containers; it is not a substitute for checking the physical state of connected farm hardware.
 
 ## Environment behaviour
 
@@ -297,6 +301,12 @@ Farm-scoped state changes include `farm_id` in the JSON body. The Kasa bridge co
 
 See `backend/powerboard_control/README.md` for the detailed contract, schema and test commands.
 
+### Software E-Stop and live hardware safety
+
+The frontend E-Stop sends OFF requests for all six logical devices. In a manual Hydroponic Lab test, the operator observed all six connected devices turn off from a single E-Stop action. No screenshot or test log was retained for that run. The shutdown was not repeated once basil plants were growing, to avoid disturbing the active farm environment.
+
+This is a **software-level shutdown control**, not a certified electrical emergency-stop device or a verified persistent automation lockout. For sustained shutdown or electrical emergencies, follow the Lab's physical isolation/safety procedures and verify device state independently. Do not run disruptive live-device tests on an occupied growing farm without approval.
+
 ## Farm state
 
 `/api/farm-state/{farm_id}/` is the normalized read model used by the application and AI agent. It is assembled from persisted database records and does not directly poll hardware.
@@ -402,40 +412,40 @@ LEAFY_AI_SCHEDULER_ENABLED=false
 From the running Docker stack:
 
 ```powershell
-docker compose exec backend python manage.py check
-docker compose exec backend python manage.py test
+docker-compose exec backend python manage.py check
+docker-compose exec backend python manage.py test
 ```
 
 Focused suites:
 
 ```powershell
-docker compose exec backend python manage.py test sensor_ingest
-docker compose exec backend python manage.py test powerboard_control
-docker compose exec backend python manage.py test camera_capture
-docker compose exec backend python manage.py test ai_agent
-docker compose exec backend python manage.py test farm_state
-docker compose exec backend python manage.py test telemetry
-docker compose exec backend python manage.py test growth
+docker-compose exec backend python manage.py test sensor_ingest
+docker-compose exec backend python manage.py test powerboard_control
+docker-compose exec backend python manage.py test camera_capture
+docker-compose exec backend python manage.py test ai_agent
+docker-compose exec backend python manage.py test farm_state
+docker-compose exec backend python manage.py test telemetry
+docker-compose exec backend python manage.py test growth
 ```
 
 ### Frontend
 
 ```powershell
-docker compose exec frontend npm test -- --run
-docker compose exec frontend npm run build
-docker compose exec frontend npm run lint
+docker-compose exec frontend npm test -- --run
+docker-compose exec frontend npm run build
+docker-compose exec frontend npm run lint
 ```
 
 ### Lab sensor smoke test
 
 ```powershell
-docker compose exec backend python manage.py collect_sensors --once
+docker-compose exec backend python manage.py collect_sensors --once
 ```
 
 ### Lab camera smoke test
 
 ```powershell
-docker compose exec backend python manage.py shell -c "from camera_capture.services import build_collector; print(build_collector().process_all(force=True))"
+docker-compose exec backend python manage.py shell -c "from camera_capture.services import build_collector; print(build_collector().process_all(force=True))"
 ```
 
 ### Lab powerboard smoke test
@@ -462,7 +472,7 @@ powerboards = powerboards_for_farm(1)
 print(get_powerboard_bridge(powerboards).get_all_device_statuses())
 ```
 
-Hardware smoke tests require connection to the LeafyAI Lab network.
+Hardware smoke tests require connection to the LeafyAI Lab network. Unlike isolated automated tests, live hardware checks may contact or change real devices; coordinate any disruptive tests with the Lab operator.
 
 ## Runtime-generated files
 
@@ -490,6 +500,8 @@ The module READMEs provide additional detail for:
 - `frontend`
 
 ## Handover notes
+
+This repository describes the tested capstone Lab/development deployment. The current Docker configuration runs a Django development server and integrated background workers; the maintenance documentation records the limitations and recommended hardening for a future externally exposed production environment.
 
 - `Prototype/` is retained as project design/reference material; it is not the production frontend.
 - The `cv` app is retained only for Django migration compatibility. The original Computer Vision approach was deferred due to the limited development time and dataset requirements within the 12-week semester. For the current version, image analysis is handled by the VLM pipeline as a faster and more practical solution, while YOLOv8-based plant-level analysis remains a potential future development.
