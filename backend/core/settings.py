@@ -188,6 +188,21 @@ LEAFY_CAMERA_1_ENABLED = os.getenv(
 ).strip().lower() in {"1", "true", "yes", "on"}
 
 # ---------------------------------------------------------------------------
+# Powerboard bootstrap / legacy fallback
+# ---------------------------------------------------------------------------
+# These environment values seed the initial Lab farm once. Farm-scoped runtime
+# requests use PowerboardConfiguration from the database after it exists.
+LEAFY_POWERBOARD_1_IP = os.getenv(
+    "LEAFY_POWERBOARD_1_IP",
+    "",
+).strip()
+
+LEAFY_POWERBOARD_2_IP = os.getenv(
+    "LEAFY_POWERBOARD_2_IP",
+    "",
+).strip()
+
+# ---------------------------------------------------------------------------
 # Sensor ingestion / local physical devices
 # ---------------------------------------------------------------------------
 

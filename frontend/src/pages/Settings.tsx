@@ -9,6 +9,7 @@ import Modal from "../components/primatives/Modal"
 import AiAgentConfig from "../components/ai-agent/AiAgentConfig"
 import CameraSettingsPanel from "../components/settings/CameraSettingsPanel"
 import SensorIngestPanel from "../components/settings/SensorIngestPanel"
+import PowerboardSettingsPanel from "../components/settings/PowerboardSettingsPanel"
 import CreateFarmForm from "../components/settings/CreateFarmForm"
 import EmptyFarm from "../components/primatives/EmptyFarm"
 import { GoGear } from "react-icons/go"
@@ -20,6 +21,7 @@ const SECTIONS = [
     { id: "new-farm", name: "New farm" },
     { id: "ai-configuration", name: "AI configuration" },
     { id: "sensor-ingestion", name: "Sensor ingestion" },
+    { id: "powerboard", name: "Powerboard" },
     { id: "cameras", name: "Cameras" },
 ] as const
 
@@ -111,6 +113,7 @@ export default function Settings() {
                 </Panel>
             : null}
             {section === "sensor-ingestion" ? <SensorIngestPanel key={`ingest-${farmKey}`} /> : null}
+            {section === "powerboard" ? <PowerboardSettingsPanel key={`powerboard-${farmKey}`} /> : null}
             {section === "cameras" ? <CameraSettingsPanel key={`cameras-${farmKey}`} /> : null}
         </div>
     )

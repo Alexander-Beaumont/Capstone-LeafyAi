@@ -12,6 +12,7 @@ from ai_agent.providers import OpenAICompatibleProvider, ProviderError
 from ai_agent.scheduler import next_eligible_time, run_due_schedules, schedule_slot
 from ai_agent.serializers import AIRecommendationRunSerializer
 from ai_agent.services import RecommendationGenerationError, generate_recommendation
+from powerboard_control.models import PowerboardConfiguration
 from telemetry.models import Camera, CameraImage, Farm, FarmDevice, FarmLevel, Sensor, SensorReading
 
 
@@ -250,9 +251,9 @@ class SchedulerTests(TestCase):
 
 class ActuatorTests(TestCase):
     def setUp(self):
-        farm = Farm.objects.create(name="Hardware")
-        device = FarmDevice.objects.create(farm=farm, name="Rack")
-        run = AIRecommendationRun.objects.create(farm=farm, status="completed")
+        self.farm = Farm.objects.create(name="Hardware")
+        device = FarmDevice.objects.create(farm=self.farm, name="Rack")
+        run = AIRecommendationRun.objects.create(farm=self.farm, status="completed")
         self.decision = AIDecision.objects.create(run=run, device=device, decision_type="fan", execution_type="automated", target_device="fans", device_state="on", category="climate", recommendation="Fan on", explanation="Hot", confidence_score="0.90")
 
     @patch("ai_agent.actuators.get_powerboard_bridge")
@@ -265,6 +266,26 @@ class ActuatorTests(TestCase):
         action = FarmAction.objects.get()
         self.assertEqual(action.powerboard_device_ids, [4])
         self.assertEqual((action.previous_state, action.confirmed_state, action.result), ("off", "on", "success"))
+
+    @patch("ai_agent.actuators.get_powerboard_bridge")
+    def test_automatic_action_uses_decision_farm_powerboard_configuration(self, bridge_factory):
+        PowerboardConfiguration.objects.create(
+            farm=self.farm,
+            powerboard_1_ip="192.168.1.202",
+            powerboard_2_ip="192.168.1.203",
+        )
+        bridge = bridge_factory.return_value
+        bridge.get_all_device_statuses.return_value = [{"device_id": 4, "state": "OFF"}]
+        bridge.set_device_state.return_value = {"device_id": 4, "state": "ON"}
+
+        execute_decision(self.decision)
+
+        bridge_factory.assert_called_once_with(
+            {
+                "board_1": {"ip": "192.168.1.202"},
+                "board_2": {"ip": "192.168.1.203"},
+            }
+        )
 
     @patch("ai_agent.actuators.get_powerboard_bridge")
     def test_light_uses_grouped_current_powerboard_operation(self, bridge_factory):

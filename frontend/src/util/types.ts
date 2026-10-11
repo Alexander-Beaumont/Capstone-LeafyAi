@@ -590,3 +590,15 @@ export interface ProviderTestResult {
 }
 
 export type ProviderTestRole = "llm" | "vlm"
+
+export interface PowerboardConfiguration {
+    farm_id: number
+    powerboard_1_ip: string | null
+    powerboard_2_ip: string | null
+    updated_at: string
+}
+
+export interface PowerboardConfigurationPatch {
+    powerboard_1_ip?: string | null
+    powerboard_2_ip?: string | null
+}

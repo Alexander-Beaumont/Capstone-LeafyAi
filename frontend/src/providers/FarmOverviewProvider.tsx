@@ -115,7 +115,7 @@ export default function FarmOverviewProvider({ children }: Props) {
                 // slow hardware-facing API does not serialize the whole refresh.
                 const [state, board, dash, ingest] = await Promise.all([
                     getFarmState(user.accessToken, selected.id),
-                    getDevices(user.accessToken),
+                    getDevices(user.accessToken, selected.id),
                     getFarmDashboard(user.accessToken, selected.id),
                     getSensorIngest(user.accessToken, selected.id),
                 ])

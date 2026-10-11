@@ -54,7 +54,9 @@ The Django development runtime also starts background workers for sensor collect
 - Sensor-only LLM recommendations and camera + sensor VLM recommendations.
 - Safety checks before an automated action is allowed.
 - Automatic control is restricted to fan/light on-off decisions.
-- Kasa powerboard status and control for the six configured logical devices.
+- Per-farm Powerboard configuration for the two physical Kasa strip IP addresses.
+- Kasa powerboard status and control for the six fixed logical devices.
+- Software E-Stop control for sending OFF commands to all six logical devices.
 - Recommendation/action history and input provenance.
 
 ## Technology stack
@@ -107,11 +109,12 @@ From the repository root:
 Copy-Item .env.example .env
 ```
 
-Edit `.env` before starting the system. At minimum, replace placeholder secrets such as:
+Edit `.env` before starting the system. Replace the placeholder values for the Django secret and Fernet encryption key. Configure an OpenRouter API key only if you use OpenRouter as the AI provider:
 
 ```env
 DJANGO_SECRET_KEY=...
 AI_SETTINGS_ENCRYPTION_KEY=...
+# Required when using OpenRouter; otherwise configure the chosen provider.
 OPENROUTER_API_KEY=...
 ```
 
@@ -121,12 +124,12 @@ Generate a Fernet key for `AI_SETTINGS_ENCRYPTION_KEY` with:
 python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
 ```
 
-The IP addresses in `.env.example` are the current LeafyAI Lab defaults and should be changed if the physical hardware changes.
+The IP addresses in `.env.example` are the current LeafyAI Lab bootstrap defaults. For Sensor/Powerboard configuration, once a database row exists, change the runtime setting through the application/API rather than expecting a later `.env` edit to overwrite that row.
 
 ### 2. Start the application
 
 ```powershell
-docker compose up --build
+docker-compose up --build
 ```
 
 The backend container automatically runs:
@@ -147,6 +150,8 @@ Admin:    http://localhost:8000/admin/
 
 Create an account from the application before using authenticated farm APIs.
 
+To stop the Docker Compose stack, run `docker-compose down` from the repository root. This stops the containers; it is not a substitute for checking the physical state of connected farm hardware.
+
 ## Environment behaviour
 
 Docker Compose reads the repository-root `.env` file.
@@ -162,7 +167,7 @@ The recommended handover/development workflow remains:
     -> keep .env out of Git
 ```
 
-Per-farm AI settings stored in the database are authoritative for normal recommendation runs.
+Per-farm AI, sensor-ingestion and Powerboard settings stored in the database are authoritative for their normal farm-scoped runtime paths. Environment hardware values are bootstrap/development defaults rather than values that should overwrite farmer edits.
 
 ## Farm creation and provisioning
 
@@ -188,7 +193,7 @@ Farm
     └── Farm Level 2
 ```
 
-Sensor endpoints and camera details can then be configured for that farm/controller through the application.
+Sensor endpoints, camera details and the two Powerboard IP addresses can then be configured for that farm through the application. New farms do not inherit the Lab Powerboard IPs.
 
 ## Sensor ingestion
 
@@ -239,14 +244,25 @@ See `backend/camera_capture/README.md`.
 
 ## Powerboard control
 
-The current powerboard integration uses two Kasa strips configured from environment variables:
+Each farm can store the IP addresses of its own two physical Kasa strips in the database. The Lab addresses remain in `.env.example` only as first-bootstrap defaults and a backwards-compatible fallback for device calls that omit `farm_id`:
 
 ```env
 LEAFY_POWERBOARD_1_IP=192.168.1.102
 LEAFY_POWERBOARD_2_IP=192.168.1.101
 ```
 
-Current logical device mapping:
+`bootstrap_leafy` seeds the initial Lab farm with those values only if that farm does not already have a `PowerboardConfiguration` row. It uses the same `get_or_create(..., defaults=...)` pattern as sensor ingestion, so Powerboard IPs changed later from the UI survive backend/container restarts. New farms do not inherit the Lab IPs.
+
+Database relationship:
+
+```text
+Farm 1 ─── 0..1 PowerboardConfiguration
+                 ├── powerboard_1_ip
+                 ├── powerboard_2_ip
+                 └── updated_at
+```
+
+The fixed logical outlet mapping is unchanged across farms:
 
 | ID | Device | Board | Child |
 | ---: | --- | --- | ---: |
@@ -257,14 +273,39 @@ Current logical device mapping:
 | 5 | Light Level 1 | board 2 | 1 |
 | 6 | Light Level 2 | board 2 | 2 |
 
-The operator API is:
+Farm configuration API:
+
+```text
+GET   /api/farms/{farm_id}/powerboard-config/
+PATCH /api/farms/{farm_id}/powerboard-config/
+```
+
+Example PATCH body:
+
+```json
+{
+  "powerboard_1_ip": "192.168.1.102",
+  "powerboard_2_ip": "192.168.1.101"
+}
+```
+
+Hardware status/control API remains backwards compatible:
 
 ```text
 GET  /api/devices/
+GET  /api/devices/?farm_id={farm_id}
 POST /api/devices/{device_id}/state/
 ```
 
-The Kasa bridge confirms physical state before returning a successful state change.
+Farm-scoped state changes include `farm_id` in the JSON body. The Kasa bridge confirms physical state before returning a successful state change. Automatic AI fan/light actions also resolve the Powerboard configuration from the recommendation run's farm; an unconfigured farm fails as `NOT_CONFIGURED` rather than falling back to another farm's strips.
+
+See `backend/powerboard_control/README.md` for the detailed contract, schema and test commands.
+
+### Software E-Stop and live hardware safety
+
+The frontend E-Stop sends OFF requests for all six logical devices. In a manual Hydroponic Lab test, the operator observed all six connected devices turn off from a single E-Stop action. No screenshot or test log was retained for that run. The shutdown was not repeated once basil plants were growing, to avoid disturbing the active farm environment.
+
+This is a **software-level shutdown control**, not a certified electrical emergency-stop device or a verified persistent automation lockout. For sustained shutdown or electrical emergencies, follow the Lab's physical isolation/safety procedures and verify device state independently. Do not run disruptive live-device tests on an occupied growing farm without approval.
 
 ## Farm state
 
@@ -332,7 +373,7 @@ Physical plant movement remains a human operation; the database movement records
 | Camera images | `/api/farms/{farm_id}/camera-images/` |
 | Growth | `/api/growing-areas`, `/api/batches`, `/api/move-batch`, `/api/create-batch` |
 | AI settings/runs | `/api/ai-agent/farms/{farm_id}/...` |
-| Powerboards | `/api/devices/`, `/api/devices/{device_id}/state/` |
+| Powerboards | `/api/farms/{farm_id}/powerboard-config/`, `/api/devices/`, `/api/devices/{device_id}/state/` |
 
 Most application APIs require a JWT access token.
 
@@ -371,57 +412,67 @@ LEAFY_AI_SCHEDULER_ENABLED=false
 From the running Docker stack:
 
 ```powershell
-docker compose exec backend python manage.py check
-docker compose exec backend python manage.py test
+docker-compose exec backend python manage.py check
+docker-compose exec backend python manage.py test
 ```
 
 Focused suites:
 
 ```powershell
-docker compose exec backend python manage.py test sensor_ingest
-docker compose exec backend python manage.py test camera_capture
-docker compose exec backend python manage.py test ai_agent
-docker compose exec backend python manage.py test farm_state
-docker compose exec backend python manage.py test telemetry
-docker compose exec backend python manage.py test growth
+docker-compose exec backend python manage.py test sensor_ingest
+docker-compose exec backend python manage.py test powerboard_control
+docker-compose exec backend python manage.py test camera_capture
+docker-compose exec backend python manage.py test ai_agent
+docker-compose exec backend python manage.py test farm_state
+docker-compose exec backend python manage.py test telemetry
+docker-compose exec backend python manage.py test growth
 ```
 
 ### Frontend
 
 ```powershell
-docker compose exec frontend npm test -- --run
-docker compose exec frontend npm run build
-docker compose exec frontend npm run lint
+docker-compose exec frontend npm test -- --run
+docker-compose exec frontend npm run build
+docker-compose exec frontend npm run lint
 ```
 
 ### Lab sensor smoke test
 
 ```powershell
-docker compose exec backend python manage.py collect_sensors --once
+docker-compose exec backend python manage.py collect_sensors --once
 ```
 
 ### Lab camera smoke test
 
 ```powershell
-docker compose exec backend python manage.py shell -c "from camera_capture.services import build_collector; print(build_collector().process_all(force=True))"
+docker-compose exec backend python manage.py shell -c "from camera_capture.services import build_collector; print(build_collector().process_all(force=True))"
 ```
 
 ### Lab powerboard smoke test
 
-The active runtime path can be checked through the API:
+For the bootstrap/default legacy path:
 
 ```text
 GET /api/devices/
 ```
 
-or from the Django shell:
+For the normal farm-scoped path:
+
+```text
+GET /api/devices/?farm_id=1
+```
+
+Or from the Django shell:
 
 ```python
 from powerboard_control.bridge import get_powerboard_bridge
-print(get_powerboard_bridge().get_all_device_statuses())
+from powerboard_control.runtime_config import powerboards_for_farm
+
+powerboards = powerboards_for_farm(1)
+print(get_powerboard_bridge(powerboards).get_all_device_statuses())
 ```
 
-Hardware smoke tests require connection to the LeafyAI Lab network.
+Hardware smoke tests require connection to the LeafyAI Lab network. Unlike isolated automated tests, live hardware checks may contact or change real devices; coordinate any disruptive tests with the Lab operator.
 
 ## Runtime-generated files
 
@@ -445,12 +496,15 @@ The module READMEs provide additional detail for:
 
 - `backend/sensor_ingest`
 - `backend/camera_capture`
+- `backend/powerboard_control`
 - `frontend`
 
 ## Handover notes
 
+This repository describes the tested capstone Lab/development deployment. The current Docker configuration runs a Django development server and integrated background workers; the maintenance documentation records the limitations and recommended hardening for a future externally exposed production environment.
+
 - `Prototype/` is retained as project design/reference material; it is not the production frontend.
-- `backend/cv/` remains installed for migration compatibility and is not the active plant-analysis pipeline.
-- Physical hardware IPs in `.env.example` are Lab defaults, not public addresses.
+- The `cv` app is retained only for Django migration compatibility. The original Computer Vision approach was deferred due to the limited development time and dataset requirements within the 12-week semester. For the current version, image analysis is handled by the VLM pipeline as a faster and more practical solution, while YOLOv8-based plant-level analysis remains a potential future development.
+- Physical hardware IPs in `.env.example` are Lab defaults, not public addresses. Sensor/Powerboard database settings remain authoritative after their first bootstrap.
 - Camera capture performs technical image checks; plant interpretation is performed downstream by the VLM/AI Agent.
 - Current automated AI hardware control is limited to fan/light actions that pass the safety layer.
